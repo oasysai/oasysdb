@@ -1,3 +1,4 @@
+use super::ErrorResponse;
 use serde_json::{from_str, to_string};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -37,31 +38,34 @@ impl Server {
     async fn handle_connection(&self, mut stream: TcpStream) {
         loop {
             // Read data from the client.
-            let mut buf = vec![0; 1024];
-            let n = match stream.read(&mut buf).await {
-                Ok(n) => n,
-                Err(e) => {
-                    println!("ReadError: {}", e);
-                    return;
-                }
-            };
+            let data = self._read(&mut stream).await;
 
             // When the client disconnects.
-            if n == 0 {
+            if data.is_empty() {
                 break;
             }
 
             // Parse the request body.
-            let data = String::from_utf8_lossy(&buf[0..n]);
             let json: RequestBody = from_str(&data).unwrap();
 
-            // TODO: Add error handling for missing keys.
+            // Handle missing command key.
+            if json.get("command") == None {
+                let _code = "command_required";
+                let _msg = "The command key is missing.";
+                let _err = ErrorResponse::new(_code, _msg).response();
+                self._write(&mut stream, &_err).await;
+                continue;
+            }
+
+            // Normalize the command to lowercase.
             let command = json.get("command").unwrap().to_lowercase();
 
             // Create unrecognized command error.
-            let mut _err = HashMap::new();
-            _err.insert("status", "unrecognized_command");
-            let error = to_string(&_err).unwrap();
+            let error = {
+                let code = "unrecognized_command";
+                let msg = format!("Unrecognized command: {}.", command);
+                ErrorResponse::new(code, &msg).response()
+            };
 
             // Handle the command for the response.
             let response = match command.as_str() {
@@ -71,17 +75,18 @@ impl Server {
             };
 
             // Write the data back to the client.
-            match stream.write_all(response.as_bytes()).await {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("WriteError: {}", e);
-                    return;
-                }
-            }
+            self._write(&mut stream, &response).await;
         }
     }
 
     async fn handle_set(&self, json: RequestBody) -> String {
+        // Validate that the key and value are present.
+        if json.get("key") == None || json.get("value") == None {
+            let _code = "key_value_required";
+            let _msg = "The key or value is missing.";
+            return ErrorResponse::new(_code, _msg).response();
+        }
+
         // Get the key and value from the request body.
         let key = json.get("key").unwrap().to_string();
         let value = json.get("value").unwrap().to_string();
@@ -97,17 +102,50 @@ impl Server {
     }
 
     async fn handle_get(&self, json: RequestBody) -> String {
-        // TODO: Add error handling for missing keys.
+        // Validate that the key is present.
+        if json.get("key") == None {
+            let _code = "key_required";
+            let _msg = "The key is missing.";
+            return ErrorResponse::new(_code, _msg).response();
+        }
+
         let key = json.get("key").unwrap().to_string();
 
         // Get the value from the database.
-        // TODO: Add error handling when value not found.
-        let value = self.kv.lock().unwrap().get(&key).unwrap().to_string();
+        let kv = self.kv.lock().unwrap();
+        let value = kv.get(&key);
+
+        // Error handling when value not found.
+        if value.is_none() {
+            let _code = "value_not_found";
+            let _msg = "No value set for this key";
+            return ErrorResponse::new(_code, _msg).response();
+        }
 
         // Create a map for the response.
         let mut map = HashMap::new();
-        map.insert(key, value);
+        map.insert(key, value.unwrap().to_string());
 
         to_string(&map).unwrap()
+    }
+
+    async fn _read(&self, stream: &mut TcpStream) -> String {
+        let mut buf = vec![0; 1024];
+        let n = match stream.read(&mut buf).await {
+            Ok(n) => n,
+            Err(e) => {
+                println!("ReadError: {}", e);
+                return String::new();
+            }
+        };
+
+        String::from_utf8_lossy(&buf[0..n]).to_string()
+    }
+
+    async fn _write(&self, stream: &mut TcpStream, data: &str) {
+        match stream.write_all(data.as_bytes()).await {
+            Ok(_) => (),
+            Err(e) => println!("WriteError: {}", e),
+        }
     }
 }
