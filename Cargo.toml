@@ -4,6 +4,11 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-serde = { version = "1.0" }
-serde_json = { version = "1.0" }
+# Async runtime.
 tokio = { version = "1", features = ["full"] }
+
+# Tools.
+http = "1.0.0"
+httparse = "1.8.0"
+serde = "1.0"
+serde_json = "1.0"

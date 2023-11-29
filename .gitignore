@@ -1,2 +1,6 @@
 # Rust stuff.
-/target
+debug
+target
+
+# Misc.
+.vscode
