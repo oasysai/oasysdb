@@ -1,4 +1,5 @@
 use http::Response;
+use serde_json::Value as RequestBody;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -13,23 +14,34 @@ struct Request {
     pub method: String,
     pub route: String,
     pub headers: RequestHeaders,
-    pub body: String,
+    pub body: RequestBody,
+}
+
+// This type will be used to serialize the response body.
+type ResponseBody = HashMap<&'static str, &'static str>;
+
+// This is the data structure that will be stored in
+// the key-value store as the value.
+#[derive(Serialize, Deserialize, Debug)]
+struct Value {
+    embedding: Vec<f32>,
+    data: HashMap<String, String>,
 }
 
 // Use Arc and Mutex to share the key-value store
 // across threads while ensuring exclusive access.
-type KeyValue = Arc<Mutex<HashMap<String, String>>>;
+type KeyValue = Arc<Mutex<HashMap<String, Value>>>;
 
 pub struct Server {
     addr: SocketAddr,
-    kv: KeyValue,
+    kvs: KeyValue,
 }
 
 impl Server {
     pub async fn new(host: &str, port: &str) -> Server {
         let addr = format!("{}:{}", host, port).parse().unwrap();
-        let kv = Arc::new(Mutex::new(HashMap::new()));
-        Server { addr, kv }
+        let kvs = Arc::new(Mutex::new(HashMap::new()));
+        Server { addr, kvs }
     }
 
     pub async fn serve(&self) {
@@ -49,19 +61,25 @@ impl Server {
             // Read request from the client.
             let _req = self._read(&mut stream).await;
 
-            // Handle disconnection.
+            // Handle disconnection or invalid request.
+            // Return invalid request response.
             if _req.is_none() {
+                let mut _res_body = HashMap::new();
+                _res_body.insert("error", "Invalid request.");
+                let res: Response<String> = self._create_res(400, Some(_res_body));
+                self._write(&mut stream, res).await;
                 break;
             }
 
             // Unwrap the data.
             let req: &Request = _req.as_ref().unwrap();
-            let method = req.method.clone();
             let route = req.route.clone();
 
+            // Get response based on different routes and methods.
             let response = match route.as_str() {
-                "/" => self._handle_root(&method),
-                "/version" => self._handle_version(&method),
+                "/" => self._handle_root(req),
+                "/version" => self._handle_version(req),
+                _ if route.starts_with("/kvs") => self._handle_kvs(req),
                 _ => self._get_not_found_res(),
             };
 
@@ -75,16 +93,23 @@ impl Server {
     // They are called by the handle_connection method.
     // Use format: _handle_<route> for naming.
 
-    fn _handle_root(&self, method: &str) -> Response<String> {
-        match method {
+    fn _handle_root(&self, request: &Request) -> Response<String> {
+        match request.method.as_str() {
             "get" => self._get_root(),
             _ => self._get_not_allowed_res(),
         }
     }
 
-    fn _handle_version(&self, method: &str) -> Response<String> {
-        match method {
+    fn _handle_version(&self, request: &Request) -> Response<String> {
+        match request.method.as_str() {
             "get" => self._get_version(),
+            _ => self._get_not_allowed_res(),
+        }
+    }
+
+    fn _handle_kvs(&self, request: &Request) -> Response<String> {
+        match request.method.as_str() {
+            "post" => self._post_kvs(request.body.clone()),
             _ => self._get_not_allowed_res(),
         }
     }
@@ -95,14 +120,9 @@ impl Server {
     // Use format: _<method>_<route> for naming.
 
     fn _get_root(&self) -> Response<String> {
-        // Create a HashMap to store the status.
         let mut map = HashMap::new();
         map.insert("status", "ok");
-
-        Response::builder()
-            .status(200)
-            .body(serde_json::to_string(&map).unwrap())
-            .unwrap()
+        self._create_res(200, Some(map))
     }
 
     fn _get_version(&self) -> Response<String> {
@@ -113,10 +133,51 @@ impl Server {
         let mut map = HashMap::new();
         map.insert("version", ver);
 
-        Response::builder()
-            .status(200)
-            .body(serde_json::to_string(&map).unwrap())
-            .unwrap()
+        self._create_res(200, Some(map))
+    }
+
+    fn _post_kvs(&self, request_body: RequestBody) -> Response<String> {
+        // If request body is missing key or value.
+        if request_body.get("key").is_none() || request_body.get("value").is_none() {
+            let mut _map = HashMap::new();
+            _map.insert("error", "Both key and value are required.");
+            return self._create_res(400, Some(_map));
+        }
+
+        // Get the key from request body.
+        // Validate that key is string.
+        let key: String = match request_body["key"].as_str() {
+            Some(key) => key.to_string(),
+            None => {
+                let mut _map = HashMap::new();
+                _map.insert("error", "The key must be a string.");
+                return self._create_res(400, Some(_map));
+            }
+        };
+
+        // Get the value from request body.
+        // Validate that value is a Value struct.
+        let value: Value = match serde_json::from_value(request_body["value"].clone()) {
+            Ok(value) => value,
+            Err(_) => {
+                let mut _map = HashMap::new();
+                let msg = "The value provided is invalid.";
+                _map.insert("error", msg);
+                return self._create_res(400, Some(_map));
+            }
+        };
+
+        // Insert the key-value pair into the key-value store.
+        let mut kvs = self.kvs.lock().unwrap();
+        kvs.insert(key, value);
+
+        // Serialize value as string for the response.
+        let body = {
+            let _val: Value = serde_json::from_value(request_body["value"].clone()).unwrap();
+            serde_json::to_string(&_val).unwrap()
+        };
+
+        Response::builder().status(201).body(body).unwrap()
     }
 
     // Stream utilities.
@@ -155,20 +216,34 @@ impl Server {
             .unwrap_or(0);
 
         // Parse the request body.
-        let body = if _content_len > 0 {
+        // By default, the body is an empty map, not None.
+        let _body = if _content_len > 0 {
             let _buf = String::from_utf8_lossy(&buf);
             let _parts = _buf.split_once("\r\n\r\n").unwrap();
             _parts.1.replace("\0", "").clone()
         } else {
-            String::new()
+            // Create an empty body.
+            "{}".to_string()
         };
+
+        // Try to parse the body. If fail, return None.
+        // This will guard against invalid JSON.
+        let body: Option<RequestBody> = match serde_json::from_str(&_body) {
+            Ok(body) => body,
+            Err(_) => None,
+        };
+
+        // Returning None will cause the connection to close.
+        if body.is_none() {
+            return None;
+        }
 
         // Return request data.
         let data = Some(Request {
             method: _req.method.unwrap().to_lowercase(),
             route: _req.path.unwrap().to_string(),
-            headers,
-            body,
+            headers: headers,
+            body: body.unwrap(),
         });
 
         data
@@ -197,19 +272,28 @@ impl Server {
     // Prefix the function name _get or _create.
     // Suffixed the function name with _res.
 
-    fn _create_blank_res(&self, code: u16) -> Response<String> {
+    fn _create_res(&self, code: u16, body: Option<ResponseBody>) -> Response<String> {
+        // Check MDN for a list of status codes.
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
         let code = http::StatusCode::from_u16(code).unwrap();
-        Response::builder()
-            .status(code)
-            .body("{}".to_string())
-            .unwrap()
+
+        // Serialize the body if provided.
+        let _body = if !body.is_none() {
+            serde_json::to_string(&body.unwrap()).unwrap()
+        } else {
+            // Default to an empty object.
+            "{}".to_string()
+        };
+
+        // Return the response.
+        Response::builder().status(code).body(_body).unwrap()
     }
 
     fn _get_not_allowed_res(&self) -> Response<String> {
-        self._create_blank_res(405)
+        self._create_res(405, None)
     }
 
     fn _get_not_found_res(&self) -> Response<String> {
-        self._create_blank_res(404)
+        self._create_res(404, None)
     }
 }
