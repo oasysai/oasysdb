@@ -2,12 +2,21 @@ mod common;
 
 use common::*;
 
+// Test server host.
+const HOST: &str = "http://127.0.0.1";
+
+// JSON body to create a new key-value store.
+const CREATE_KVS: &str = r#"{
+    "key": "test_key",
+    "value": {"embedding": [0.0], "data": {}}
+}"#;
+
 #[tokio::test]
 async fn test_get_root() {
-    let runtime = run_server().await;
+    let (runtime, port) = run_server().await;
 
     // Make a GET request to the root.
-    let url = format!("http://{}:{}", HOST, PORT);
+    let url = format!("{}:{}", HOST, port);
     let res = reqwest::get(url).await.unwrap();
 
     // Assert the response.
@@ -18,19 +27,12 @@ async fn test_get_root() {
 
 #[tokio::test]
 async fn test_post_kvs() {
-    let runtime = run_server().await;
-
-    let url = format!("http://{}:{}/kvs", HOST, PORT);
-
-    // Create raw JSON string for the body.
-    let json = r#"{
-        "key": "test_key",
-        "value": {"embedding": [0.0], "data": {}}
-    }"#;
+    let (runtime, port) = run_server().await;
 
     // Make a post request.
+    let url = format!("{}:{}/kvs", HOST, port);
     let client = reqwest::Client::new();
-    let res = client.post(&url).body(json).send().await;
+    let res = client.post(&url).body(CREATE_KVS).send().await;
 
     // Get the response code.
     let code = if res.is_ok() {

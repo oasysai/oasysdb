@@ -1,22 +1,27 @@
 use oasysdb::db::server::Server;
 use tokio::runtime::Runtime;
 
-// The host and port to bind to for testing.
-pub const HOST: &str = "127.0.0.1";
-pub const PORT: &str = "31415";
-
-pub async fn run_server() -> Runtime {
+pub async fn run_server() -> (Runtime, String) {
     // Create a new Tokio runtime.
     // This runtime will be used by the server.
     let runtime = Runtime::new().unwrap();
 
+    // Generate a random port: 314xx.
+    // This is needed to run multiple tests in parallel and
+    // prevent connection reset error when testing.
+    let random_number = rand::random::<u16>() % 100 + 31400;
+    let port = random_number.to_string();
+    let _port = port.clone();
+
     // Start the server in the runtime.
     runtime.spawn(async move {
-        let server = Server::new(HOST, PORT).await;
+        let server = Server::new("127.0.0.1", _port.as_str()).await;
         server.serve().await;
     });
 
-    runtime
+    // Use runtime as a handle to stop the server.
+    // Use port to make requests to the server.
+    (runtime, port)
 }
 
 pub async fn stop_server(runtime: Runtime) {
