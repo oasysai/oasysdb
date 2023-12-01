@@ -60,3 +60,25 @@ async fn test_get_kvs() {
 
     com::stop_server(runtime).await;
 }
+
+#[tokio::test]
+async fn test_delete_kvs() {
+    let (runtime, port) = com::run_server().await;
+
+    // Delete the key-value store.
+    let url = format!("{}:{}/kvs/initial_key", HOST, port);
+    let client = reqwest::Client::new();
+    let res = client.delete(&url).send().await;
+
+    // Get the response code.
+    let code = if res.is_ok() {
+        res.unwrap().status().as_u16()
+    } else {
+        500
+    };
+
+    // Assert the response code.
+    assert_eq!(code, 204);
+
+    com::stop_server(runtime).await;
+}

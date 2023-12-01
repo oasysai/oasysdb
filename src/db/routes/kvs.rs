@@ -7,6 +7,7 @@ pub fn handler(server: &db::Server, request: &req::Request) -> res::Response<Str
     match request.method.as_str() {
         "get" => get_key(server, request.route.clone()),
         "post" => post(server, request.body.clone()),
+        "delete" => delete(server, request.route.clone()),
         _ => res::get_not_allowed_response(),
     }
 }
@@ -84,4 +85,23 @@ fn post(server: &db::Server, request_body: req::RequestBody) -> res::Response<St
     };
 
     res::Response::builder().status(201).body(body).unwrap()
+}
+
+fn delete(server: &db::Server, route: String) -> res::Response<String> {
+    // Get the key from the route.
+    let route_parts: Vec<&str> = route.split("/").collect();
+    let key = route_parts.last().unwrap().to_string();
+
+    // If key is empty, return 400 with error message.
+    if key.is_empty() || route_parts.len() < 3 {
+        let mut _map = HashMap::new();
+        _map.insert("error", "The key is missing.");
+        return res::create_response(400, Some(_map));
+    }
+
+    // Delete the key-value pair from the store.
+    server.delete(key.clone());
+
+    // Return empty success response.
+    res::create_response(204, None)
 }

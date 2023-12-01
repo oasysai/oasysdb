@@ -94,4 +94,9 @@ impl Server {
         let mut kvs = self.kvs.lock().unwrap();
         kvs.insert(key, value);
     }
+
+    pub fn delete(&self, key: String) {
+        let mut kvs = self.kvs.lock().unwrap();
+        kvs.remove(&key);
+    }
 }
