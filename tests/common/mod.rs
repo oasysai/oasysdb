@@ -1,4 +1,5 @@
-use oasysdb::db::server::Server;
+use oasysdb::db::server::{Server, Value};
+use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 pub async fn run_server() -> (Runtime, String) {
@@ -16,6 +17,17 @@ pub async fn run_server() -> (Runtime, String) {
     // Start the server in the runtime.
     runtime.spawn(async move {
         let server = Server::new("127.0.0.1", _port.as_str()).await;
+
+        // Define the initial key value.
+        let value = Value {
+            embedding: vec![0.0, 0.0, 0.0],
+            data: HashMap::new(),
+        };
+
+        // Add initial key-value stores.
+        server.set("initial_key".to_string(), value);
+
+        // Start the server.
         server.serve().await;
     });
 

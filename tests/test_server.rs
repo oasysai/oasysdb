@@ -46,3 +46,17 @@ async fn test_post_kvs() {
 
     stop_server(runtime).await;
 }
+
+#[tokio::test]
+async fn test_get_kvs() {
+    let (runtime, port) = run_server().await;
+
+    // Get the key-value store.
+    let url = format!("{}:{}/kvs/initial_key", HOST, port);
+    let res = reqwest::get(url).await.unwrap();
+
+    // Assert the response code.
+    assert_eq!(res.status(), 200);
+
+    stop_server(runtime).await;
+}
