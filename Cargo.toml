@@ -8,8 +8,12 @@ edition = "2021"
 tokio = { version = "1", features = ["full"] }
 
 # Tools.
+# HTTP stuff.
 http = "1.0.0"
 httparse = "1.8.0"
+reqwest = "0.11.22"
+
+# Serialization.
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0.193"
