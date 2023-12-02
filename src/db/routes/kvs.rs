@@ -3,7 +3,7 @@ use crate::db::utils::request as req;
 use crate::db::utils::response as res;
 use std::collections::HashMap;
 
-pub fn handler(server: &db::Server, request: &req::Request) -> res::Response<String> {
+pub fn handler(server: &mut db::Server, request: &req::Request) -> res::Response<String> {
     match request.method.as_str() {
         "get" => get_key(server, request.route.clone()),
         "post" => post(server, request.body.clone()),
@@ -44,7 +44,7 @@ fn get_key(server: &db::Server, route: String) -> res::Response<String> {
     res::Response::builder().status(200).body(body).unwrap()
 }
 
-fn post(server: &db::Server, request_body: req::RequestBody) -> res::Response<String> {
+fn post(server: &mut db::Server, request_body: req::RequestBody) -> res::Response<String> {
     // If request body is missing key or value.
     if request_body.get("key").is_none() || request_body.get("value").is_none() {
         let mut _map = HashMap::new();
@@ -76,7 +76,16 @@ fn post(server: &db::Server, request_body: req::RequestBody) -> res::Response<St
     };
 
     // Insert the key-value pair into the key-value store.
-    server.set(key, value);
+    let result = server.set(key, value);
+
+    // If result is Err, return 400 with error message.
+    if result.is_err() {
+        let message = result.err().unwrap().to_owned();
+        let mut _map = HashMap::new();
+        _map.insert("error", message.as_str());
+        let _body = serde_json::to_string(&_map).unwrap();
+        return res::Response::builder().status(400).body(_body).unwrap();
+    }
 
     // Serialize value as string for the response.
     let body = {

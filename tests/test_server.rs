@@ -8,7 +8,7 @@ const HOST: &str = "http://127.0.0.1";
 // JSON body to create a new key-value store.
 const CREATE_KVS: &str = r#"{
     "key": "test_key",
-    "value": {"embedding": [0.0], "data": {}}
+    "value": {"embedding": [0.0, 0.0, 0.0], "data": {}}
 }"#;
 
 #[tokio::test]

@@ -11,12 +11,18 @@ pub async fn run_server() -> (Runtime, String) {
     // This is needed to run multiple tests in parallel and
     // prevent connection reset error when testing.
     let random_number = rand::random::<u16>() % 100 + 31400;
-    let port = random_number.to_string();
-    let _port = port.clone();
+    let _port = random_number.to_string();
+    let port = _port.clone();
 
     // Start the server in the runtime.
     runtime.spawn(async move {
-        let server = Server::new("127.0.0.1", _port.as_str()).await;
+        // Server parameters.
+        let host = "127.0.0.1";
+        let port = port.as_str();
+        let dimension = 3;
+
+        // Create a new server.
+        let mut server = Server::new(host, port, dimension).await;
 
         // Define the initial key value.
         let value = Value {
@@ -25,7 +31,7 @@ pub async fn run_server() -> (Runtime, String) {
         };
 
         // Add initial key-value stores.
-        server.set("initial_key".to_string(), value);
+        server.set("initial_key".to_string(), value).unwrap();
 
         // Start the server.
         server.serve().await;
@@ -33,7 +39,7 @@ pub async fn run_server() -> (Runtime, String) {
 
     // Use runtime as a handle to stop the server.
     // Use port to make requests to the server.
-    (runtime, port)
+    (runtime, _port)
 }
 
 pub async fn stop_server(runtime: Runtime) {
