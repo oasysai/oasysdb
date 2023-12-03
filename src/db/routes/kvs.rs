@@ -1,14 +1,16 @@
 use crate::db::server as db;
 use crate::db::utils::request as req;
 use crate::db::utils::response as res;
-use std::collections::HashMap;
 
 pub fn handler(server: &mut db::Server, request: &req::Request) -> res::Response<String> {
+    let route = request.route.clone();
+    let body = request.body.clone();
+
     match request.method.as_str() {
-        "get" => get_key(server, request.route.clone()),
-        "post" => post(server, request.body.clone()),
-        "delete" => delete(server, request.route.clone()),
-        _ => res::get_not_allowed_response(),
+        "get" => get_key(server, route),
+        "post" => post(server, body),
+        "delete" => delete(server, route),
+        _ => res::get_405_response(),
     }
 }
 
@@ -19,20 +21,17 @@ fn get_key(server: &db::Server, route: String) -> res::Response<String> {
 
     // If key is empty, return 400 with error message.
     if key.is_empty() || route_parts.len() < 3 {
-        let mut _map = HashMap::new();
-        _map.insert("error", "The key is required.");
-        return res::create_response(400, Some(_map));
+        let message = "The key is required.";
+        return res::get_error_response(400, message);
     }
 
     // Get the value from the key-value store.
     let value = server.get(key.clone());
 
     // If value is None, return 404 with error message.
-    if value.is_none() {
-        let mut _map = HashMap::new();
-        let msg = "The value is not found.";
-        _map.insert("error", msg);
-        return res::create_response(404, Some(_map));
+    if value.is_err() {
+        let message = value.err().unwrap();
+        return res::get_error_response(404, message);
     }
 
     // Serialize value as string for the response.
@@ -41,37 +40,34 @@ fn get_key(server: &db::Server, route: String) -> res::Response<String> {
         serde_json::to_string(&_val).unwrap()
     };
 
-    res::Response::builder().status(200).body(body).unwrap()
+    res::create_response(200, Some(body))
 }
 
-fn post(server: &mut db::Server, request_body: req::RequestBody) -> res::Response<String> {
+fn post(server: &mut db::Server, body: req::RequestBody) -> res::Response<String> {
     // If request body is missing key or value.
-    if request_body.get("key").is_none() || request_body.get("value").is_none() {
-        let mut _map = HashMap::new();
-        _map.insert("error", "Both key and value are required.");
-        return res::create_response(400, Some(_map));
+    if body.get("key").is_none() || body.get("value").is_none() {
+        let message = "Both key and value are required.";
+        return res::get_error_response(400, message);
     }
 
     // Get the key from request body.
     // Validate that key is string.
-    let key: String = match request_body["key"].as_str() {
+    let key: String = match body["key"].as_str() {
         Some(key) => key.to_string(),
         None => {
-            let mut _map = HashMap::new();
-            _map.insert("error", "The key must be a string.");
-            return res::create_response(400, Some(_map));
+            let message = "The key must be a string.";
+            return res::get_error_response(400, message);
         }
     };
 
     // Get the value from request body.
     // Validate that value is a Value struct.
-    let value: db::Value = match serde_json::from_value(request_body["value"].clone()) {
+    let _val = body["value"].clone();
+    let value: db::Value = match serde_json::from_value(_val) {
         Ok(value) => value,
         Err(_) => {
-            let mut _map = HashMap::new();
-            let msg = "The value provided is invalid.";
-            _map.insert("error", msg);
-            return res::create_response(400, Some(_map));
+            let message = "The value provided is invalid.";
+            return res::get_error_response(400, message);
         }
     };
 
@@ -80,20 +76,17 @@ fn post(server: &mut db::Server, request_body: req::RequestBody) -> res::Respons
 
     // If result is Err, return 400 with error message.
     if result.is_err() {
-        let message = result.err().unwrap().to_owned();
-        let mut _map = HashMap::new();
-        _map.insert("error", message.as_str());
-        let _body = serde_json::to_string(&_map).unwrap();
-        return res::Response::builder().status(400).body(_body).unwrap();
+        let message = result.err().unwrap();
+        return res::get_error_response(400, message);
     }
 
     // Serialize value as string for the response.
     let body = {
-        let _val: db::Value = serde_json::from_value(request_body["value"].clone()).unwrap();
+        let _val = result.unwrap();
         serde_json::to_string(&_val).unwrap()
     };
 
-    res::Response::builder().status(201).body(body).unwrap()
+    res::create_response(201, Some(body))
 }
 
 fn delete(server: &db::Server, route: String) -> res::Response<String> {
@@ -103,13 +96,18 @@ fn delete(server: &db::Server, route: String) -> res::Response<String> {
 
     // If key is empty, return 400 with error message.
     if key.is_empty() || route_parts.len() < 3 {
-        let mut _map = HashMap::new();
-        _map.insert("error", "The key is missing.");
-        return res::create_response(400, Some(_map));
+        let message = "The key is missing.";
+        return res::get_error_response(400, message);
     }
 
     // Delete the key-value pair from the store.
-    server.delete(key.clone());
+    let result = server.delete(key.clone());
+
+    // Handle error when deleting key-value pair.
+    if result.is_err() {
+        let message = result.err().unwrap();
+        return res::get_error_response(400, message);
+    }
 
     // Return empty success response.
     res::create_response(204, None)
