@@ -138,7 +138,11 @@ impl Server {
     // Index functionality handler.
     // Functions that handle the indexing of the database.
 
-    pub fn build(&mut self) -> Result<&str, &str> {
+    pub fn build(
+        &mut self,
+        ef_search: usize,
+        ef_construction: usize,
+    ) -> Result<&str, &str> {
         // Clear the current index.
         // This makes sure that the index is built from scratch
         // and accomodate changes made to the key-value store.
@@ -155,10 +159,13 @@ impl Server {
             values.push(value.clone());
         }
 
-        // Build and set the index.
-        let index = Builder::default().ef_search(32).build(values, keys);
-        self.index = Some(index);
+        // Build the index.
+        let index = Builder::default()
+            .ef_search(ef_search)
+            .ef_construction(ef_construction)
+            .build(values, keys);
 
+        self.index = Some(index);
         Ok("The index is built successfully.")
     }
 

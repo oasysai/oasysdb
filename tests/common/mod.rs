@@ -41,7 +41,8 @@ pub async fn run_server() -> (Runtime, String) {
         }
 
         // Build the index.
-        server.build().unwrap();
+        let ef = 10; // Use small EF for testing only.
+        server.build(ef, ef).unwrap();
 
         // Start the server.
         server.serve().await;
