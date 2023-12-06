@@ -22,11 +22,12 @@ pub async fn read(stream: &mut TcpStream) -> Option<req::Request> {
     let _ = _req.parse(&buf).unwrap();
 
     // Parse request headers.
-    let headers: req::RequestHeaders = HashMap::from_iter(_req.headers.iter().map(|header| {
-        let key = header.name.to_lowercase();
-        let val = String::from_utf8_lossy(header.value).to_string();
-        (key, val)
-    }));
+    let headers: req::RequestHeaders =
+        HashMap::from_iter(_req.headers.iter().map(|header| {
+            let key = header.name.to_lowercase();
+            let val = String::from_utf8_lossy(header.value).to_string();
+            (key, val)
+        }));
 
     // If content length is present or more than 0, read the body.
     let _content_len = headers

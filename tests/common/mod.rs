@@ -1,4 +1,4 @@
-use oasysdb::db::server::{Server, Value};
+use oasysdb::db::server::{Config, Server, Value};
 use rand::random;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
@@ -8,10 +8,10 @@ pub async fn run_server() -> (Runtime, String) {
     // This runtime will be used by the server.
     let runtime = Runtime::new().unwrap();
 
-    // Generate a random port: 314xx.
+    // Generate a random port 31xxx.
     // This is needed to run multiple tests in parallel and
     // prevent connection reset error when testing.
-    let random_number = rand::random::<u16>() % 100 + 31400;
+    let random_number = random::<u16>() % 1000 + 31000;
     let _port = random_number.to_string();
     let port = _port.clone();
 
@@ -21,14 +21,17 @@ pub async fn run_server() -> (Runtime, String) {
         let host = "127.0.0.1";
         let port = port.as_str();
 
+        // Server configuration.
+        let config = Config { dimension: 2 };
+
         // Create a new server.
-        let mut server = Server::new(host, port).await;
+        let mut server = Server::new(host, port, config).await;
 
         // Pre-populate the key-value store.
         for i in 0..9 {
             // Generate value with random embeddings.
             let value = Value {
-                embedding: vec![random::<f32>(), random::<f32>()],
+                embedding: vec![random::<f32>(); 2],
                 data: HashMap::new(),
             };
 
@@ -36,6 +39,9 @@ pub async fn run_server() -> (Runtime, String) {
             let key = format!("key-{}", i);
             server.set(key, value).unwrap();
         }
+
+        // Build the index.
+        server.build().unwrap();
 
         // Start the server.
         server.serve().await;
