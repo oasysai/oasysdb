@@ -18,9 +18,13 @@ async fn main() {
     let config = Config { dimension };
 
     // Create and start the server.
-    let host = "127.0.0.1";
+    let host = "0.0.0.0";
     let mut server = Server::new(host, port.as_str(), config);
     server.serve().await;
+
+    // Display the server configuration.
+    println!("OasysDB is running on port {}.", port);
+    println!("OasysDB accepts embeddings of {} dimension.", dimension);
 }
 
 fn env_get_dimension() -> usize {
