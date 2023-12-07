@@ -25,7 +25,7 @@ pub async fn run_server() -> (Runtime, String) {
         let config = Config { dimension: 2 };
 
         // Create a new server.
-        let mut server = Server::new(host, port, config).await;
+        let mut server = Server::new(host, port, config);
 
         // Pre-populate the key-value store.
         for i in 0..9 {

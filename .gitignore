@@ -4,3 +4,8 @@ target
 
 # Misc.
 .vscode
+
+# Environment variables.
+.env
+.env.*
+!.env.example

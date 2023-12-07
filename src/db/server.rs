@@ -48,7 +48,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn new(host: &str, port: &str, config: Config) -> Server {
+    pub fn new(host: &str, port: &str, config: Config) -> Server {
         // Parse the host and port into a SocketAddr.
         let addr = format!("{}:{}", host, port).parse().unwrap();
 
