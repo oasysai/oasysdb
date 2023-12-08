@@ -26,16 +26,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: ${{ env.PROFILE }}
-          toolchain: ${{ env.TOOLCHAIN }}
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
+        run: cargo check
 
   rustfmt-format:
     name: Format style with Rustfmt
@@ -46,18 +40,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: ${{ env.PROFILE }}
-          toolchain: ${{ env.TOOLCHAIN }}
-          override: true
           components: rustfmt
 
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt -- --check
 
   clippy-lint:
     name: Lint code with Clippy
@@ -68,21 +56,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: ${{ env.PROFILE }}
-          toolchain: ${{ env.TOOLCHAIN }}
-          override: true
           components: clippy
 
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-
       - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+        run: cargo clippy -- -D warnings
 
   run-tests:
     name: Run all tests
@@ -93,13 +72,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: ${{ env.PROFILE }}
-          toolchain: ${{ env.TOOLCHAIN }}
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
