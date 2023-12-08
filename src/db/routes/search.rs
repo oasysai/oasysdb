@@ -1,10 +1,10 @@
 use crate::db::server as db;
-use crate::db::utils::request as req;
+use crate::db::utils::request::{Request, RequestBody};
 use crate::db::utils::response as res;
 
 pub fn handler(
     server: &mut db::Server,
-    request: &req::Request,
+    request: &Request,
 ) -> res::Response<String> {
     match request.method.as_str() {
         "post" => post(server, request.body.clone()),
@@ -12,10 +12,7 @@ pub fn handler(
     }
 }
 
-fn post(
-    server: &mut db::Server,
-    body: req::RequestBody,
-) -> res::Response<String> {
+fn post(server: &mut db::Server, body: RequestBody) -> res::Response<String> {
     // Validate that embedding is in the body.
     if body.get("embedding").is_none() {
         let message = "Embedding is required.";

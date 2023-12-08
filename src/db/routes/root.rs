@@ -1,8 +1,8 @@
-use crate::db::utils::request as req;
+use crate::db::utils::request::Request;
 use crate::db::utils::response as res;
 use std::collections::HashMap;
 
-pub fn handler(request: &req::Request) -> res::Response<String> {
+pub fn handler(request: &Request) -> res::Response<String> {
     match request.method.as_str() {
         "get" => get(),
         _ => res::get_405_response(),

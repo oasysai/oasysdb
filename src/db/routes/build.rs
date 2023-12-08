@@ -1,11 +1,11 @@
 use crate::db::server as db;
-use crate::db::utils::request as req;
+use crate::db::utils::request::{Request, RequestBody};
 use crate::db::utils::response as res;
 use std::collections::HashMap;
 
 pub fn handler(
     server: &mut db::Server,
-    request: &req::Request,
+    request: &Request,
 ) -> res::Response<String> {
     match request.method.as_str() {
         "post" => post(server, request.body.clone()),
@@ -13,10 +13,7 @@ pub fn handler(
     }
 }
 
-fn post(
-    server: &mut db::Server,
-    body: req::RequestBody,
-) -> res::Response<String> {
+fn post(server: &mut db::Server, body: RequestBody) -> res::Response<String> {
     // Get optional build parameters from the body.
     // EF search is maximum number of candidate neighbors
     // to be considered during search.
