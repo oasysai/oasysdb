@@ -4,7 +4,7 @@ First of all, thank you for considering contributing to OasysDB! We welcome cont
 
 ## Code of Conduct
 
-We are committed to creating a welcoming community. Any participant in our project is expected to act respectfully and to follow the [Code of Conduct](code_of_conduct.md).
+We are committed to creating a welcoming community. Any participant in our project is expected to act respectfully and to follow the [Code of Conduct](/docs/code_of_conduct.md).
 
 ## Have questions or suggestions?
 
@@ -12,11 +12,11 @@ We are committed to creating a welcoming community. Any participant in our proje
 
 There is no such thing as a stupid question. If you have a question, chances are someone else does too. We encourage you to ask questions on our [Discord](https://discord.gg/bDhQrkqNP4) server.
 
-Alternatively, you can open an issue on [GitHub](https://github.com/oasysai/oasysdb/issues) with your question.
+Alternatively, you can open a discussion on [GitHub Discussions](https://github.com/oasysai/oasysdb/discussions) with your question or suggestion.
 
 ## Encounter a bug? Have a feature request?
 
-If you encounter a bug or have a feature request, please open an issue on [GitHub](https://github.com/oasysai/oasysdb/issues).
+If you encounter a bug or have a feature request, please open an issue on [GitHub Issues](https://github.com/oasysai/oasysdb/issues).
 
 Please include as much information as possible in your issue. This includes:
 
