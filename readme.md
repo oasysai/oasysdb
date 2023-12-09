@@ -39,9 +39,9 @@ You can replace `localhost` with the IP address of the server if you are running
 
 At its core, OasysDB has 2 main components: key-value store and embedding index. These are the documentations of OasysDB core functionalities which should be enough to get you started. But, if you need a more thorough documentation about OasysDB, please refer to [OasysDB documentation](https://docs.oasysai.com).
 
-### `POST /kvs`
+### `POST /values`
 
-Set the value of a key. See below for the expected format of the request body.
+Create or update the value of a key. See below for the expected format of the request body.
 
 ```json
 {

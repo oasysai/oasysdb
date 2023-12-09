@@ -9,14 +9,14 @@ pub fn handler(
     let route = request.route.clone();
     let body = request.body.clone();
     match request.method.as_str() {
-        "get" => get_key(server, route),
+        "get" => get(server, route),
         "post" => post(server, body),
         "delete" => delete(server, route),
         _ => res::get_405_response(),
     }
 }
 
-fn get_key(server: &db::Server, route: String) -> res::Response<String> {
+fn get(server: &db::Server, route: String) -> res::Response<String> {
     // Get the key from the route.
     let route_parts: Vec<&str> = route.split('/').collect();
     let key = route_parts.last().unwrap().to_string();

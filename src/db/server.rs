@@ -7,9 +7,9 @@ use tokio::net::{TcpListener, TcpStream};
 
 // Import route handlers.
 use super::routes::build;
-use super::routes::kvs;
 use super::routes::root;
 use super::routes::search;
+use super::routes::values;
 use super::routes::version;
 
 // Import utils.
@@ -99,7 +99,7 @@ impl Server {
                 "/build" => build::handler(self, req),
                 "/search" => search::handler(self, req),
                 // Key-value store.
-                _ if route.starts_with("/kvs") => kvs::handler(self, req),
+                _ if route.starts_with("/values") => values::handler(self, req),
                 _ => res::get_404_response(),
             };
 
