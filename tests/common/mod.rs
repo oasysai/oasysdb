@@ -3,17 +3,10 @@ use rand::random;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
-pub async fn run_server() -> (Runtime, String) {
+pub async fn run_server(port: String) -> Runtime {
     // Create a new Tokio runtime.
     // This runtime will be used by the server.
     let runtime = Runtime::new().unwrap();
-
-    // Generate a random port 31xxx.
-    // This is needed to run multiple tests in parallel and
-    // prevent connection reset error when testing.
-    let random_number = random::<u16>() % 1000 + 31000;
-    let _port = random_number.to_string();
-    let port = _port.clone();
 
     // Start the server in the runtime.
     runtime.spawn(async move {
@@ -48,9 +41,8 @@ pub async fn run_server() -> (Runtime, String) {
         server.serve().await;
     });
 
-    // Use runtime as a handle to stop the server.
-    // Use port to make requests to the server.
-    (runtime, _port)
+    // Return runtime as a handle to stop the server.
+    runtime
 }
 
 pub async fn stop_server(runtime: Runtime) {
