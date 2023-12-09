@@ -55,9 +55,9 @@ Create or update the value of a key. See below for the expected format of the re
 
 The `embedding` field is a list of floating-point numbers with the dimension specified by the `OASYSDB_DIMENSION` environment variable.
 
-The `data` field is an object that can be used to store additional information about the key-value pair. Currently, this only support string keys and values.
+The `data` field is an object that can be used to store additional information about the key-value pair. Currently, this only support string keys and values. This field is optional but highly recommended. Otherwise, querying the index will only return empty objects.
 
-### `POST /build`
+### `POST /index`
 
 Build the HNSW index. This operation is required before you can search the index. We use HNSW as the underlying algorithm for the embedding index and for that, we use [instant-distance](https://github.com/instant-labs/instant-distance) crate.
 
@@ -70,9 +70,9 @@ Optionally, you can specify `ef_construction` and `ef_search` in the request bod
 }
 ```
 
-### `POST /search`
+### `POST /index/query`
 
-Search the index given an embedding. See below for the expected format of the request body.
+Query the index given an embedding. See below for the expected format of the request body.
 
 ```json
 {
@@ -82,6 +82,8 @@ Search the index given an embedding. See below for the expected format of the re
 ```
 
 The dimension of `embedding` must match the dimension specified by the `OASYSDB_DIMENSION` environment variable.
+
+This will return a list of value's data that are associated with the nearest neighbors of the given embedding. The length of the list is specified by the `count` field.
 
 ## Disclaimer
 

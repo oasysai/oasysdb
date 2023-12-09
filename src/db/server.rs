@@ -6,9 +6,8 @@ use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
 
 // Import route handlers.
-use super::routes::build;
+use super::routes::index;
 use super::routes::root;
-use super::routes::search;
 use super::routes::values;
 use super::routes::version;
 
@@ -92,13 +91,9 @@ impl Server {
 
             // Get response based on different routes and methods.
             let response = match route.as_str() {
-                // Utils.
                 "/" => root::handler(req),
                 "/version" => version::handler(req),
-                // Indexing.
-                "/build" => build::handler(self, req),
-                "/search" => search::handler(self, req),
-                // Key-value store.
+                _ if route.starts_with("/index") => index::handler(self, req),
                 _ if route.starts_with("/values") => values::handler(self, req),
                 _ => res::get_404_response(),
             };

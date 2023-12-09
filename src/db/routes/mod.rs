@@ -1,7 +1,6 @@
-pub mod build;
-pub mod values;
+pub mod index;
 pub mod root;
-pub mod search;
+pub mod values;
 pub mod version;
 
 // In this module, we define the route handlers

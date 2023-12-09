@@ -16,6 +16,10 @@ pub fn get_error_response(code: u16, message: &str) -> Response<String> {
     create_response(code, Some(body))
 }
 
+// Generic empty error responses.
+// This is useful for routes that don't need to return
+// a body and has a canonical status code.
+
 pub fn get_405_response() -> Response<String> {
     create_response(405, None)
 }

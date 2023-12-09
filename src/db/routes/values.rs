@@ -1,9 +1,9 @@
-use crate::db::server as db;
+use crate::db::server::{Server, Value};
 use crate::db::utils::request::{Request, RequestBody};
 use crate::db::utils::response as res;
 
 pub fn handler(
-    server: &mut db::Server,
+    server: &mut Server,
     request: &Request,
 ) -> res::Response<String> {
     let route = request.route.clone();
@@ -16,7 +16,7 @@ pub fn handler(
     }
 }
 
-fn get(server: &db::Server, route: String) -> res::Response<String> {
+fn get(server: &Server, route: String) -> res::Response<String> {
     // Get the key from the route.
     let route_parts: Vec<&str> = route.split('/').collect();
     let key = route_parts.last().unwrap().to_string();
@@ -38,14 +38,14 @@ fn get(server: &db::Server, route: String) -> res::Response<String> {
 
     // Serialize value as string for the response.
     let body = {
-        let _val: db::Value = value.unwrap();
+        let _val: Value = value.unwrap();
         serde_json::to_string(&_val).unwrap()
     };
 
     res::create_response(200, Some(body))
 }
 
-fn post(server: &mut db::Server, body: RequestBody) -> res::Response<String> {
+fn post(server: &mut Server, body: RequestBody) -> res::Response<String> {
     // If request body is missing key or value.
     if body.get("key").is_none() || body.get("value").is_none() {
         let message = "Both key and value are required.";
@@ -65,7 +65,7 @@ fn post(server: &mut db::Server, body: RequestBody) -> res::Response<String> {
     // Get the value from request body.
     // Validate that value is a Value struct.
     let _val = body["value"].clone();
-    let value: db::Value = match serde_json::from_value(_val) {
+    let value: Value = match serde_json::from_value(_val) {
         Ok(value) => value,
         Err(_) => {
             let message = "The value provided is invalid.";
@@ -91,7 +91,7 @@ fn post(server: &mut db::Server, body: RequestBody) -> res::Response<String> {
     res::create_response(201, Some(body))
 }
 
-fn delete(server: &db::Server, route: String) -> res::Response<String> {
+fn delete(server: &Server, route: String) -> res::Response<String> {
     // Get the key from the route.
     let route_parts: Vec<&str> = route.split('/').collect();
     let key = route_parts.last().unwrap().to_string();
