@@ -60,7 +60,7 @@ POST /values
 
 The `embedding` field is a list of floating-point numbers with the dimension specified by the `OASYSDB_DIMENSION` environment variable.
 
-The `data` field is an object that can be used to store additional information about the key-value pair. Currently, this only support string keys and values. This field is optional but highly recommended. Otherwise, querying the index will only return empty objects.
+The `data` field is an object that can be used to store additional information about the embedding. For example, texts and their sources. Currently, this only support string keys and values. This field is optional but highly recommended. Otherwise, querying the index will only return empty objects.
 
 ### Build the index
 
@@ -97,6 +97,17 @@ POST /index/query
 The dimension of `embedding` must match the dimension specified by the `OASYSDB_DIMENSION` environment variable.
 
 This will return a list of value's data that are associated with the nearest neighbors of the given embedding. The length of the list is specified by the `count` field.
+
+If, for example, your value's data contains `text` and `source` information, this is an example of the response:
+
+```json
+[
+  {
+    "text": "string",
+    "source": "string"
+  }
+]
+```
 
 ## Disclaimer
 
