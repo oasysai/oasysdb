@@ -15,7 +15,11 @@ async fn main() {
     let dimension = env_get_dimension();
 
     // Create the server configuration.
-    let config = Config { dimension };
+    let config = {
+        // The token used to authenticate requests to the server.
+        let token = get_env("OASYSDB_TOKEN");
+        Config { dimension, token }
+    };
 
     // Display the server configuration.
     println!("OasysDB is running on port {}.", port);
@@ -27,11 +31,15 @@ async fn main() {
     server.serve().await;
 }
 
+// Utility functions.
+// Helper functions to get the server running.
+
 fn env_get_dimension() -> usize {
-    let not_set = "env variable 'OASYSDB_DIMENSION' required";
     let not_int = "variable 'OASYSDB_DIMENSION' must be an integer";
-    env::var("OASYSDB_DIMENSION")
-        .expect(not_set)
-        .parse::<usize>()
-        .expect(not_int)
+    get_env("OASYSDB_DIMENSION").parse::<usize>().expect(not_int)
+}
+
+fn get_env(key: &str) -> String {
+    let not_set = format!("env variable '{}' required", key);
+    env::var(key).expect(&not_set)
 }

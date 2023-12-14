@@ -37,6 +37,7 @@ type Index = Option<HNSW<Value, String>>;
 // Configuration for the database server.
 pub struct Config {
     pub dimension: usize,
+    pub token: String,
 }
 
 pub struct Server {
@@ -88,6 +89,22 @@ impl Server {
             // Unwrap the data.
             let req = _req.as_ref().unwrap();
             let route = req.route.clone();
+
+            // Check if the route is private.
+            // Private routes require authentication.
+            let private_routes = ["/index", "/values"];
+            if private_routes.iter().any(|r| route.starts_with(r)) {
+                // Get the token from the request headers.
+                let token = req.headers.get("x-oasysdb-token");
+
+                // Check if the token is valid.
+                // If not, return unauthorized response.
+                if token.is_none() || token.unwrap() != &self.config.token {
+                    let res = res::get_401_response();
+                    stream::write(&mut stream, res).await;
+                    break;
+                }
+            }
 
             // Get response based on different routes and methods.
             let response = match route.as_str() {
