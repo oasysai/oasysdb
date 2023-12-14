@@ -1,5 +1,6 @@
 use oasysdb::db::server::{Config, Server, Value};
 use rand::random;
+use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
@@ -15,7 +16,7 @@ pub async fn run_server(port: String) -> Runtime {
         let port = port.as_str();
 
         // Server configuration.
-        let config = Config { dimension: 2 };
+        let config = Config { dimension: 2, token: "token".to_string() };
 
         // Create a new server.
         let mut server = Server::new(host, port, config);
@@ -48,4 +49,11 @@ pub async fn run_server(port: String) -> Runtime {
 pub async fn stop_server(runtime: Runtime) {
     // Shutdown the runtime.
     runtime.shutdown_background();
+}
+
+pub fn get_headers() -> HeaderMap {
+    // Generate headers for the test requests.
+    let mut headers = HeaderMap::new();
+    headers.insert("x-oasysdb-token", "token".parse().unwrap());
+    headers
 }

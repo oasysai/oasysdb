@@ -16,9 +16,13 @@ pub fn get_error_response(code: u16, message: &str) -> Response<String> {
     create_response(code, Some(body))
 }
 
-// Generic empty error responses.
-// This is useful for routes that don't need to return
-// a body and has a canonical status code.
+// Generic error responses.
+// These are useful for streamlining the error handling.
+
+pub fn get_401_response() -> Response<String> {
+    let message = "Invalid x-oasysdb-token header.";
+    get_error_response(401, message)
+}
 
 pub fn get_405_response() -> Response<String> {
     create_response(405, None)

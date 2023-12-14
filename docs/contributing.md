@@ -56,6 +56,16 @@ For commit messages, we use the [Conventional Commits](https://www.conventionalc
 
 For commenting your code, please try your best to write comments that are clear and concise with proper English sentence capitalization and punctuation. This will help us and the community understand your code better and keep the codebase maintainable.
 
+## Local Docker development
+
+As an alternative to using Rust, you can use Docker to run OasysDB locally. First, run the following command:
+
+```bash
+docker build -t oasysdb .
+```
+
+This will build the Docker image for OasysDB which you can then run locally. If you need guidance on how to run OasysDB locally, please refer to this [documentation](/readme.md#with-docker).
+
 ## Submitting a pull request
 
 Once you have made your changes, you can submit a pull request. We will review your pull request and provide feedback. If your pull request is accepted, we will merge it into the main branch.
