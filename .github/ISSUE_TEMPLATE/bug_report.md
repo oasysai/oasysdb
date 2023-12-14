@@ -1,5 +1,5 @@
 ---
-name: Report a bug
+name: 🐞 Report a bug
 about: Report an unexpected behavior or a malfunctioning feature.
 title: "BUG:"
 labels: bug
@@ -8,7 +8,7 @@ assignees: ""
 
 ### Short description
 
-What is the bug about? Please provide a clear and concise description of what the bug is.
+What is the bug about? Please provide a clear and concise description of what the bug is. If applicable, include the error message that you received.
 
 ### Steps to reproduce
 
@@ -22,6 +22,10 @@ Example:
 ### Expected Behavior
 
 A clear and concise description of what you expected to happen.
+
+### Severity
+
+How severe is the bug? Are you using OasysDB in production?
 
 ### Additional Context
 

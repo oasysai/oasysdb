@@ -54,6 +54,8 @@ We use mostly the default linting and style guide for Rust except for some linti
 
 For commit messages, we use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format. This allows us to maintain consistency and readability in our commit messages.
 
+For commenting your code, please try your best to write comments that are clear and concise with proper English sentence capitalization and punctuation. This will help us and the community understand your code better and keep the codebase maintainable.
+
 ## Submitting a pull request
 
 Once you have made your changes, you can submit a pull request. We will review your pull request and provide feedback. If your pull request is accepted, we will merge it into the main branch.

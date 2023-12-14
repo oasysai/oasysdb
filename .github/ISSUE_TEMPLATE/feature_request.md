@@ -1,5 +1,5 @@
 ---
-name: Request a feature
+name: 🛠️ Request a feature
 about: Request a new feature or an improvement to an existing feature.
 title: "FEAT:"
 labels: enhancement

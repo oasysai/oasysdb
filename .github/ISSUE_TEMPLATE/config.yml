@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Ask a question
+  - name: ❓ Ask a question
     url: https://github.com/oasysai/oasysdb/discussions
     about: Ask general questions or share ideas on Discussions.
-  - name: Join Discord
+  - name: 💬 Join Discord
     url: https://discord.gg/bDhQrkqNP4
     about: Join the Discord server to help shape the future of OasysDB.
