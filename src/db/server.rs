@@ -1,19 +1,10 @@
+use super::routes::handle_connection;
 use instant_distance::HnswMap as HNSW;
 use instant_distance::{Builder, Search};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::net::{TcpListener, TcpStream};
-
-// Import route handlers.
-use super::routes::index;
-use super::routes::root;
-use super::routes::values;
-use super::routes::version;
-
-// Import utils.
-use super::utils::response as res;
-use super::utils::stream;
+use tokio::net::TcpListener;
 
 // Data type for the key-value store value's metadata.
 pub type Data = HashMap<String, String>;
@@ -41,10 +32,10 @@ pub struct Config {
 }
 
 pub struct Server {
-    addr: SocketAddr,
+    pub addr: SocketAddr,
+    pub config: Config,
     kvs: KeyValue,
     index: Index,
-    config: Config,
 }
 
 impl Server {
@@ -67,56 +58,9 @@ impl Server {
 
         // Accept and handle connections from clients.
         loop {
-            let (stream, _) = listener.accept().await.unwrap();
-            let handler = self._handle_connection(stream).await;
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let handler = handle_connection(self, &mut stream).await;
             tokio::spawn(async move { handler });
-        }
-    }
-
-    async fn _handle_connection(&mut self, mut stream: TcpStream) {
-        loop {
-            // Read request from the client.
-            let _req = stream::read(&mut stream).await;
-
-            // Handle disconnection or invalid request.
-            // Return invalid request response.
-            if _req.is_none() {
-                let res = res::get_error_response(400, "Invalid request.");
-                stream::write(&mut stream, res).await;
-                break;
-            }
-
-            // Unwrap the data.
-            let req = _req.as_ref().unwrap();
-            let route = req.route.clone();
-
-            // Check if the route is private.
-            // Private routes require authentication.
-            let private_routes = ["/index", "/values"];
-            if private_routes.iter().any(|r| route.starts_with(r)) {
-                // Get the token from the request headers.
-                let token = req.headers.get("x-oasysdb-token");
-
-                // Check if the token is valid.
-                // If not, return unauthorized response.
-                if token.is_none() || token.unwrap() != &self.config.token {
-                    let res = res::get_401_response();
-                    stream::write(&mut stream, res).await;
-                    break;
-                }
-            }
-
-            // Get response based on different routes and methods.
-            let response = match route.as_str() {
-                "/" => root::handler(req),
-                "/version" => version::handler(req),
-                _ if route.starts_with("/index") => index::handler(self, req),
-                _ if route.starts_with("/values") => values::handler(self, req),
-                _ => res::get_404_response(),
-            };
-
-            // Write the data back to the client.
-            stream::write(&mut stream, response).await;
         }
     }
 
