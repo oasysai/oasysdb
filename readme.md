@@ -20,11 +20,15 @@ This will pull the latest version of the server from the GitHub Container Regist
 docker run \
     --platform linux/amd64 \
     --publish 3141:3141 \
-    --env OASYSDB_DIMENSION=xxx \
+    --env OASYSDB_DIMENSION=512 \
+    --env OASYSDB_TOKEN=token \
     ghcr.io/oasysai/oasysdb:latest
 ```
 
-Replace `xxx` with the dimension of your desired embedding. This will start the server on port `3141`.
+- `OASYSDB_DIMENSION`: An integer representing the dimension of your embedding. Different embedding model will have different dimension. For example, OpenAI Ada 2 has a dimension of 1536.
+- `OASYSDB_TOKEN`: A string that you will use to authenticate with the server. You need to add `x-oasysdb-token` header to your request with the value of this environment variable.
+
+This will start OasysDB that is accessible on port `3141`. You can change this by changing the port number in the `--publish` flag and setting the `OASYSDB_PORT` environment variable to the port number that you want to use.
 
 ### Testing the server
 
