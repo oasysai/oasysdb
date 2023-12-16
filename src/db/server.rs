@@ -21,9 +21,9 @@ pub struct Value {
 // across threads while ensuring exclusive access.
 type KeyValue = Arc<Mutex<HashMap<String, Value>>>;
 
-// Use Option to allow the index to be None.
-// None means that the index is not built yet.
-type Index = Option<HNSW<Value, String>>;
+// Use Arc and Mutex to share the index across threads.
+// Use Vector for the index to avoid mutating the index directly.
+type Index = Arc<Mutex<Vec<HNSW<Value, String>>>>;
 
 // Configuration for the database server.
 pub struct Config {
@@ -44,10 +44,10 @@ impl Server {
         let addr = format!("{}:{}", host, port).parse().unwrap();
 
         // Initialize a new key-value store.
-        let kvs = Arc::new(Mutex::new(HashMap::new()));
+        let kvs: KeyValue = Arc::new(Mutex::new(HashMap::new()));
 
-        // Initialize index as None since it's not built yet.
-        let index: Index = None;
+        // Initialize index as an empty vector.
+        let index: Index = Arc::new(Mutex::new(Vec::with_capacity(1)));
 
         Server { addr, kvs, index, config }
     }
@@ -74,7 +74,7 @@ impl Server {
         kvs.get(&key).cloned().ok_or("The value is not found.")
     }
 
-    pub fn set(&mut self, key: String, value: Value) -> Result<Value, &str> {
+    pub fn set(&self, key: String, value: Value) -> Result<Value, &str> {
         // Validate the dimension of the value.
         if value.embedding.len() != self.config.dimension {
             return Err("The embedding dimension is invalid.");
@@ -95,14 +95,15 @@ impl Server {
     // Functions that handle the indexing of the database.
 
     pub fn build(
-        &mut self,
+        &self,
         ef_search: usize,
         ef_construction: usize,
     ) -> Result<&str, &str> {
         // Clear the current index.
         // This makes sure that the index is built from scratch
         // and accomodate changes made to the key-value store.
-        self.index = None;
+        let mut index = self.index.lock().unwrap();
+        index.clear();
 
         // Get the key-value store.
         let kvs = self.kvs.lock().unwrap();
@@ -116,12 +117,12 @@ impl Server {
         }
 
         // Build the index.
-        let index = Builder::default()
+        let _index = Builder::default()
             .ef_search(ef_search)
             .ef_construction(ef_construction)
             .build(values, keys);
 
-        self.index = Some(index);
+        index.push(_index);
         Ok("The index is built successfully.")
     }
 
@@ -136,9 +137,14 @@ impl Server {
         }
 
         // Get the index or return error if it's not built.
-        let index = self.index.as_ref().ok_or("The index is not built.")?;
+        let _index = self.index.lock().unwrap();
+        let index = match _index.first() {
+            Some(index) => index,
+            None => return Err("The index is not built yet."),
+        };
 
         // Create a decoy value with the provided embedding.
+        // Data is not needed for the search.
         let point = Value { embedding, data: HashMap::new() };
 
         // Search the index.

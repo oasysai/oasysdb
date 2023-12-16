@@ -2,10 +2,7 @@ use crate::db::server::{Server, Value};
 use crate::db::utils::request::{Request, RequestBody};
 use crate::db::utils::response as res;
 
-pub fn handler(
-    server: &mut Server,
-    request: &Request,
-) -> res::Response<String> {
+pub fn handler(server: &Server, request: &Request) -> res::Response<String> {
     let route = request.route.clone();
     let body = request.body.clone();
     match request.method.as_str() {
@@ -45,7 +42,7 @@ fn get(server: &Server, route: String) -> res::Response<String> {
     res::create_response(200, Some(body))
 }
 
-fn post(server: &mut Server, body: RequestBody) -> res::Response<String> {
+fn post(server: &Server, body: RequestBody) -> res::Response<String> {
     // If request body is missing key or value.
     if body.get("key").is_none() || body.get("value").is_none() {
         let message = "Both key and value are required.";
