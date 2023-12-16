@@ -1,5 +1,6 @@
 use dotenv::dotenv;
-use oasysdb::db::server::{Config, Server};
+use oasysdb::db::server::Config;
+use oasysdb::serve;
 use std::env;
 
 #[tokio::main]
@@ -27,8 +28,7 @@ async fn main() {
 
     // Create and start the server.
     let host = "0.0.0.0";
-    let mut server = Server::new(host, port.as_str(), config);
-    server.serve().await;
+    serve(host, &port, config).await;
 }
 
 // Utility functions.

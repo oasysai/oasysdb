@@ -1,10 +1,7 @@
-use super::routes::handle_connection;
 use instant_distance::HnswMap as HNSW;
 use instant_distance::{Builder, Search};
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::net::TcpListener;
 
 // Data type for the key-value store value's metadata.
 pub type Data = HashMap<String, String>;
@@ -32,36 +29,20 @@ pub struct Config {
 }
 
 pub struct Server {
-    pub addr: SocketAddr,
     pub config: Config,
     kvs: KeyValue,
     index: Index,
 }
 
 impl Server {
-    pub fn new(host: &str, port: &str, config: Config) -> Server {
-        // Parse the host and port into a SocketAddr.
-        let addr = format!("{}:{}", host, port).parse().unwrap();
-
+    pub fn new(config: Config) -> Server {
         // Initialize a new key-value store.
         let kvs: KeyValue = Arc::new(Mutex::new(HashMap::new()));
 
         // Initialize index as an empty vector.
         let index: Index = Arc::new(Mutex::new(Vec::with_capacity(1)));
 
-        Server { addr, kvs, index, config }
-    }
-
-    pub async fn serve(&mut self) {
-        // Bind a listener to the socket address.
-        let listener = TcpListener::bind(self.addr).await.unwrap();
-
-        // Accept and handle connections from clients.
-        loop {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let handler = handle_connection(self, &mut stream).await;
-            tokio::spawn(async move { handler });
-        }
+        Server { kvs, index, config }
     }
 
     // Native functionality handler.

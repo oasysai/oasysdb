@@ -25,13 +25,7 @@ mod version;
 //
 // Note: Avoid wildcard imports.
 
-pub async fn handle_connection(server: &mut Server, stream: &mut TcpStream) {
-    loop {
-        handle_request(server, stream).await;
-    }
-}
-
-async fn handle_request(server: &mut Server, stream: &mut TcpStream) {
+pub async fn handle_request(server: &Server, stream: &mut TcpStream) {
     // Read request from the client.
     let _req = stream::read(stream).await;
 
