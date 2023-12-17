@@ -79,13 +79,7 @@ fn post(server: &Server, body: RequestBody) -> res::Response<String> {
         return res::get_error_response(400, message);
     }
 
-    // Serialize value as string for the response.
-    let body = {
-        let _val = result.unwrap();
-        serde_json::to_string(&_val).unwrap()
-    };
-
-    res::create_response(201, Some(body))
+    res::create_response(201, None)
 }
 
 fn delete(server: &Server, route: String) -> res::Response<String> {
