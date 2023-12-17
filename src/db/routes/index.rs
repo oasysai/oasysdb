@@ -3,10 +3,7 @@ use crate::db::utils::request::{Request, RequestBody};
 use crate::db::utils::response as res;
 use std::collections::HashMap;
 
-pub fn handler(
-    server: &mut Server,
-    request: &Request,
-) -> res::Response<String> {
+pub fn handler(server: &Server, request: &Request) -> res::Response<String> {
     // Index-related routes only accept POST requests.
     if request.method != "post" {
         return res::get_405_response();
@@ -21,7 +18,7 @@ pub fn handler(
     }
 }
 
-fn post_index(server: &mut Server, body: RequestBody) -> res::Response<String> {
+fn post_index(server: &Server, body: RequestBody) -> res::Response<String> {
     // Get optional build parameters from the body.
     // EF search is maximum number of candidate neighbors
     // to be considered during search.
@@ -55,7 +52,7 @@ fn post_index(server: &mut Server, body: RequestBody) -> res::Response<String> {
 }
 
 fn post_index_query(
-    server: &mut Server,
+    server: &Server,
     body: RequestBody,
 ) -> res::Response<String> {
     // Validate that embedding is in the body.
