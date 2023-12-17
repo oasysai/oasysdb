@@ -1,16 +1,25 @@
 use super::request::{Request, RequestHeaders};
 use super::response::Response;
 use std::collections::HashMap;
+use std::env;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 pub async fn read(stream: &mut TcpStream) -> Option<Request> {
+    // Allow the buffer size to be set via environment variable.
+    // The default buffer size is 32KB which is large enough
+    // for 1536 dimensions embeddings.
+    let buffer_size = env::var("OASYSDB_BUFFER_SIZE")
+        .unwrap_or(String::from("32768"))
+        .parse::<usize>()
+        .unwrap();
+
     // Prepare the request for parsing.
     let mut _headers = [httparse::EMPTY_HEADER; 16];
     let mut _req = httparse::Request::new(&mut _headers);
 
     // Read data from the stream.
-    let mut buf = vec![0; 1024];
+    let mut buf = vec![0; buffer_size];
     let n = stream.read(&mut buf).await.unwrap();
 
     // Disconnection handler.
