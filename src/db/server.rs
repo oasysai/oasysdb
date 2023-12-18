@@ -1,5 +1,6 @@
 use instant_distance::HnswMap as HNSW;
 use instant_distance::{Builder, Search};
+use sled::Db as DB;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -14,10 +15,6 @@ pub struct Value {
     pub data: Data,
 }
 
-// Use Arc and Mutex to share the key-value store
-// across threads while ensuring exclusive access.
-type KeyValue = Arc<Mutex<HashMap<String, Value>>>;
-
 // Use Arc and Mutex to share the index across threads.
 // Use Vector for the index to avoid mutating the index directly.
 type Index = Arc<Mutex<Vec<HNSW<Value, String>>>>;
@@ -30,19 +27,15 @@ pub struct Config {
 
 pub struct Server {
     pub config: Config,
-    kvs: KeyValue,
     index: Index,
+    db: DB, // Storage for key-value pairs.
 }
 
 impl Server {
     pub fn new(config: Config) -> Server {
-        // Initialize a new key-value store.
-        let kvs: KeyValue = Arc::new(Mutex::new(HashMap::new()));
-
-        // Initialize index as an empty vector.
         let index: Index = Arc::new(Mutex::new(Vec::with_capacity(1)));
-
-        Server { kvs, index, config }
+        let db: DB = sled::open("data").unwrap();
+        Server { index, config, db }
     }
 
     // Native functionality handler.
@@ -51,8 +44,13 @@ impl Server {
     // Example: get, set, delete, etc.
 
     pub fn get(&self, key: String) -> Result<Value, &str> {
-        let kvs = self.kvs.lock().unwrap();
-        kvs.get(&key).cloned().ok_or("The value is not found.")
+        // Check if the key exists.
+        if !self.db.contains_key(key.clone()).unwrap() {
+            return Err("The value is not found.");
+        }
+
+        let value = self.db.get(key).unwrap().unwrap();
+        Ok(serde_json::from_slice(&value).unwrap())
     }
 
     pub fn set(&self, key: String, value: Value) -> Result<Value, &str> {
@@ -61,15 +59,34 @@ impl Server {
             return Err("The embedding dimension is invalid.");
         }
 
-        // Insert the key-value pair into the key-value store.
-        let mut kvs = self.kvs.lock().unwrap();
-        kvs.insert(key, value.clone());
+        let result = {
+            let key = key.clone();
+            let value = serde_json::to_vec(&value).unwrap();
+            self.db.insert(key, value)
+        };
+
+        if result.is_err() {
+            return Err("Error when setting the value.");
+        }
+
         Ok(value)
     }
 
     pub fn delete(&self, key: String) -> Result<Value, &str> {
-        let mut kvs = self.kvs.lock().unwrap();
-        kvs.remove(&key).ok_or("The key doesn't exist.")
+        // Check if the key exists.
+        if !self.db.contains_key(key.clone()).unwrap() {
+            return Err("The key does not exist.");
+        }
+
+        let result = {
+            let value = self.db.remove(key.clone()).unwrap().unwrap();
+            serde_json::from_slice(&value)
+        };
+
+        match result {
+            Ok(value) => Ok(value),
+            Err(_) => Err("Unable to remove the key."),
+        }
     }
 
     // Index functionality handler.
@@ -86,15 +103,15 @@ impl Server {
         let mut index = self.index.lock().unwrap();
         index.clear();
 
-        // Get the key-value store.
-        let kvs = self.kvs.lock().unwrap();
-
         // Separate key-value to keys and values.
         let mut keys = Vec::new();
         let mut values = Vec::new();
-        for (key, value) in kvs.iter() {
-            keys.push(key.clone());
-            values.push(value.clone());
+        for result in self.db.iter() {
+            let (key, value) = result.unwrap();
+            let key = String::from_utf8_lossy(&key).to_string();
+            let value: Value = serde_json::from_slice(&value).unwrap();
+            keys.push(key);
+            values.push(value);
         }
 
         // Build the index.
@@ -155,7 +172,7 @@ impl instant_distance::Point for Value {
 
         // Implement Euclidean distance formula.
         // https://en.wikipedia.org/wiki/Euclidean_distance
-        for i in 0..self.embedding.len() {
+        for i in 0..self.embedding.len().min(other.embedding.len()) {
             sum += (self.embedding[i] - other.embedding[i]).powi(2);
         }
 
