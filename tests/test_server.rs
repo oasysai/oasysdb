@@ -36,7 +36,7 @@ async fn test_get_root() {
     let response = client.get(&url).send().await.unwrap();
 
     assert_eq!(response.status(), 200);
-    stop_server(runtime).await;
+    stop_server(runtime, port).await;
 }
 
 #[tokio::test]
@@ -58,7 +58,7 @@ async fn test_post_values() {
         .unwrap();
 
     assert_eq!(response.status(), 201);
-    stop_server(runtime).await;
+    stop_server(runtime, port).await;
 }
 
 #[tokio::test]
@@ -75,7 +75,7 @@ async fn test_get_values() {
     let response = client.get(url).headers(headers).send().await.unwrap();
 
     assert_eq!(response.status(), 200);
-    stop_server(runtime).await;
+    stop_server(runtime, port).await;
 }
 
 #[tokio::test]
@@ -93,7 +93,7 @@ async fn test_delete_values() {
 
     // Assert for 204 status code.
     assert_eq!(response.status(), 204);
-    stop_server(runtime).await;
+    stop_server(runtime, port).await;
 }
 
 #[tokio::test]
@@ -110,7 +110,7 @@ async fn test_post_index() {
     let res = client.post(&url).headers(headers).send().await.unwrap();
 
     assert_eq!(res.status(), 200);
-    stop_server(runtime).await;
+    stop_server(runtime, port).await;
 }
 
 #[tokio::test]
@@ -133,5 +133,5 @@ async fn test_post_index_query() {
         .unwrap();
 
     assert_eq!(res.status(), 200);
-    stop_server(runtime).await;
+    stop_server(runtime, port).await;
 }

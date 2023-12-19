@@ -1,5 +1,6 @@
 # OasysDB.
 data
+tests/data
 
 # Rust stuff.
 debug

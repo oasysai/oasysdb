@@ -3,9 +3,14 @@ use oasysdb::db::server::{Config, Server, Value};
 use rand::random;
 use reqwest::header::HeaderMap;
 use std::collections::HashMap;
+use std::fs::remove_dir_all;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
+
+// Directory used to persist data for testing.
+// This directory will be removed after the tests.
+const DATA_DIR: &str = "tests/data";
 
 pub async fn run_server(port: String) -> Runtime {
     // Create a new Tokio runtime.
@@ -14,17 +19,18 @@ pub async fn run_server(port: String) -> Runtime {
 
     // Start the server in the runtime.
     runtime.spawn(async move {
-        // Server parameters.
-        let host = "127.0.0.1";
-        let port = port.as_str();
-        let addr: SocketAddr = format!("{}:{}", host, port).parse().unwrap();
-
         // Create a TCP listener to accept connections.
+        let addr: SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap();
         let listener = TcpListener::bind(addr).await.unwrap();
         let (mut stream, _) = listener.accept().await.unwrap();
 
         // Server configuration for testing only.
-        let config = Config { dimension: 2, token: "token".to_string() };
+        let config = {
+            let dimension = 2;
+            let token = "token".to_string();
+            let path = format!("{}/{}", DATA_DIR, port);
+            Config { dimension, token, path }
+        };
 
         // Create a new server.
         let server = Server::new(config);
@@ -54,9 +60,12 @@ pub async fn run_server(port: String) -> Runtime {
     runtime
 }
 
-pub async fn stop_server(runtime: Runtime) {
+pub async fn stop_server(runtime: Runtime, port: String) {
     // Shutdown the runtime.
     runtime.shutdown_background();
+
+    // Remove the test data directory.
+    remove_dir_all(format!("{}/{}", DATA_DIR, port)).unwrap();
 }
 
 pub fn get_headers() -> HeaderMap {
