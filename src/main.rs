@@ -19,7 +19,8 @@ async fn main() {
     let config = {
         // The token used to authenticate requests to the server.
         let token = get_env("OASYSDB_TOKEN");
-        Config { dimension, token }
+        let path = "data".to_string();
+        Config { dimension, token, path }
     };
 
     // Display the server configuration.

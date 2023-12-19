@@ -22,6 +22,7 @@ serde_derive = "1.0.193"
 rand = "0.8.5"
 instant-distance = "0.6.1"
 dotenv = "0.15.0"
+sled = "0.34.7"
 
 [profile.release]
 lto = true
