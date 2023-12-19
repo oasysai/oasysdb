@@ -23,6 +23,7 @@ type Index = Arc<Mutex<Vec<HNSW<Value, String>>>>;
 pub struct Config {
     pub dimension: usize,
     pub token: String,
+    pub path: String,
 }
 
 pub struct Server {
@@ -34,7 +35,7 @@ pub struct Server {
 impl Server {
     pub fn new(config: Config) -> Server {
         let index: Index = Arc::new(Mutex::new(Vec::with_capacity(1)));
-        let db: DB = sled::open("data").unwrap();
+        let db: DB = sled::open(config.path.clone()).unwrap();
         Server { index, config, db }
     }
 
