@@ -26,6 +26,7 @@ docker run \
 ```
 
 - `OASYSDB_DIMENSION`: An integer representing the dimension of your embedding. Different embedding model will have different dimension. For example, OpenAI Ada 2 has a dimension of 1536.
+
 - `OASYSDB_TOKEN`: A string that you will use to authenticate with the server. You need to add `x-oasysdb-token` header to your request with the value of this environment variable.
 
 This will start OasysDB that is accessible on port `3141`. You can change this by changing the port number in the `--publish` flag and setting the `OASYSDB_PORT` environment variable to the port number that you want to use.
@@ -112,6 +113,22 @@ If, for example, your value's data contains `text` and `source` information, thi
   }
 ]
 ```
+
+## Environment configuration
+
+When starting OasysDB, you can configure the server by setting the environment variables. There are required variables that you need to set to get the server running and there are also optional variables that you can set to customize the server.
+
+If you're curious, every environment variables is listed in the [`.env.example`](/.env.example) file.
+
+### Required variables
+
+The required environment variables is listed in the getting started section above as they are required to get the server running.
+
+### Optional variables
+
+- `OASYSDB_PORT`: An integer of the port number that the server will listen to for requests. (Default: `3141`)
+
+- `OASYSDB_BUFFER_SIZE`: An integer representing the maximum size of the request. (Default: `32768` or 32KB)
 
 ## Disclaimer
 
