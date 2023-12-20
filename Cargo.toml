@@ -3,6 +3,10 @@ name = "oasysdb"
 version = "0.1.0-alpha.2"
 edition = "2021"
 
+[dependencies.rocket]
+version = "0.5.0"
+features = ["secrets", "json"]
+
 [dependencies.instant-distance]
 version = "0.6.1"
 features = ["with-serde"]
@@ -11,8 +15,13 @@ features = ["with-serde"]
 version = "0.34.7"
 
 [dependencies]
+# Misc.
 rand = "0.8.5"
 dotenv = "0.15.0"
+
+# Serialization.
+serde = "1.0.193"
+serde_json = "1.0.108"
 
 [profile.release]
 lto = true
