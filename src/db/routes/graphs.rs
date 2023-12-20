@@ -4,22 +4,27 @@ use crate::db::utils::response as res;
 use std::collections::HashMap;
 
 pub fn handler(server: &Server, request: &Request) -> res::Response<String> {
-    // Index-related routes only accept POST requests.
+    // Graph-related routes only accept POST requests.
     if request.method != "post" {
         return res::get_405_response();
     }
 
     // Match the exact route to determine if the server
-    // should build the index or query it.
+    // should build the graph or query it.
     match request.route.as_str() {
-        "/index" => post_index(server, request.body.clone()),
-        "/index/query" => post_index_query(server, request.body.clone()),
+        "/graphs" => post_graphs(server, request.body.clone()),
+        "/graphs/query" => post_graphs_query(server, request.body.clone()),
         _ => res::get_404_response(),
     }
 }
 
-fn post_index(server: &Server, body: RequestBody) -> res::Response<String> {
-    // Get optional build parameters from the body.
+fn post_graphs(server: &Server, body: RequestBody) -> res::Response<String> {
+    // The name of the graph to be built.
+    let name = match body["name"].as_str() {
+        Some(name) => name,
+        None => "default",
+    };
+
     // EF search is maximum number of candidate neighbors
     // to be considered during search.
     let ef_search = match body["ef_search"].as_u64() {
@@ -35,8 +40,8 @@ fn post_index(server: &Server, body: RequestBody) -> res::Response<String> {
         None => 100,
     };
 
-    // Build the index.
-    let result = server.build(ef_search, ef_construction);
+    // Build the graph.
+    let result = server.build(name.into(), ef_search, ef_construction);
 
     // If result is Err, return 500 with error message.
     if result.is_err() {
@@ -51,7 +56,7 @@ fn post_index(server: &Server, body: RequestBody) -> res::Response<String> {
     res::create_response(200, Some(body))
 }
 
-fn post_index_query(
+fn post_graphs_query(
     server: &Server,
     body: RequestBody,
 ) -> res::Response<String> {
@@ -71,14 +76,20 @@ fn post_index_query(
             }
         };
 
+    // Get optional graph name.
+    let name = match body["name"].as_str() {
+        Some(name) => name,
+        None => "default",
+    };
+
     // Get optional count from the request body.
     let count: u16 = match body["count"].as_u64() {
         Some(v) => v as u16,
         None => 5,
     };
 
-    // Search the nearest neighbors.
-    let result = server.search(embedding, count.into());
+    // query the nearest neighbors.
+    let result = server.query(name.into(), embedding, count.into());
 
     // If result is Err, return 500 with error message.
     if result.is_err() {

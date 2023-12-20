@@ -15,7 +15,7 @@ const CREATE_VALUE: &str = r#"{
     "value": {"embedding": [0.0, 0.0], "data": {}}
 }"#;
 
-const QUERY_INDEX: &str = r#"{
+const QUERY_GRAPH: &str = r#"{
     "embedding": [0.0, 0.0],
     "count": 5
 }"#;
@@ -97,13 +97,13 @@ async fn test_delete_values() {
 }
 
 #[tokio::test]
-async fn test_post_index() {
+async fn test_post_graphs() {
     let port = String::from("31404");
     let runtime = run_server(port.clone()).await;
 
     // This is a POST request with no body as for this endpoint,
     // the body is optional: ef_search and ef_construction.
-    let url = format!("{}:{}/index", HOST, port);
+    let url = format!("{}:{}/graphs", HOST, port);
     let headers = get_headers();
 
     let client = Client::new();
@@ -114,20 +114,20 @@ async fn test_post_index() {
 }
 
 #[tokio::test]
-async fn test_post_index_query() {
+async fn test_post_graphs_query() {
     let port = String::from("31405");
     let runtime = run_server(port.clone()).await;
 
     // The body embedding is required and the dimension
     // must match the dimension specified in the config.
     let headers = get_headers();
-    let url = format!("{}:{}/index/query", HOST, port);
+    let url = format!("{}:{}/graphs/query", HOST, port);
 
     let client = Client::new();
     let res = client
         .post(&url)
         .headers(headers)
-        .body(QUERY_INDEX)
+        .body(QUERY_GRAPH)
         .send()
         .await
         .unwrap();

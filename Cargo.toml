@@ -3,11 +3,16 @@ name = "oasysdb"
 version = "0.1.0-alpha.2"
 edition = "2021"
 
-[dependencies]
-# Async runtime.
-tokio = { version = "1", features = ["full"] }
+[dependencies.tokio]
+version = "1"
+features = ["full"]
 
-# Tools.
+[dependencies.instant-distance]
+version = "0.6.1"
+features = ["with-serde"]
+
+# Other dependencies.
+[dependencies]
 # HTTP stuff.
 http = "1.0.0"
 httparse = "1.8.0"
@@ -20,7 +25,6 @@ serde_derive = "1.0.193"
 
 # Misc.
 rand = "0.8.5"
-instant-distance = "0.6.1"
 dotenv = "0.15.0"
 sled = "0.34.7"
 

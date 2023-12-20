@@ -48,9 +48,9 @@ pub async fn run_server(port: String) -> Runtime {
             server.set(key, value).unwrap();
         }
 
-        // Build the index.
+        // Build the graph.
         let ef = 10; // Use small EF for testing only.
-        server.build(ef, ef).unwrap();
+        server.build("default".into(), ef, ef).unwrap();
 
         // Start the server.
         handle_request(&server, &mut stream).await;

@@ -3,7 +3,7 @@ use super::utils::stream;
 use crate::db::server::Server;
 use tokio::net::TcpStream;
 
-mod index;
+mod graphs;
 mod root;
 mod values;
 mod version;
@@ -43,7 +43,7 @@ pub async fn handle_request(server: &Server, stream: &mut TcpStream) {
 
     // Check if the route is private.
     // Private routes require authentication.
-    let private_routes = ["/index", "/values"];
+    let private_routes = ["/graphs", "/values"];
     if private_routes.iter().any(|r| route.starts_with(r)) {
         // Get the token from the request headers.
         let token = request.headers.get("x-oasysdb-token");
@@ -61,7 +61,7 @@ pub async fn handle_request(server: &Server, stream: &mut TcpStream) {
     let response = match route.as_str() {
         "/" => root::handler(request),
         "/version" => version::handler(request),
-        _ if route.starts_with("/index") => index::handler(server, request),
+        _ if route.starts_with("/graphs") => graphs::handler(server, request),
         _ if route.starts_with("/values") => values::handler(server, request),
         _ => res::get_404_response(),
     };

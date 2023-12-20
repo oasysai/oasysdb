@@ -67,12 +67,12 @@ The `embedding` field is a list of floating-point numbers with the dimension spe
 
 The `data` field is an object that can be used to store additional information about the embedding. For example, texts and their sources. Currently, this only support string keys and values. This field is optional but highly recommended. Otherwise, querying the index will only return empty objects.
 
-### Build the index
+### Build the graph
 
-Build the HNSW index. This operation is required before you can query the index. We use HNSW as the underlying algorithm for the embedding index and for that, we use [instant-distance](https://github.com/instant-labs/instant-distance) crate.
+Build the HNSW graph. This operation is required before you can query the index. We use HNSW as the underlying algorithm for the embedding index and for that, we use [instant-distance](https://github.com/instant-labs/instant-distance) crate.
 
 ```
-POST /index
+POST /graphs
 ```
 
 Optionally, you can specify `ef_construction` and `ef_search` in the request body. These are the parameters for the HNSW algorithm. By default, we use `100` for both parameters.
@@ -84,12 +84,12 @@ Optionally, you can specify `ef_construction` and `ef_search` in the request bod
 }
 ```
 
-### Query the index
+### Query the graph
 
-Query the index given an embedding. See below for the expected format of the request body.
+Query the graph given an embedding. See below for the expected format of the request body.
 
 ```
-POST /index/query
+POST /graphs/query
 ```
 
 ```json
