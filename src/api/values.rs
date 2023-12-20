@@ -3,25 +3,13 @@ use super::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
-use std::collections::HashMap;
 
 #[get("/values/<key>")]
 pub fn get_value(db: &State<Database>, key: &str) -> (Status, Response) {
-    let result = db.get_value(key);
-
-    if result.is_ok() {
-        let value = result.ok().unwrap();
-        let body = serde_json::to_string(&value).unwrap();
-        return (Status::Ok, Response(body));
+    match db.get_value(key) {
+        Ok(value) => (Status::Ok, Response::from(value)),
+        Err(message) => (Status::BadRequest, Response::error(message)),
     }
-
-    let error = {
-        let message = result.err().unwrap().0;
-        let map = HashMap::from([("message", message)]);
-        serde_json::to_string(&map).unwrap()
-    };
-
-    (Status::BadRequest, Response(error))
 }
 
 #[post("/values/<key>", data = "<value>")]
@@ -29,13 +17,17 @@ pub fn set_value(
     db: &State<Database>,
     key: &str,
     value: Json<Value>,
-) -> (Status, Json<StringMap>) {
-    let result = db.set_value(key.into(), value.into_inner());
-
-    if result.is_ok() {
-        return (Status::Ok, Json(HashMap::new()));
+) -> (Status, Response) {
+    match db.set_value(key.into(), value.into_inner()) {
+        Ok(_) => (Status::Ok, Response::empty()),
+        Err(message) => (Status::BadRequest, Response::error(message)),
     }
+}
 
-    let message = result.err().unwrap().0;
-    (Status::BadRequest, Json(HashMap::from([("message", message)])))
+#[delete("/values/<key>")]
+pub fn delete_value(db: &State<Database>, key: &str) -> (Status, Response) {
+    match db.delete_value(key) {
+        Ok(_) => (Status::Ok, Response::empty()),
+        Err(message) => (Status::BadRequest, Response::error(message)),
+    }
 }
