@@ -4,12 +4,37 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::Deserialize;
 
+#[derive(Deserialize, Default)]
+pub struct CreateGraphBody {
+    name: Option<String>,
+    ef_construction: Option<usize>,
+    ef_search: Option<usize>,
+}
+
+impl CreateGraphBody {
+    fn default() -> Self {
+        CreateGraphBody { name: None, ef_construction: None, ef_search: None }
+    }
+}
+
 #[post("/", data = "<data>")]
 pub fn create_graph(
     db: &State<Database>,
-    data: Json<GraphConfig>,
+    data: Option<Json<CreateGraphBody>>,
 ) -> (Status, Response) {
-    match db.create_graph(data.into_inner()) {
+    let data = match data {
+        Some(data) => data.into_inner(),
+        None => CreateGraphBody::default(),
+    };
+
+    let config = {
+        let name = data.name.unwrap_or("default".into());
+        let ef_construction = data.ef_construction.unwrap_or(100);
+        let ef_search = data.ef_search.unwrap_or(100);
+        GraphConfig { name, ef_construction, ef_search }
+    };
+
+    match db.create_graph(config) {
         Ok(_) => (Status::Ok, Response::empty()),
         Err(message) => (Status::BadRequest, Response::error(message)),
     }

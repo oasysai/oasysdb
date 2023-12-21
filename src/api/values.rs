@@ -17,7 +17,7 @@ pub fn set_value(
     key: &str,
     value: Json<Value>,
 ) -> (Status, Response) {
-    match db.set_value(key.into(), value.into_inner()) {
+    match db.set_value(key, value.into_inner()) {
         Ok(_) => (Status::Ok, Response::empty()),
         Err(message) => (Status::BadRequest, Response::error(message)),
     }
