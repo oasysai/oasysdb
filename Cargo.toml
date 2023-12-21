@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies.rocket]
 version = "0.5.0"
-features = ["secrets", "json"]
+features = ["json"]
 
 [dependencies.instant-distance]
 version = "0.6.1"

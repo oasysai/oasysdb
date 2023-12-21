@@ -21,6 +21,7 @@ impl CreateGraphBody {
 pub fn create_graph(
     db: &State<Database>,
     data: Option<Json<CreateGraphBody>>,
+    _auth: Auth,
 ) -> (Status, Response) {
     let data = match data {
         Some(data) => data.into_inner(),
@@ -35,13 +36,17 @@ pub fn create_graph(
     };
 
     match db.create_graph(config) {
-        Ok(_) => (Status::Ok, Response::empty()),
+        Ok(_) => (Status::Created, Response::empty()),
         Err(message) => (Status::BadRequest, Response::error(message)),
     }
 }
 
 #[delete("/<name>")]
-pub fn delete_graph(db: &State<Database>, name: &str) -> (Status, Response) {
+pub fn delete_graph(
+    db: &State<Database>,
+    name: &str,
+    _auth: Auth,
+) -> (Status, Response) {
     match db.delete_graph(name) {
         Ok(_) => (Status::Ok, Response::empty()),
         Err(message) => (Status::BadRequest, Response::error(message)),
@@ -59,6 +64,7 @@ pub fn query_graph(
     db: &State<Database>,
     name: &str,
     data: Json<QueryGraphBody>,
+    _auth: Auth,
 ) -> (Status, Response) {
     let data = data.into_inner();
 
