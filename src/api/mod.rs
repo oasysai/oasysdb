@@ -2,9 +2,11 @@ use crate::db::database::*;
 use serde::Serialize;
 use std::collections::HashMap;
 
+mod graphs;
 mod utils;
 mod values;
 
+pub use graphs::*;
 pub use utils::*;
 pub use values::*;
 

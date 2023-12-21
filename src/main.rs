@@ -32,10 +32,9 @@ fn rocket() -> _ {
 
     rocket::build()
         .manage(db)
-        .mount("/", routes![get_status])
-        .mount("/", routes![get_version])
-        .mount("/", routes![set_value])
-        .mount("/", routes![get_value])
+        .mount("/", routes![get_status, get_version])
+        .mount("/values", routes![set_value, get_value, delete_value])
+        .mount("/graphs", routes![create_graph, delete_graph, query_graph])
 }
 
 fn env_get_dimension() -> usize {

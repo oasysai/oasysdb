@@ -1,19 +1,28 @@
 use instant_distance::HnswMap as HNSW;
-use serde::{Deserialize, Serialize};
+use instant_distance::*;
+use serde::*;
 use sled::Db as DB;
 use std::collections::HashMap;
 
 type Error = &'static str;
 
 pub type Data = HashMap<String, String>;
+pub type Embedding = Vec<f32>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Value {
-    pub embedding: Vec<f32>,
+    pub embedding: Embedding,
     pub data: Data,
 }
 
-type Graph = HNSW<Value, String>;
+pub type Graph = HNSW<Value, String>;
+
+#[derive(Serialize, Deserialize)]
+pub struct GraphConfig {
+    pub name: String,
+    pub ef_construction: usize,
+    pub ef_search: usize,
+}
 
 pub struct Config {
     pub path: String,
@@ -73,11 +82,83 @@ impl Database {
 
     // Graph methods.
 
-    pub fn create_graph() {}
+    pub fn create_graph(&self, config: GraphConfig) -> Result<(), Error> {
+        let mut keys: Vec<String> = Vec::new();
+        let mut values: Vec<Value> = Vec::new();
 
-    pub fn delete_graph() {}
+        // Iterate over all values in the database and separate
+        // them into keys and values.
+        for result in self.value_db.iter() {
+            let (key, value) = result.unwrap();
+            keys.push(String::from_utf8_lossy(&key).to_string());
+            values.push(serde_json::from_slice(&value).unwrap());
+        }
 
-    pub fn query_graph() {}
+        // Build the HNSW graph with the given config.
+        let graph = Builder::default()
+            .ef_construction(config.ef_construction)
+            .ef_search(config.ef_search)
+            .build(values, keys);
+
+        // Serialize the graph to bytes to store in the database.
+        let graph = serde_json::to_vec(&graph).unwrap();
+
+        match self.graph_db.insert(config.name, graph) {
+            Ok(_) => Ok(()),
+            Err(_) => Err("Failed to create graph."),
+        }
+    }
+
+    pub fn delete_graph(&self, name: &str) -> Result<(), Error> {
+        match self.graph_db.remove(name).unwrap() {
+            Some(_) => Ok(()),
+            None => Err("Graph not found."),
+        }
+    }
+
+    pub fn query_graph(
+        &self,
+        name: &str,
+        embedding: Embedding,
+        k: usize,
+    ) -> Result<Vec<Data>, Error> {
+        // Validate embedding dimension.
+        if embedding.len() != self.config.dimension {
+            return Err("Invalid embedding dimension.");
+        }
+
+        let get_graph = self.graph_db.get(name);
+
+        // Make sure we don't panic if error when retrieving graph.
+        if get_graph.is_err() {
+            return Err("Failed to get graph.");
+        }
+
+        let graph = match get_graph.ok().unwrap() {
+            Some(graph) => graph,
+            None => return Err("Graph not found."),
+        };
+
+        // Deserialize the graph.
+        let graph: Graph = serde_json::from_slice(&graph).unwrap();
+
+        // Decoy value with the provided embedding.
+        // Data is not needed for the query process.
+        let point = Value { embedding, data: HashMap::new() };
+
+        // Query the graph.
+        let mut query = Search::default();
+        let results = graph.search(&point, &mut query);
+
+        let mut data: Vec<Data> = Vec::new();
+        for result in results {
+            let value = result.point;
+            data.push(value.data.clone());
+        }
+
+        data.truncate(k);
+        Ok(data)
+    }
 }
 
 // Implementation of the Point trait needed by the instant_distance
