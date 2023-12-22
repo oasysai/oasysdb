@@ -4,11 +4,11 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::Deserialize;
 
-#[derive(Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct CreateGraphBody {
-    name: Option<String>,
-    ef_construction: Option<usize>,
-    ef_search: Option<usize>,
+    pub name: Option<String>,
+    pub ef_construction: Option<usize>,
+    pub ef_search: Option<usize>,
 }
 
 impl CreateGraphBody {
@@ -53,10 +53,10 @@ pub fn delete_graph(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct QueryGraphBody {
-    embedding: Embedding,
-    k: Option<usize>,
+    pub embedding: Embedding,
+    pub k: Option<usize>,
 }
 
 #[post("/<name>/query", data = "<data>")]

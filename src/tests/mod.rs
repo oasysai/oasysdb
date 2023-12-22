@@ -7,6 +7,7 @@ use rocket::http::*;
 use rocket::local::blocking::Client;
 use std::collections::HashMap;
 
+mod test_graphs;
 mod test_utils;
 mod test_values;
 
