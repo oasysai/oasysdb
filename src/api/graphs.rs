@@ -4,6 +4,9 @@ use rocket::serde::json::Json;
 use rocket::State;
 use serde::Deserialize;
 
+/// A struct for the body of the create graph endpoint.
+/// To improve the UX, this data is optional. That's why we use
+/// `Option` for each field and implement `Default` for the struct.
 #[derive(Serialize, Deserialize, Default)]
 pub struct CreateGraphBody {
     pub name: Option<String>,
@@ -53,6 +56,9 @@ pub fn delete_graph(
     }
 }
 
+/// A struct for the body to query the graph. The embedding is
+/// required and its dimension must match the dimension of the
+/// graph that is set by the `OASYSDB_DIMENSION` environment variable.
 #[derive(Serialize, Deserialize)]
 pub struct QueryGraphBody {
     pub embedding: Embedding,

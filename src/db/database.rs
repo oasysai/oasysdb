@@ -9,14 +9,29 @@ type Error = &'static str;
 pub type Data = HashMap<String, String>;
 pub type Embedding = Vec<f32>;
 
+/// A struct that represents a value that will be stored
+/// in the key-value store of the database. The embedding
+/// dimension must match the dimension set by the
+/// `OASYSDB_DIMENSION` environment variable.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Value {
     pub embedding: Embedding,
     pub data: Data,
 }
 
+/// A type alias for the HNSW (Hierarchical Navigable Small World)
+/// graph. This is the graph that will be used to query the embedding.
+/// Check the documentation of `instant_distance` for more info:
+/// https://github.com/instant-labs/instant-distance
 pub type Graph = HNSW<Value, String>;
 
+/// A struct that represents the configuration of a graph. This is
+/// how the graph will be built and stored in the graph database.
+///
+/// `ef_construction` is the number of neighbors that will be used to
+/// build the graph. `ef_search` is the number of neighbors that will
+/// be used to search the graph. The higher the number of this parameters,
+/// the more accurate the graph will be but the slower it will be.
 #[derive(Serialize, Deserialize)]
 pub struct GraphConfig {
     pub name: String,
@@ -24,11 +39,22 @@ pub struct GraphConfig {
     pub ef_search: usize,
 }
 
+/// A struct that represents the configuration of the database.
+/// - `path`: The path where the database will be persisted.
+/// - `dimension`: The dimension of the embeddings that will be stored.
+///     This needs to be set by the `OASYSDB_DIMENSION` environment
+///     variable and it is used to validate that the embeddings have the
+///     correct dimension.
 pub struct Config {
     pub path: String,
     pub dimension: usize,
 }
 
+/// A struct that represents the database. It contains the configuration
+/// as well as the key-value store and the graph database. The key-value
+/// store is used to store the `Value` and the graph database is used to
+/// store the serialized graphs. This graph then can be deserialized and
+/// queried to get the nearest neighbors of a given embedding.
 pub struct Database {
     pub config: Config,
     value_db: DB,
@@ -36,6 +62,9 @@ pub struct Database {
 }
 
 impl Database {
+    /// Creates a new database with the given configuration. The value
+    /// database will be stored in `/<path>/values` and the graph database
+    /// will be stored in `/<path>/graphs`.
     pub fn new(config: Config) -> Database {
         let value_db = sled::open(format!("{}/values", config.path)).unwrap();
         let graph_db = sled::open(format!("{}/graphs", config.path)).unwrap();
@@ -82,6 +111,13 @@ impl Database {
 
     // Graph methods.
 
+    /// Creates a graph with the given configuration. This will create a
+    /// graph from the key-values. The graph will be serialized and stored
+    /// in the graph database.
+    ///
+    /// Unfortunatelly, the graph doesn't automatically update when a value
+    /// is added or deleted. This means that a value is added or deleted,
+    /// the graph needs to be recreated.
     pub fn create_graph(&self, config: GraphConfig) -> Result<(), Error> {
         let mut keys: Vec<String> = Vec::new();
         let mut values: Vec<Value> = Vec::new();
@@ -116,6 +152,9 @@ impl Database {
         }
     }
 
+    /// Queries the graph with the given name and returns the nearest
+    /// neighbors of the given embedding. This doesn't return the
+    /// `Value.embedding` but only the associated `Value.data`.
     pub fn query_graph(
         &self,
         name: &str,

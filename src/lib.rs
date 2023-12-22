@@ -17,6 +17,10 @@ pub fn get_env(key: &str) -> String {
     env::var(key).expect(&not_set)
 }
 
+/// Creates a Rocket server with the given database. The database will
+/// be shared across all endpoints as a state. The server can be configured
+/// by using the `Rocket.toml` file. For more information, see the
+/// [Rocket documentation](https://rocket.rs/v0.5/guide/).
 pub fn create_server(db: Database) -> Rocket<Build> {
     let utils = routes![get_status, get_version];
     let values = routes![set_value, get_value, delete_value];

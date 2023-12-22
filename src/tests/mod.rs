@@ -11,10 +11,27 @@ mod test_graphs;
 mod test_utils;
 mod test_values;
 
+/// Returns a valid `x-oasysdb-token` header for testing.
+///
+/// # Example
+///
+/// ```rs
+/// let header = get_auth_header();
+/// let response = client.get("/").header(header).dispatch();
+/// ```
 fn get_auth_header() -> Header<'static> {
     Header::new("x-oasysdb-token", "token")
 }
 
+/// Creates a test client with a prepopulated database and default graph
+/// built. `id` is used to create a dedicated folder for the database.
+/// This allows for multiple tests to run in parallel.
+///
+/// # Example
+///
+/// ```rs
+/// let client = create_test_client("test_name");
+/// ```
 fn create_test_client(id: &str) -> Client {
     // Load environment variables from .env file.
     // Needed for local testing.
