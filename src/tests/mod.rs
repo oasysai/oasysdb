@@ -1,15 +1,25 @@
 use crate::api::*;
 use crate::create_server;
 use crate::db::database::*;
+use dotenv::dotenv;
 use rand::distributions::*;
 use rand::*;
-use rocket::http::Status;
+use rocket::http::*;
 use rocket::local::blocking::Client;
 use std::collections::HashMap;
 
 mod test_utils;
+mod test_values;
+
+fn get_auth_header() -> Header<'static> {
+    Header::new("x-oasysdb-token", "token")
+}
 
 fn create_test_client() -> Client {
+    // Load environment variables from .env file.
+    // Needed for local testing.
+    dotenv().ok();
+
     let path = format!("data/tests/{}", random_string(10));
     let config = Config { path, dimension: 2 };
     let db = Database::new(config);

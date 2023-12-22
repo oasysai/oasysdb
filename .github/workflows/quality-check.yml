@@ -14,8 +14,8 @@ on:
       - main
 
 env:
-  TOOLCHAIN: stable
-  PROFILE: minimal
+  OASYSDB_TOKEN: token
+  OASYSDB_DIMENSION: 2
 
 jobs:
   run-check:
