@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn test_set_value() {
-    let client = create_test_client();
+    let client = create_test_client("test_set_value");
 
     // Create a serialized database value for body.
     let body = {
@@ -22,7 +22,7 @@ fn test_set_value() {
 
 #[test]
 fn test_get_value() {
-    let client = create_test_client();
+    let client = create_test_client("test_get_value");
     let header = get_auth_header();
     let response = client.get("/values/0").header(header).dispatch();
     assert_eq!(response.status(), Status::Ok);
@@ -30,7 +30,7 @@ fn test_get_value() {
 
 #[test]
 fn test_delete_value() {
-    let client = create_test_client();
+    let client = create_test_client("test_delete_value");
     let header = get_auth_header();
     let response = client.delete("/values/0").header(header).dispatch();
     assert_eq!(response.status(), Status::Ok);
