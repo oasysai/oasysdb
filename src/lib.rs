@@ -1,29 +1,48 @@
+pub mod api;
 pub mod db;
 
-use crate::db::routes::handle_request;
-use crate::db::server::{Config, Server};
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::net::TcpListener;
+// Import modules.
+use api::*;
+use db::database::*;
+use rocket::http::Status;
+use rocket::Build;
+use rocket::Rocket;
+use std::env;
 
 #[macro_use]
-extern crate serde_derive;
+extern crate rocket;
 
-pub async fn serve(host: &str, port: &str, config: Config) {
-    // Create a new server with Arc to share the
-    // server reference across threads.
-    let server = Arc::new(Server::new(config));
+pub fn get_env(key: &str) -> String {
+    let not_set = format!("env variable '{}' required", key);
+    env::var(key).expect(&not_set)
+}
 
-    // Parse the host and port into a SocketAddr.
-    let addr: SocketAddr = format!("{}:{}", host, port).parse().unwrap();
-    let listener = TcpListener::bind(addr).await.unwrap();
+/// Creates a Rocket server with the given database. The database will
+/// be shared across all endpoints as a state. The server can be configured
+/// by using the `Rocket.toml` file. For more information, see the
+/// [Rocket documentation](https://rocket.rs/v0.5/guide/).
+pub fn create_server(db: Database) -> Rocket<Build> {
+    let utils = routes![get_status, get_version];
+    let values = routes![set_value, get_value, delete_value];
+    let graphs = routes![create_graph, delete_graph, query_graph];
+    rocket::build()
+        .manage(db)
+        .mount("/", utils)
+        .mount("/values", values)
+        .mount("/graphs", graphs)
+        .register("/", catchers![catch_401, catch_404])
+}
 
-    loop {
-        // Accept and handle requests from clients.
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let server = server.clone();
-        tokio::spawn(async move {
-            handle_request(&server, &mut stream).await;
-        });
-    }
+// List of default error catchers.
+
+#[catch(404)]
+fn catch_404() -> (Status, Response) {
+    let message = "Invalid endpoint or method.";
+    (Status::NotFound, Response::error(message))
+}
+
+#[catch(401)]
+fn catch_401() -> (Status, Response) {
+    let message = "Invalid x-oasysdb-token header.";
+    (Status::Unauthorized, Response::error(message))
 }

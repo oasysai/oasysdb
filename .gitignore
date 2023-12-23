@@ -1,6 +1,5 @@
 # OasysDB.
 data
-tests/data
 
 # Rust stuff.
 debug
@@ -8,6 +7,7 @@ target
 
 # Misc.
 .vscode
+.DS_Store
 
 # Environment variables.
 .env

@@ -1,46 +1,40 @@
-use dotenv::dotenv;
-use oasysdb::db::server::Config;
-use oasysdb::serve;
-use std::env;
+use oasysdb::db::database::*;
+use oasysdb::*;
 
-#[tokio::main]
-async fn main() {
+// Other imports.
+use dotenv::dotenv;
+
+#[macro_use]
+extern crate rocket;
+
+#[cfg(test)]
+mod tests;
+
+#[launch]
+fn rocket() -> _ {
     // Load environment variables from .env file.
     // This is only needed for development.
     dotenv().ok();
 
-    // Port where OasysDB will listen for connections.
-    let port = env::var("OASYSDB_PORT").unwrap_or(String::from("3141"));
-
-    // The embedding dimension of the database. Required.
+    // Get environment variables.
+    let _token = get_env("OASYSDB_TOKEN");
     let dimension = env_get_dimension();
 
-    // Create the server configuration.
+    // Create database configuration.
     let config = {
-        // The token used to authenticate requests to the server.
-        let token = get_env("OASYSDB_TOKEN");
         let path = "data".to_string();
-        Config { dimension, token, path }
+        Config { path, dimension }
     };
 
-    // Display the server configuration.
-    println!("OasysDB is running on port {}.", port);
+    // Display log.
+    println!("OasysDB is running on port 3141.");
     println!("OasysDB accepts embeddings of {} dimension.", dimension);
 
-    // Create and start the server.
-    let host = "0.0.0.0";
-    serve(host, &port, config).await;
+    let db = Database::new(config);
+    create_server(db)
 }
-
-// Utility functions.
-// Helper functions to get the server running.
 
 fn env_get_dimension() -> usize {
     let not_int = "variable 'OASYSDB_DIMENSION' must be an integer";
     get_env("OASYSDB_DIMENSION").parse::<usize>().expect(not_int)
-}
-
-fn get_env(key: &str) -> String {
-    let not_set = format!("env variable '{}' required", key);
-    env::var(key).expect(&not_set)
 }
