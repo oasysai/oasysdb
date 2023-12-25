@@ -16,7 +16,7 @@ OasysDB is a vector database that can be used to store and query high-dimensiona
 
 - **HNSW indexing**: OasysDB uses the HNSW algorithm to build graphs to index embeddings. This allows for fast and accurate nearest neighbor search.
 
-- **Multi-graph support (WIP)**: OasysDB supports multiple HNSW graphs. This allows you to version and customize your graphs to suit different use cases. For example, optimizing speed for a specific query type or optimizing accuracy for a specific dataset.
+- **Multi-graph support**: OasysDB supports multiple HNSW graphs. This allows you to version and customize your graphs to suit different use cases. For example, optimizing speed for a specific query type or optimizing accuracy for a specific dataset.
 
 ## Getting Started
 
@@ -70,8 +70,11 @@ POST /values/<key>
 
 ```json
 {
-  "embedding": [1.0, 2.0, 3.0],
-  "data": { "text": "OasysDB is awesome!" }
+  "embedding": [0.1, 0.2, 0.3],
+  "data": {
+    "type": "fact",
+    "text": "OasysDB is awesome!"
+  }
 }
 ```
 
@@ -89,11 +92,18 @@ Optional request body:
 {
   "name": "my-graph",
   "ef_construction": 10,
-  "ef_search": 10
+  "ef_search": 10,
+  "filter": {
+    "type": "fact"
+  }
 }
 ```
 
 This endpoint creates a graph. The graph is used to query for nearest neighbors. If there is no data provided, the server will create a default graph with the name `default` and the default `ef_construction` and `ef_search` values of 100 for both.
+
+The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` key set to `fact`, you can use the filter object above.
+
+The filter operation is similar to the `OR` operation. This means if you have multiple filters, the server will add values that match any of the filters.
 
 ### Query the graph
 
@@ -114,7 +124,7 @@ This endpoint queries the graph for the nearest neighbors of the given embedding
 
 - All embedding dimensions must match the dimension configured in the server using the `OASYSDB_DIMENSION` environment variable.
 - Requests to `/graphs` and `/values` endpoints must include the `x-oasysdb-token` header with the value of the `OASYSDB_TOKEN` environment variable.
-- Currently, OasysDB doesn't support auto graph building. This means whenever you add or remove a value, you need to rebuild the graph.
+- OasysDB doesn't support automatic graph building due to its versioning and filtering nature. This means whenever you add or remove a value, you need to rebuild the graph.
 
 ### More resources
 
