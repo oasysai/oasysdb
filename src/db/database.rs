@@ -32,11 +32,21 @@ pub type Graph = HNSW<Value, String>;
 /// build the graph. `ef_search` is the number of neighbors that will
 /// be used to search the graph. The higher the number of this parameters,
 /// the more accurate the graph will be but the slower it will be.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct GraphConfig {
     pub name: String,
     pub ef_construction: usize,
     pub ef_search: usize,
+    pub filter: Option<Data>,
+}
+
+/// A struct that represents the data that will be stored in the graph
+/// database as a value. It contains the graph itself and the
+/// configuration of the graph.
+#[derive(Serialize, Deserialize)]
+pub struct GraphStore {
+    pub graph: Graph,
+    pub config: GraphConfig,
 }
 
 /// A struct that represents the configuration of the database.
@@ -122,12 +132,26 @@ impl Database {
         let mut keys: Vec<String> = Vec::new();
         let mut values: Vec<Value> = Vec::new();
 
+        // Check if the graph need a filter.
+        let has_filter = config.filter.is_some();
+
         // Iterate over all values in the database and separate
         // them into keys and values.
         for result in self.value_db.iter() {
             let (key, value) = result.unwrap();
+            let value: Value = serde_json::from_slice(&value).unwrap();
+
+            // Filter the values as provided.
+            // If the value doesn't match the filter, skip it.
+            if has_filter {
+                let filter: &Data = &config.filter.clone().unwrap();
+                if !filter_data_match(&value.data, filter) {
+                    continue;
+                }
+            }
+
             keys.push(String::from_utf8_lossy(&key).to_string());
-            values.push(serde_json::from_slice(&value).unwrap());
+            values.push(value);
         }
 
         // Build the HNSW graph with the given config.
@@ -136,10 +160,15 @@ impl Database {
             .ef_search(config.ef_search)
             .build(values, keys);
 
-        // Serialize the graph to bytes to store in the database.
-        let graph = serde_json::to_vec(&graph).unwrap();
+        // Serialize data of the graph and config to
+        // store in the database.
+        let data = {
+            let config = config.clone();
+            let _data = GraphStore { graph, config };
+            serde_json::to_vec(&_data).unwrap()
+        };
 
-        match self.graph_db.insert(config.name, graph) {
+        match self.graph_db.insert(config.name, data) {
             Ok(_) => Ok(()),
             Err(_) => Err("Failed to create graph."),
         }
@@ -166,26 +195,28 @@ impl Database {
             return Err("Invalid embedding dimension.");
         }
 
-        let get_graph = self.graph_db.get(name);
+        let get_store = self.graph_db.get(name);
 
         // Make sure we don't panic if error when retrieving graph.
-        if get_graph.is_err() {
+        if get_store.is_err() {
             return Err("Failed to get graph.");
         }
 
-        let graph = match get_graph.ok().unwrap() {
-            Some(graph) => graph,
+        let graph_store = match get_store.ok().unwrap() {
+            Some(store) => store,
             None => return Err("Graph not found."),
         };
 
-        // Deserialize the graph.
-        let graph: Graph = serde_json::from_slice(&graph).unwrap();
+        // Deserialize the graph store.
+        let graph_store: GraphStore =
+            serde_json::from_slice(&graph_store).unwrap();
 
         // Decoy value with the provided embedding.
         // Data is not needed for the query process.
         let point = Value { embedding, data: HashMap::new() };
 
         // Query the graph.
+        let graph = graph_store.graph;
         let mut query = Search::default();
         let results = graph.search(&point, &mut query);
 
@@ -214,4 +245,17 @@ impl instant_distance::Point for Value {
 
         sum.sqrt()
     }
+}
+
+/// Checks if the given data matches the given filter. Iterates over the
+/// filter to check if any of the data matches. If it does, return `true`.
+/// If it doesn't, return `false`.
+fn filter_data_match(data: &Data, filter: &Data) -> bool {
+    for (key, value) in filter {
+        if data.get(key).unwrap() == value {
+            return true;
+        }
+    }
+
+    false
 }

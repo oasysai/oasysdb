@@ -48,12 +48,15 @@ fn create_test_client(id: &str) -> Client {
         db.set_value(&i.to_string(), value).unwrap();
     }
 
-    // Build initial graph for testing.
-    let _ = {
-        let name = "default".to_string();
-        let config = GraphConfig { name, ef_construction: 10, ef_search: 10 };
-        db.create_graph(config)
+    let config = GraphConfig {
+        name: "default".to_string(),
+        ef_construction: 10,
+        ef_search: 10,
+        filter: None,
     };
+
+    // Build initial graph for testing.
+    let _ = db.create_graph(config);
 
     let rocket = create_server(db);
     Client::tracked(rocket).unwrap()

@@ -12,11 +12,17 @@ pub struct CreateGraphBody {
     pub name: Option<String>,
     pub ef_construction: Option<usize>,
     pub ef_search: Option<usize>,
+    pub filter: Option<Data>,
 }
 
 impl CreateGraphBody {
     fn default() -> Self {
-        CreateGraphBody { name: None, ef_construction: None, ef_search: None }
+        CreateGraphBody {
+            name: None,
+            ef_construction: None,
+            ef_search: None,
+            filter: None,
+        }
     }
 }
 
@@ -35,7 +41,8 @@ pub fn create_graph(
         let name = data.name.unwrap_or("default".into());
         let ef_construction = data.ef_construction.unwrap_or(100);
         let ef_search = data.ef_search.unwrap_or(100);
-        GraphConfig { name, ef_construction, ef_search }
+        let filter = data.filter;
+        GraphConfig { name, ef_construction, ef_search, filter }
     };
 
     match db.create_graph(config) {
