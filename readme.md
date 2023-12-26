@@ -56,13 +56,9 @@ You can replace `localhost` with the IP address of the server if you are running
 
 ## Quickstart
 
-To put it simply, these are the primary steps to get started with OasysDB:
+To put it simply, these are the primary steps to get started with OasysDB: Setting values, creating a graph, and querying the graph.
 
-1. Set a value.
-2. Create a graph.
-3. Query the graph.
-
-### Set a value
+### Setting a value
 
 ```
 POST /values/<key>
@@ -80,7 +76,7 @@ POST /values/<key>
 
 This endpoint sets a value for a given key. The value is an embedding and an optional data object. The embedding is a list of floating-point numbers. The data object is a JSON object of string keys and values.
 
-### Create a graph
+### Creating a graph
 
 ```
 POST /graphs
@@ -101,9 +97,11 @@ Optional request body:
 
 This endpoint creates a graph. The graph is used to query for nearest neighbors. If there is no data provided, the server will create a default graph with the name `default` and the default `ef_construction` and `ef_search` values of 100 for both.
 
-The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` data key set to `fact`, you can use the filter object above. The filter operation is similar to the `AND` operation. This means if you have multiple filters, the server will only add values that match all of filters.
+The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` data key set to `fact`, you can use the filter object above.
 
-### Query the graph
+The filter operation is similar to the `AND` operation. This means if you have multiple filters, the server will only add values that match all of filters. Without a filter, the server will add all values to build the graph.
+
+### Querying the graph
 
 ```
 POST /graphs/<name>/query
@@ -126,7 +124,9 @@ This endpoint queries the graph for the nearest neighbors of the given embedding
 
 ### More resources
 
-For more information, please see the [OasysDB documentation](https://www.oasysai.com/docs).
+These are the primary steps to get started with OasysDB. If you want to go deeper, we have more resources available on our documentation site: [OasysDB Docs](https://www.oasysai.com/docs).
+
+If you have any questions, you can join our [Discord](https://discord.gg/bDhQrkqNP4) and ask us there or open a discussion on GitHub for your question. We'll be happy to help.
 
 ## Disclaimer
 
