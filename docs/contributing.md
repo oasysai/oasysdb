@@ -4,21 +4,17 @@ First of all, thank you for considering contributing to OasysDB! We welcome cont
 
 ## Code of Conduct
 
-We are committed to creating a welcoming community. Any participant in our project is expected to act respectfully and to follow the [Code of Conduct](/docs/code_of_conduct.md).
+We are committed to building an inclusive and welcoming community. We believe that it will lead to a more successful project and a better experience for everyone involved. To achieve that, any participant in our project is expected to act respectfully and to follow the [Code of Conduct](/docs/code_of_conduct.md).
 
 ## Have questions or suggestions?
 
 [![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&labelColor=%235865F2&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
 
-There is no such thing as a stupid question. If you have a question, chances are someone else does too. We encourage you to ask questions on our [Discord](https://discord.gg/bDhQrkqNP4) server.
-
-Alternatively, you can open a discussion on [GitHub Discussions](https://github.com/oasysai/oasysdb/discussions) with your question or suggestion.
+There is no such thing as a stupid question. If you have a question, chances are someone else does too. We encourage you to ask questions on our [Discord](https://discord.gg/bDhQrkqNP4) server. Alternatively, you can open a discussion on [GitHub Discussions](https://github.com/oasysai/oasysdb/discussions) with your question or suggestion.
 
 ## Encounter a bug? Have a feature request?
 
-If you encounter a bug or have a feature request, please open an issue on [GitHub Issues](https://github.com/oasysai/oasysdb/issues).
-
-Please include as much information as possible in your issue. This includes:
+If you encounter a bug or have a feature request, please open an issue on [GitHub Issues](https://github.com/oasysai/oasysdb/issues). Please include as much information as possible in your issue. This includes:
 
 - A description of the bug or feature request.
 - If it's a bug, steps to reproduce the bug. If it's a feature request, include the use case and expected behavior of the feature.
@@ -26,11 +22,13 @@ Please include as much information as possible in your issue. This includes:
 
 ## Want to contribute code?
 
+**TLDR: Check and open an issue first before forking the repository and submitting a pull request.**
+
 Before you start working on a pull request, we encourage you to check out the existing issues and pull requests to make sure that someone else isn't already working on the same thing. After all, we don't want you to waste your time!
 
 We try to prioritize features and bug fixes that are requested by the community. If you want to work on a feature or bug fix that isn't already in the issue tracker, please open an issue first to discuss it with the community.
 
-For features, we try to prioritize features that are backed by real-world use cases. If you have a use case for a feature, please include it in the issue.
+For features, we try to prioritize features that are backed by real-world use cases. If you have a use case for a feature, please include it in the issue. We'd love to hear about it!
 
 # Getting started
 
@@ -44,9 +42,7 @@ To run OasysDB locally, clone the repository and add `.env` file to the root of 
 cargo run
 ```
 
-By default, this will start OasysDB on port 3141. You can change this by setting the `OASYSDB_PORT` environment variable.
-
-Then, you can use any HTTP client to interact with OasysDB like curl or Postman.
+By default, this will start OasysDB on port 3141. If for some reason you need to change the port, you can do so by setting the `ROCKET_PORT` environment variable. Then, you can use any HTTP client to interact with OasysDB like curl or Postman.
 
 ## Style guide
 
@@ -64,7 +60,7 @@ As an alternative to using Rust, you can use Docker to run OasysDB locally. Firs
 docker build -t oasysdb .
 ```
 
-This will build the Docker image for OasysDB which you can then run locally. If you need guidance on how to run OasysDB locally, please refer to this [documentation](/readme.md#with-docker).
+This will build the Docker image for OasysDB which you can then run locally. If you need guidance on how to run OasysDB locally, please refer to this [documentation](/readme.md#getting-started).
 
 ## Submitting a pull request
 
@@ -83,7 +79,7 @@ feat: add support ...
 fix: fix issue ...
 ```
 
-This is similar to the format used by [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+This is similar to the format used in [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## Conclusion
 

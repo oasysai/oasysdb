@@ -8,7 +8,13 @@ fn test_create_graph() {
     let name = Some("all".to_string());
     let ef_construction = Some(10);
     let ef_search = Some(10);
-    let data = CreateGraphBody { name, ef_construction, ef_search };
+
+    let data = CreateGraphBody {
+        name,
+        ef_construction,
+        ef_search,
+        ..Default::default()
+    };
 
     // Send request to create graph.
     let header = get_auth_header();

@@ -16,7 +16,7 @@ OasysDB is a vector database that can be used to store and query high-dimensiona
 
 - **HNSW indexing**: OasysDB uses the HNSW algorithm to build graphs to index embeddings. This allows for fast and accurate nearest neighbor search.
 
-- **Multi-graph support (WIP)**: OasysDB supports multiple HNSW graphs. This allows you to version and customize your graphs to suit different use cases. For example, optimizing speed for a specific query type or optimizing accuracy for a specific dataset.
+- **Multi-graph support**: OasysDB supports multiple HNSW graphs. This allows you to version and customize your graphs to suit different use cases. For example, optimizing speed for a specific query type or optimizing accuracy for a specific dataset.
 
 ## Getting Started
 
@@ -56,13 +56,9 @@ You can replace `localhost` with the IP address of the server if you are running
 
 ## Quickstart
 
-To put it simply, these are the primary steps to get started with OasysDB:
+To put it simply, these are the primary steps to get started with OasysDB: Setting values, creating a graph, and querying the graph.
 
-1. Set a value.
-2. Create a graph.
-3. Query the graph.
-
-### Set a value
+### Setting a value
 
 ```
 POST /values/<key>
@@ -70,14 +66,17 @@ POST /values/<key>
 
 ```json
 {
-  "embedding": [1.0, 2.0, 3.0],
-  "data": { "text": "OasysDB is awesome!" }
+  "embedding": [0.1, 0.2, 0.3],
+  "data": {
+    "type": "fact",
+    "text": "OasysDB is awesome!"
+  }
 }
 ```
 
 This endpoint sets a value for a given key. The value is an embedding and an optional data object. The embedding is a list of floating-point numbers. The data object is a JSON object of string keys and values.
 
-### Create a graph
+### Creating a graph
 
 ```
 POST /graphs
@@ -89,13 +88,20 @@ Optional request body:
 {
   "name": "my-graph",
   "ef_construction": 10,
-  "ef_search": 10
+  "ef_search": 10,
+  "filter": {
+    "type": "fact"
+  }
 }
 ```
 
 This endpoint creates a graph. The graph is used to query for nearest neighbors. If there is no data provided, the server will create a default graph with the name `default` and the default `ef_construction` and `ef_search` values of 100 for both.
 
-### Query the graph
+The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` data key set to `fact`, you can use the filter object above.
+
+The filter operation is similar to the `AND` operation. This means if you have multiple filters, the server will only add values that match all of filters. Without a filter, the server will add all values to build the graph.
+
+### Querying the graph
 
 ```
 POST /graphs/<name>/query
@@ -114,11 +120,13 @@ This endpoint queries the graph for the nearest neighbors of the given embedding
 
 - All embedding dimensions must match the dimension configured in the server using the `OASYSDB_DIMENSION` environment variable.
 - Requests to `/graphs` and `/values` endpoints must include the `x-oasysdb-token` header with the value of the `OASYSDB_TOKEN` environment variable.
-- Currently, OasysDB doesn't support auto graph building. This means whenever you add or remove a value, you need to rebuild the graph.
+- OasysDB doesn't support automatic graph building due to its versioning and filtering nature. This means whenever you add or remove a value, you need to rebuild the graph.
 
 ### More resources
 
-For more information, please see the [OasysDB documentation](https://www.oasysai.com/docs).
+These are the primary steps to get started with OasysDB. If you want to go deeper, we have more resources available on our documentation site: [OasysDB Docs](https://www.oasysai.com/docs).
+
+If you have any questions, you can join our [Discord](https://discord.gg/bDhQrkqNP4) and ask us there or open a discussion on GitHub for your question. We'll be happy to help.
 
 ## Disclaimer
 
