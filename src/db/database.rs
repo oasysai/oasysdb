@@ -248,14 +248,14 @@ impl instant_distance::Point for Value {
 }
 
 /// Checks if the given data matches the given filter. Iterates over the
-/// filter to check if any of the data matches. If it does, return `true`.
-/// If it doesn't, return `false`.
+/// filter to check if any of the data matches. Only if the value matches
+/// over all of the filter, it will return true.
 fn filter_data_match(data: &Data, filter: &Data) -> bool {
     for (key, value) in filter {
-        if data.get(key).unwrap() == value {
-            return true;
+        if data.get(key).unwrap() != value {
+            return false;
         }
     }
 
-    false
+    true
 }

@@ -101,9 +101,7 @@ Optional request body:
 
 This endpoint creates a graph. The graph is used to query for nearest neighbors. If there is no data provided, the server will create a default graph with the name `default` and the default `ef_construction` and `ef_search` values of 100 for both.
 
-The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` key set to `fact`, you can use the filter object above.
-
-The filter operation is similar to the `OR` operation. This means if you have multiple filters, the server will add values that match any of the filters.
+The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` data key set to `fact`, you can use the filter object above. The filter operation is similar to the `AND` operation. This means if you have multiple filters, the server will only add values that match all of filters.
 
 ### Query the graph
 
