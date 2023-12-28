@@ -32,10 +32,11 @@ This will pull the latest version of the server from the GitHub Container Regist
 
 ```bash
 docker run \
-    --publish 3141:3141 \
-    --env OASYSDB_DIMENSION=512 \
-    --env OASYSDB_TOKEN=token \
-    ghcr.io/oasysai/oasysdb:latest
+  --platform linux/amd64 \
+  --publish 3141:3141 \
+  --env OASYSDB_DIMENSION=512 \
+  --env OASYSDB_TOKEN=token \
+  ghcr.io/oasysai/oasysdb:latest
 ```
 
 - `OASYSDB_DIMENSION`: An integer representing the dimension of your embedding. Different embedding model will have different dimension. For example, OpenAI Ada 2 has a dimension of 1536.
@@ -109,7 +110,7 @@ POST /graphs/<name>/query
 
 ```json
 {
-  "embedding": [1.0, 2.0, 3.0],
+  "embedding": [0.1, 0.2, 0.3],
   "k": 10
 }
 ```
