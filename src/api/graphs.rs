@@ -39,8 +39,8 @@ pub fn create_graph(
 
     let config = {
         let name = data.name.unwrap_or("default".into());
-        let ef_construction = data.ef_construction.unwrap_or(100);
-        let ef_search = data.ef_search.unwrap_or(100);
+        let ef_construction = data.ef_construction.unwrap_or(25);
+        let ef_search = data.ef_search.unwrap_or(15);
         let filter = data.filter;
         GraphConfig { name, ef_construction, ef_search, filter }
     };

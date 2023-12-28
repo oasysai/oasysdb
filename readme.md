@@ -87,16 +87,16 @@ Optional request body:
 
 ```json
 {
-  "name": "my-graph",
-  "ef_construction": 10,
-  "ef_search": 10,
+  "name": "default",
+  "ef_construction": 25,
+  "ef_search": 15,
   "filter": {
     "type": "fact"
   }
 }
 ```
 
-This endpoint creates a graph. The graph is used to query for nearest neighbors. If there is no data provided, the server will create a default graph with the name `default` and the default `ef_construction` and `ef_search` values of 100 for both.
+This endpoint creates a graph. The graph is used to query for nearest neighbors. If there is no data provided, the server will create a default graph with the name `default` and the default `ef_construction` of 25 and `ef_search` of 15.
 
 The filter object is used to filter the values that are added to the graph. For example, if you only want to add values with the `type` data key set to `fact`, you can use the filter object above.
 
