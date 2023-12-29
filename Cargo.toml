@@ -27,3 +27,12 @@ serde_json = "1.0.108"
 lto = true
 opt-level = "z"
 codegen-units = 1
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+byteorder = "1.5.0"
+
+[[bench]]
+name = "bench_main"
+harness = false
+
