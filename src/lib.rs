@@ -23,8 +23,8 @@ pub fn get_env(key: &str) -> String {
 /// [Rocket documentation](https://rocket.rs/v0.5/guide/).
 pub fn create_server(db: Database) -> Rocket<Build> {
     let utils = routes![get_status, get_version];
-    let values = routes![set_value, get_value, delete_value];
-    let graphs = routes![create_graph, delete_graph, query_graph];
+    let values = routes![set_value, get_value, delete_value, reset_values];
+    let graphs = routes![create_graph, delete_graph, query_graph, reset_graphs];
     rocket::build()
         .manage(db)
         .mount("/", utils)

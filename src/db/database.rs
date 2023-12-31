@@ -119,6 +119,13 @@ impl Database {
         }
     }
 
+    pub fn reset_values(&self) -> Result<(), Error> {
+        match self.value_db.clear() {
+            Ok(_) => Ok(()),
+            Err(_) => Err("Failed to reset values."),
+        }
+    }
+
     // Graph methods.
 
     /// Creates a graph with the given configuration. This will create a
@@ -228,6 +235,13 @@ impl Database {
 
         data.truncate(k);
         Ok(data)
+    }
+
+    pub fn reset_graphs(&self) -> Result<(), Error> {
+        match self.graph_db.clear() {
+            Ok(_) => Ok(()),
+            Err(_) => Err("Failed to reset graphs."),
+        }
     }
 }
 

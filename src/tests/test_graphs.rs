@@ -52,3 +52,11 @@ fn test_delete_graph() {
     let response = client.delete("/graphs/default").header(header).dispatch();
     assert_eq!(response.status(), Status::Ok);
 }
+
+#[test]
+fn test_reset_graphs() {
+    let client = create_test_client("test_reset_graphs");
+    let header = get_auth_header();
+    let response = client.delete("/graphs").header(header).dispatch();
+    assert_eq!(response.status(), Status::Ok);
+}

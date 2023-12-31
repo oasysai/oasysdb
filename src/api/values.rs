@@ -1,3 +1,5 @@
+// Endpoints will be prefixed with /values.
+
 use super::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -35,6 +37,14 @@ pub fn delete_value(
     _auth: Auth,
 ) -> (Status, Response) {
     match db.delete_value(key) {
+        Ok(_) => (Status::Ok, Response::empty()),
+        Err(message) => (Status::BadRequest, Response::error(message)),
+    }
+}
+
+#[delete("/")]
+pub fn reset_values(db: &State<Database>, _auth: Auth) -> (Status, Response) {
+    match db.reset_values() {
         Ok(_) => (Status::Ok, Response::empty()),
         Err(message) => (Status::BadRequest, Response::error(message)),
     }
