@@ -35,3 +35,11 @@ fn test_delete_value() {
     let response = client.delete("/values/0").header(header).dispatch();
     assert_eq!(response.status(), Status::Ok);
 }
+
+#[test]
+fn test_reset_values() {
+    let client = create_test_client("test_reset_values");
+    let header = get_auth_header();
+    let response = client.delete("/values").header(header).dispatch();
+    assert_eq!(response.status(), Status::Ok);
+}
