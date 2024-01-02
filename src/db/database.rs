@@ -4,67 +4,61 @@ use serde::*;
 use sled::Db as DB;
 use std::collections::HashMap;
 
-type Error = &'static str;
-
-pub type Data = HashMap<String, String>;
-pub type Embedding = Vec<f32>;
-
-/// A struct that represents a value that will be stored
-/// in the key-value store of the database. The embedding
-/// dimension must match the dimension set by the
-/// `OASYSDB_DIMENSION` environment variable.
+/// The data structure of the value that will be
+/// stored in the value database.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Value {
+    /// The vector embedding of the data. The dimension of the embedding
+    /// must match the dimension configured when initializing the database.
     pub embedding: Embedding,
+    /// The data associated with the embedding. This can be used to store
+    /// any data that is associated with the embedding. For example, if
+    /// the embedding is a vector of a person's face, the data can be
+    /// the person's name.
     pub data: Data,
 }
 
-/// A type alias for the HNSW (Hierarchical Navigable Small World)
-/// graph. This is the graph that will be used to query the embedding.
-/// Check the documentation of `instant_distance` for more info:
-/// https://github.com/instant-labs/instant-distance
-pub type Graph = HNSW<Value, String>;
-
-/// A struct that represents the configuration of a graph. This is
-/// how the graph will be built and stored in the graph database.
-///
-/// `ef_construction` is the number of neighbors that will be used to
-/// build the graph. `ef_search` is the number of neighbors that will
-/// be used to search the graph. The higher the number of this parameters,
-/// the more accurate the graph will be but the slower it will be.
+/// Index graph configuration.
+/// Note that for EF parameters, the higher the number of this parameters,
+/// the more accurate the graph will be but the slower it will be to build.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GraphConfig {
+    /// The name of the graph. Also used to identify the
+    /// graph in the graph database.
     pub name: String,
+    /// The number of neighbors that will be calculated
+    /// during the construction of the graph.
     pub ef_construction: usize,
+    /// The number of neighbors that will be considered
+    /// when searching the nearest neighbors in the graph.
     pub ef_search: usize,
+    /// Optional hashmap of data that will be used to filter
+    /// the values used to build the graph. Works like a WHERE
+    /// clause in SQL with an AND operator. Only values that
+    /// match all of the filter will be used to build the graph.
     pub filter: Option<Data>,
 }
 
-/// A struct that represents the data that will be stored in the graph
-/// database as a value. It contains the graph itself and the
-/// configuration of the graph.
+/// The value that will be stored in the graph database.
 #[derive(Serialize, Deserialize)]
-pub struct GraphStore {
-    pub graph: Graph,
-    pub config: GraphConfig,
+struct GraphStore {
+    graph: Graph,
+    config: GraphConfig,
 }
 
-/// A struct that represents the configuration of the database.
-/// - `path`: The path where the database will be persisted.
-/// - `dimension`: The dimension of the embeddings that will be stored.
-///     This needs to be set by the `OASYSDB_DIMENSION` environment
-///     variable and it is used to validate that the embeddings have the
-///     correct dimension.
+/// The configuration of the database.
 pub struct Config {
+    /// The path where the database will be persisted.
     pub path: String,
+    /// The dimension of the embeddings that will be stored.
+    /// This is used to validate that the embeddings supplied
+    /// have the correct dimension.
     pub dimension: usize,
 }
 
-/// A struct that represents the database. It contains the configuration
-/// as well as the key-value store and the graph database. The key-value
-/// store is used to store the `Value` and the graph database is used to
-/// store the serialized graphs. This graph then can be deserialized and
-/// queried to get the nearest neighbors of a given embedding.
+/// The vector database. It contains the configuration as well as the value
+/// database and the graph database. The value database is used to store the
+/// `Value` and the graph database is used to store the `GraphStore`.
 pub struct Database {
     pub config: Config,
     value_db: DB,
@@ -73,16 +67,18 @@ pub struct Database {
 
 impl Database {
     /// Creates a new database with the given configuration. The value
-    /// database will be stored in `/<path>/values` and the graph database
-    /// will be stored in `/<path>/graphs`.
+    /// database will be persisted in `/<path>/values` and the graph
+    /// database will be persisted in `/<path>/graphs`.
     pub fn new(config: Config) -> Database {
         let value_db = sled::open(format!("{}/values", config.path)).unwrap();
         let graph_db = sled::open(format!("{}/graphs", config.path)).unwrap();
         Database { config, value_db, graph_db }
     }
 
-    // Key-value store methods.
+    // Value database methods.
 
+    /// Gets the value with the given key from the value database. If the
+    /// value doesn't exist, it will return an error.
     pub fn get_value(&self, key: &str) -> Result<Value, Error> {
         let result = self.value_db.get(key);
 
@@ -97,6 +93,9 @@ impl Database {
         }
     }
 
+    /// Sets the value with the given key in the value database.
+    /// If the value already exists, it will be overwritten with
+    /// the new value.
     pub fn set_value(&self, key: &str, value: Value) -> Result<(), Error> {
         // Validate that the value has the correct dimension.
         if value.embedding.len() != self.config.dimension {
@@ -112,6 +111,7 @@ impl Database {
         }
     }
 
+    /// Deletes the value from the value database.
     pub fn delete_value(&self, key: &str) -> Result<(), Error> {
         match self.value_db.remove(key).unwrap() {
             Some(_) => Ok(()),
@@ -119,6 +119,8 @@ impl Database {
         }
     }
 
+    /// Resets the value database. This method will delete all values
+    /// in the value database.
     pub fn reset_values(&self) -> Result<(), Error> {
         match self.value_db.clear() {
             Ok(_) => Ok(()),
@@ -132,9 +134,9 @@ impl Database {
     /// graph from the key-values. The graph will be serialized and stored
     /// in the graph database.
     ///
-    /// Unfortunatelly, the graph doesn't automatically update when a value
-    /// is added or deleted. This means that a value is added or deleted,
-    /// the graph needs to be recreated.
+    /// Once built, the values used to build the graph is persisted inside
+    /// of the graph like a snapshot. This means that when a value is added
+    /// or deleted, the graph needs to be recreated to reflect the changes.
     pub fn create_graph(&self, config: GraphConfig) -> Result<(), Error> {
         let mut keys: Vec<String> = Vec::new();
         let mut values: Vec<Value> = Vec::new();
@@ -181,6 +183,7 @@ impl Database {
         }
     }
 
+    /// Deletes the graph with the given name from the graph database.
     pub fn delete_graph(&self, name: &str) -> Result<(), Error> {
         match self.graph_db.remove(name).unwrap() {
             Some(_) => Ok(()),
@@ -237,6 +240,8 @@ impl Database {
         Ok(data)
     }
 
+    /// Resets the graph database. This method will delete all graphs
+    /// in the graph database.
     pub fn reset_graphs(&self) -> Result<(), Error> {
         match self.graph_db.clear() {
             Ok(_) => Ok(()),
@@ -273,3 +278,14 @@ fn filter_data_match(data: &Data, filter: &Data) -> bool {
 
     true
 }
+
+// Type aliases for readability.
+type Error = &'static str;
+type Data = HashMap<String, String>;
+type Embedding = Vec<f32>;
+
+/// A type alias for the HNSW (Hierarchical Navigable Small World)
+/// graph. This is the graph that will be used to query the embedding.
+/// Check the documentation of `instant_distance` for more info:
+/// https://github.com/instant-labs/instant-distance
+type Graph = HNSW<Value, String>;
