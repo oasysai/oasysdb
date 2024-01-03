@@ -1,3 +1,1 @@
-use oasysdb::*;
-
 fn main() {}
