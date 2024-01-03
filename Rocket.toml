@@ -1,9 +1,0 @@
-[default]
-# Host settings.
-address = "0.0.0.0"
-port = 3141
-
-# Other.
-log_level = "off"
-ident = false
-ip_header = false
