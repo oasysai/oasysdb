@@ -1,5 +1,7 @@
 mod db;
-pub use db::database::*;
+mod ix;
+
+pub use ix::*;
 
 #[cfg(test)]
 mod tests;
