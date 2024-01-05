@@ -1,9 +1,7 @@
 use super::*;
 use dashmap::DashSet;
 use itertools::Itertools;
-use rand::prelude::SliceRandom;
 use std::cmp::min;
-use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
 pub struct Node<M: Copy, const N: usize> {
@@ -33,53 +31,6 @@ pub struct IndexConfig {
 }
 
 impl<M: Copy, const N: usize> Index<M, N> {
-    fn build_hyperplane(
-        keys: &Vec<&'static str>,
-        vectors: &HashMap<&str, Vector<N>>,
-    ) -> (Hyperplane<N>, Vec<&'static str>, Vec<&'static str>) {
-        let mut rng = rand::thread_rng();
-        let sample: Vec<_> = keys.choose_multiple(&mut rng, 2).collect();
-        let (a, b) = (*sample[0], *sample[1]);
-
-        let coefficients = vectors[a].subtract_from(&vectors[b]);
-        let point_on_plane = vectors[a].average(&vectors[b]);
-        let constant = -coefficients.dot_product(&point_on_plane);
-        let hyperplane = Hyperplane::<N> { coefficients, constant };
-
-        let mut left = vec![];
-        let mut right = vec![];
-
-        for key in keys.iter() {
-            if hyperplane.point_is_above(&vectors[key]) {
-                right.push(*key)
-            } else {
-                left.push(*key)
-            };
-        }
-
-        (hyperplane, right, left)
-    }
-
-    fn build_tree(
-        keys: &Vec<&'static str>,
-        vectors: &HashMap<&str, Vector<N>>,
-        max_leaf_size: i32,
-    ) -> Tree<N> {
-        if keys.len() <= max_leaf_size as usize {
-            return Tree::Leaf(Box::new(keys.clone()));
-        }
-
-        let (plane, right, left) = Self::build_hyperplane(keys, vectors);
-        let right_tree = Self::build_tree(&right, vectors, max_leaf_size);
-        let left_tree = Self::build_tree(&left, vectors, max_leaf_size);
-
-        Tree::Branch(Box::new(Branch::<N> {
-            hyperplane: plane,
-            left_tree,
-            right_tree,
-        }))
-    }
-
     fn deduplicate(nodes: &Vec<Node<M, N>>) -> Vec<Node<M, N>> {
         let mut unique_nodes = vec![];
         let hashes_seen = DashSet::new();
@@ -109,7 +60,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
         }
 
         let trees: Vec<Tree<N>> = (0..config.num_trees)
-            .map(|_| Self::build_tree(&keys, &vectors, config.max_leaf_size))
+            .map(|_| Tree::build(&keys, &vectors, config.max_leaf_size))
             .collect();
 
         let config = *config;

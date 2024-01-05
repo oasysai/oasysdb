@@ -3,9 +3,8 @@ use rand::random;
 
 fn main() {
     let n = 10;
-
-    let nodes = generate_nodes(100000);
-    let config = IndexConfig { num_trees: 5, max_leaf_size: 20 };
+    let nodes = generate_nodes(10000);
+    let config = IndexConfig { num_trees: 5, max_leaf_size: 15 };
     let index = Index::build(&nodes, &config);
 
     let vector = generate_node().vector;
