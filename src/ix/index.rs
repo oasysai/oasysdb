@@ -12,7 +12,7 @@ pub struct Node<M: Copy, const N: usize> {
     pub metadata: M,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct QueryResult<M: Copy> {
     pub key: &'static str,
     pub distance: f32,
@@ -23,6 +23,13 @@ pub struct Index<M: Copy, const N: usize> {
     trees: Vec<Tree<N>>,
     metadata: HashMap<&'static str, M>,
     vectors: HashMap<&'static str, Vector<N>>,
+    config: IndexConfig,
+}
+
+#[derive(Clone, Copy)]
+pub struct IndexConfig {
+    pub num_trees: i32,
+    pub max_leaf_size: i32,
 }
 
 impl<M: Copy, const N: usize> Index<M, N> {
@@ -56,15 +63,15 @@ impl<M: Copy, const N: usize> Index<M, N> {
     fn build_tree(
         keys: &Vec<&'static str>,
         vectors: &HashMap<&str, Vector<N>>,
-        max_size: i32,
+        max_leaf_size: i32,
     ) -> Tree<N> {
-        if keys.len() <= max_size as usize {
+        if keys.len() <= max_leaf_size as usize {
             return Tree::Leaf(Box::new(keys.clone()));
         }
 
         let (plane, right, left) = Self::build_hyperplane(keys, vectors);
-        let right_tree = Self::build_tree(&right, vectors, max_size);
-        let left_tree = Self::build_tree(&left, vectors, max_size);
+        let right_tree = Self::build_tree(&right, vectors, max_leaf_size);
+        let left_tree = Self::build_tree(&left, vectors, max_leaf_size);
 
         Tree::Branch(Box::new(Branch::<N> {
             hyperplane: plane,
@@ -88,11 +95,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
         unique_nodes
     }
 
-    pub fn build(
-        nodes: &Vec<Node<M, N>>,
-        num_trees: i32,
-        max_size: i32,
-    ) -> Index<M, N> {
+    pub fn build(nodes: &Vec<Node<M, N>>, config: &IndexConfig) -> Index<M, N> {
         let nodes = Self::deduplicate(nodes);
 
         let keys = nodes.iter().map(|node| node.key).collect();
@@ -105,37 +108,38 @@ impl<M: Copy, const N: usize> Index<M, N> {
             vectors.insert(node.key, node.vector);
         }
 
-        let trees: Vec<_> = (0..num_trees)
-            .into_iter()
-            .map(|_| Self::build_tree(&keys, &vectors, max_size))
+        let trees: Vec<Tree<N>> = (0..config.num_trees)
+            .map(|_| Self::build_tree(&keys, &vectors, config.max_leaf_size))
             .collect();
 
-        return Index::<M, N> { trees, metadata, vectors };
+        let config = *config;
+
+        Index::<M, N> { trees, metadata, vectors, config }
     }
 
     fn candidates_from_leaf(
         candidates: &DashSet<&str>,
-        leaf: &Box<Vec<&'static str>>,
+        leaf: &Vec<&'static str>,
         n: i32,
     ) -> i32 {
         let num_candidates = min(n as usize, leaf.len());
-        for i in 0..num_candidates {
-            candidates.insert(leaf[i]);
+        for item in leaf.iter().take(num_candidates) {
+            candidates.insert(item);
         }
         num_candidates as i32
     }
 
     fn candidates_from_branch(
         candidates: &DashSet<&str>,
-        branch: &Box<Branch<N>>,
-        vector: Vector<N>,
+        branch: &Branch<N>,
+        vector: &Vector<N>,
         n: i32,
     ) -> i32 {
-        let above = (*branch).hyperplane.point_is_above(&vector);
+        let above = branch.hyperplane.point_is_above(vector);
 
         let (main_tree, backup_tree) = match above {
-            true => (&(branch.right_tree), &(branch.left_tree)),
-            false => (&(branch.left_tree), &(branch.right_tree)),
+            true => (&branch.right_tree, &branch.left_tree),
+            false => (&branch.left_tree, &branch.right_tree),
         };
 
         let num_candidates =
@@ -157,7 +161,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
     fn get_candidates(
         candidates: &DashSet<&str>,
         tree: &Tree<N>,
-        vector: Vector<N>,
+        vector: &Vector<N>,
         n: i32,
     ) -> i32 {
         match tree {
@@ -168,7 +172,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
         }
     }
 
-    pub fn query(&self, vector: Vector<N>, n: i32) -> Vec<QueryResult<M>> {
+    pub fn query(&self, vector: &Vector<N>, n: i32) -> Vec<QueryResult<M>> {
         let candidates = DashSet::new();
 
         self.trees.iter().for_each(|tree| {
@@ -177,7 +181,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
 
         let sorted_candidates: Vec<_> = candidates
             .into_iter()
-            .map(|key| (key, self.vectors[key].euclidean_distance(&vector)))
+            .map(|key| (key, self.vectors[key].euclidean_distance(vector)))
             .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .take(n as usize)
             .collect();
@@ -186,11 +190,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
 
         for (key, distance) in sorted_candidates.iter() {
             let metadata = self.metadata[key];
-            result.push(QueryResult {
-                key: *key,
-                distance: *distance,
-                metadata,
-            });
+            result.push(QueryResult { key, distance: *distance, metadata });
         }
 
         result

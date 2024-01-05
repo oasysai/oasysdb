@@ -5,11 +5,12 @@ fn main() {
     let n = 10;
 
     let nodes = generate_nodes(100000);
-    let index = Index::build(&nodes, 25, 50);
+    let config = IndexConfig { num_trees: 5, max_leaf_size: 20 };
+    let index = Index::build(&nodes, &config);
 
     let vector = generate_node().vector;
     let start = std::time::Instant::now();
-    let index_result = index.query(vector, n);
+    let index_result = index.query(&vector, n);
     println!("Index query duration: {:?}", start.elapsed().as_micros());
 
     let start = std::time::Instant::now();
@@ -31,12 +32,12 @@ fn main() {
 }
 
 fn search_exhaustive<M: Copy, const N: usize>(
-    nodes: &Vec<Node<M, N>>,
+    nodes: &[Node<M, N>],
     vector: &Vector<N>,
     n: i32,
 ) -> Vec<(&'static str, f32)> {
     let mut result: Vec<(&str, f32)> = nodes
-        .into_iter()
+        .iter()
         .map(|node| (node.key, node.vector.euclidean_distance(vector)))
         .collect();
     result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
@@ -44,11 +45,11 @@ fn search_exhaustive<M: Copy, const N: usize>(
     // Return a set of IDs corresponding to the closest matches
     let mut final_candidates = vec![];
 
-    for i in 0..n as usize {
-        final_candidates.push(result[i]);
+    for item in result.iter().take(n as usize) {
+        final_candidates.push(*item);
     }
 
-    return final_candidates;
+    final_candidates
 }
 
 fn generate_nodes(len: usize) -> Vec<Node<&'static str, 128>> {
@@ -64,8 +65,8 @@ fn generate_nodes(len: usize) -> Vec<Node<&'static str, 128>> {
 fn generate_node() -> Node<&'static str, 128> {
     let mut vector = [0.0; 128];
 
-    for j in 0..128 {
-        vector[j] = random::<f32>();
+    for float in &mut vector {
+        *float = random::<f32>();
     }
 
     let key: &'static str =
