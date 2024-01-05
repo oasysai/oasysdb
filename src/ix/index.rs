@@ -1,7 +1,4 @@
 use super::*;
-use dashmap::DashSet;
-use itertools::Itertools;
-use std::cmp::min;
 
 #[derive(Clone, Copy)]
 pub struct Node<M: Copy, const N: usize> {
@@ -46,6 +43,15 @@ impl<M: Copy, const N: usize> Index<M, N> {
         unique_nodes
     }
 
+    pub fn new(config: &IndexConfig) -> Index<M, N> {
+        Index::<M, N> {
+            trees: vec![],
+            metadata: HashMap::new(),
+            vectors: HashMap::new(),
+            config: *config,
+        }
+    }
+
     pub fn build(nodes: &Vec<Node<M, N>>, config: &IndexConfig) -> Index<M, N> {
         let nodes = Self::deduplicate(nodes);
 
@@ -68,66 +74,11 @@ impl<M: Copy, const N: usize> Index<M, N> {
         Index::<M, N> { trees, metadata, vectors, config }
     }
 
-    fn candidates_from_leaf(
-        candidates: &DashSet<&str>,
-        leaf: &Vec<&'static str>,
-        n: i32,
-    ) -> i32 {
-        let num_candidates = min(n as usize, leaf.len());
-        for item in leaf.iter().take(num_candidates) {
-            candidates.insert(item);
-        }
-        num_candidates as i32
-    }
-
-    fn candidates_from_branch(
-        candidates: &DashSet<&str>,
-        branch: &Branch<N>,
-        vector: &Vector<N>,
-        n: i32,
-    ) -> i32 {
-        let above = branch.hyperplane.point_is_above(vector);
-
-        let (main_tree, backup_tree) = match above {
-            true => (&branch.right_tree, &branch.left_tree),
-            false => (&branch.left_tree, &branch.right_tree),
-        };
-
-        let num_candidates =
-            Self::get_candidates(candidates, main_tree, vector, n);
-
-        if num_candidates >= n {
-            return num_candidates;
-        }
-
-        num_candidates
-            + Self::get_candidates(
-                candidates,
-                backup_tree,
-                vector,
-                n - num_candidates,
-            )
-    }
-
-    fn get_candidates(
-        candidates: &DashSet<&str>,
-        tree: &Tree<N>,
-        vector: &Vector<N>,
-        n: i32,
-    ) -> i32 {
-        match tree {
-            Tree::Leaf(leaf) => Self::candidates_from_leaf(candidates, leaf, n),
-            Tree::Branch(branch) => {
-                Self::candidates_from_branch(candidates, branch, vector, n)
-            }
-        }
-    }
-
     pub fn query(&self, vector: &Vector<N>, n: i32) -> Vec<QueryResult<M>> {
         let candidates = DashSet::new();
 
         self.trees.iter().for_each(|tree| {
-            Self::get_candidates(&candidates, tree, vector, n);
+            tree.query(&candidates, vector, n);
         });
 
         let sorted_candidates: Vec<_> = candidates

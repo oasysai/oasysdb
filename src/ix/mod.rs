@@ -3,7 +3,10 @@ mod index;
 mod tree;
 mod vector;
 
+use dashmap::DashSet;
+use itertools::Itertools;
 use rand::prelude::SliceRandom;
+use std::cmp::min;
 use std::collections::HashMap;
 
 use hyperplane::*;

@@ -25,6 +25,57 @@ impl<const N: usize> Tree<N> {
             right_tree,
         }))
     }
+
+    fn candidates_from_leaf(
+        &self,
+        candidates: &DashSet<&str>,
+        leaf: &Vec<&'static str>,
+        n: i32,
+    ) -> i32 {
+        let num_candidates = min(n as usize, leaf.len());
+        for item in leaf.iter().take(num_candidates) {
+            candidates.insert(item);
+        }
+        num_candidates as i32
+    }
+
+    fn candidates_from_branch(
+        &self,
+        candidates: &DashSet<&str>,
+        branch: &Branch<N>,
+        vector: &Vector<N>,
+        n: i32,
+    ) -> i32 {
+        let above = branch.hyperplane.point_is_above(vector);
+
+        let (main_tree, backup_tree) = match above {
+            true => (&branch.right_tree, &branch.left_tree),
+            false => (&branch.left_tree, &branch.right_tree),
+        };
+
+        let num_candidates = main_tree.query(candidates, vector, n);
+
+        if num_candidates >= n {
+            return num_candidates;
+        }
+
+        num_candidates
+            + backup_tree.query(candidates, vector, n - num_candidates)
+    }
+
+    pub fn query(
+        &self,
+        candidates: &DashSet<&str>,
+        vector: &Vector<N>,
+        n: i32,
+    ) -> i32 {
+        match self {
+            Tree::Leaf(leaf) => self.candidates_from_leaf(candidates, leaf, n),
+            Tree::Branch(branch) => {
+                self.candidates_from_branch(candidates, branch, vector, n)
+            }
+        }
+    }
 }
 
 pub type Leaf<const N: usize> = Vec<&'static str>;
