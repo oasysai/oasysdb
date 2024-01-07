@@ -28,7 +28,7 @@ impl<const N: usize> Tree<N> {
 
     pub fn insert(
         &mut self,
-        data: (&'static str, Vector<N>),
+        data: (&'static str, &Vector<N>),
         vectors: &HashMap<&'static str, Vector<N>>,
         max_leaf_size: i32,
     ) {
@@ -49,6 +49,24 @@ impl<const N: usize> Tree<N> {
                 };
 
                 tree.insert(data, vectors, max_leaf_size);
+            }
+        }
+    }
+
+    pub fn delete(&mut self, data: (&'static str, &Vector<N>)) {
+        match self {
+            Tree::Leaf(leaf) => {
+                leaf.retain(|&item| item != data.0);
+            }
+            Tree::Branch(branch) => {
+                let above = branch.hyperplane.point_is_above(&data.1);
+
+                let tree = match above {
+                    true => &mut branch.right_tree,
+                    false => &mut branch.left_tree,
+                };
+
+                tree.delete(data);
             }
         }
     }

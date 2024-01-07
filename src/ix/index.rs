@@ -74,7 +74,7 @@ impl<M: Copy, const N: usize> Index<M, N> {
         Index::<M, N> { trees, metadata, vectors, config }
     }
 
-    pub fn insert(&mut self, node: Node<M, N>) {
+    pub fn insert(&mut self, node: &Node<M, N>) {
         self.metadata.insert(node.key, node.metadata);
         self.vectors.insert(node.key, node.vector);
 
@@ -85,9 +85,19 @@ impl<M: Copy, const N: usize> Index<M, N> {
         }
 
         for tree in self.trees.iter_mut() {
-            let data = (node.key, node.vector);
+            let data = (node.key, &node.vector);
             tree.insert(data, &self.vectors, self.config.max_leaf_size);
         }
+    }
+
+    pub fn delete(&mut self, key: &'static str) {
+        for tree in self.trees.iter_mut() {
+            let data = (key, &self.vectors[key]);
+            tree.delete(data);
+        }
+
+        self.metadata.remove(key);
+        self.vectors.remove(key);
     }
 
     pub fn query(&self, vector: &Vector<N>, n: i32) -> Vec<QueryResult<M>> {

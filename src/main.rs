@@ -34,8 +34,10 @@ fn search_index_two<M: Copy, const N: usize>(
     let start = std::time::Instant::now();
     let mut index = Index::new(config);
     for node in nodes.iter() {
-        index.insert(*node);
+        index.insert(node);
     }
+
+    index.delete(nodes[0].key);
 
     println!("Index two build: {:?}", start.elapsed().as_micros());
 
