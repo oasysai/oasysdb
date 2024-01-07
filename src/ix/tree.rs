@@ -26,10 +26,37 @@ impl<const N: usize> Tree<N> {
         }))
     }
 
+    pub fn insert(
+        &mut self,
+        data: (&'static str, Vector<N>),
+        vectors: &HashMap<&'static str, Vector<N>>,
+        max_leaf_size: i32,
+    ) {
+        match self {
+            Tree::Leaf(leaf) => {
+                leaf.push(data.0);
+
+                if leaf.len() > max_leaf_size as usize {
+                    *self = Self::build(leaf, vectors, max_leaf_size);
+                }
+            }
+            Tree::Branch(branch) => {
+                let above = branch.hyperplane.point_is_above(&data.1);
+
+                let tree = match above {
+                    true => &mut branch.right_tree,
+                    false => &mut branch.left_tree,
+                };
+
+                tree.insert(data, vectors, max_leaf_size);
+            }
+        }
+    }
+
     fn candidates_from_leaf(
         &self,
         candidates: &DashSet<&str>,
-        leaf: &Vec<&'static str>,
+        leaf: &Leaf<N>,
         n: i32,
     ) -> i32 {
         let num_candidates = min(n as usize, leaf.len());

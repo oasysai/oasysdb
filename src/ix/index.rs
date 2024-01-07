@@ -74,6 +74,22 @@ impl<M: Copy, const N: usize> Index<M, N> {
         Index::<M, N> { trees, metadata, vectors, config }
     }
 
+    pub fn insert(&mut self, node: Node<M, N>) {
+        self.metadata.insert(node.key, node.metadata);
+        self.vectors.insert(node.key, node.vector);
+
+        if self.trees.is_empty() {
+            for _ in 0..self.config.num_trees {
+                self.trees.push(Tree::Leaf(Box::new(vec![node.key])));
+            }
+        }
+
+        for tree in self.trees.iter_mut() {
+            let data = (node.key, node.vector);
+            tree.insert(data, &self.vectors, self.config.max_leaf_size);
+        }
+    }
+
     pub fn query(&self, vector: &Vector<N>, n: i32) -> Vec<QueryResult<M>> {
         let candidates = DashSet::new();
 

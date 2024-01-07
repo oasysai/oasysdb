@@ -2,53 +2,81 @@ use oasysdb::*;
 use rand::random;
 
 fn main() {
+    let len = 1000;
     let n = 10;
-    let nodes = generate_nodes(10000);
-    let config = IndexConfig { num_trees: 5, max_leaf_size: 15 };
-    let index = Index::build(&nodes, &config);
-
+    let nodes = generate_nodes(len);
+    let config = IndexConfig { num_trees: 3, max_leaf_size: 15 };
     let vector = generate_node().vector;
-    let start = std::time::Instant::now();
-    let index_result = index.query(&vector, n);
-    println!("Index query duration: {:?}", start.elapsed().as_micros());
 
-    let start = std::time::Instant::now();
-    let exhaustive_result = search_exhaustive(&nodes, &vector, n);
-    println!("Exhaustive query duration: {:?}", start.elapsed().as_micros());
+    let index_one_result = search_index_one(&nodes, &vector, &config, n);
+    let index_two_result = search_index_two(&nodes, &vector, &config, n);
+    let exhaustive_result = search_exhaustive(&nodes, &vector);
 
-    println!("Result Table:");
-    println!("Index\t\t\t\t|Exhaustive");
-    println!("Key \t\tDist \t\t|Key \t\tDist");
     for i in 0..n as usize {
         println!(
-            "{}\t{:.4}\t\t|{}\t{:.4}",
-            index_result[i].key,
-            index_result[i].distance,
-            exhaustive_result[i].0,
-            exhaustive_result[i].1
+            "{:.4}\t{:.4}\t{:.4}",
+            exhaustive_result[i].1,
+            index_one_result[i].distance,
+            index_two_result[i].distance,
         );
     }
+
+    println!("...");
+    println!("{:.4}", exhaustive_result[len - 1].1);
+}
+
+fn search_index_two<M: Copy, const N: usize>(
+    nodes: &[Node<M, N>],
+    vector: &Vector<N>,
+    config: &IndexConfig,
+    n: i32,
+) -> Vec<QueryResult<M>> {
+    let start = std::time::Instant::now();
+    let mut index = Index::new(config);
+    for node in nodes.iter() {
+        index.insert(*node);
+    }
+
+    println!("Index two build: {:?}", start.elapsed().as_micros());
+
+    let start = std::time::Instant::now();
+    let result = index.query(vector, n);
+    println!("Index two query: {:?}", start.elapsed().as_micros());
+
+    result
+}
+
+fn search_index_one<M: Copy, const N: usize>(
+    nodes: &Vec<Node<M, N>>,
+    vector: &Vector<N>,
+    config: &IndexConfig,
+    n: i32,
+) -> Vec<QueryResult<M>> {
+    let start = std::time::Instant::now();
+    let index = Index::build(nodes, config);
+    println!("Index one build: {:?}", start.elapsed().as_micros());
+
+    let start = std::time::Instant::now();
+    let result = index.query(vector, n);
+    println!("Index one query: {:?}", start.elapsed().as_micros());
+
+    result
 }
 
 fn search_exhaustive<M: Copy, const N: usize>(
     nodes: &[Node<M, N>],
     vector: &Vector<N>,
-    n: i32,
 ) -> Vec<(&'static str, f32)> {
+    let start = std::time::Instant::now();
+
     let mut result: Vec<(&str, f32)> = nodes
         .iter()
         .map(|node| (node.key, node.vector.euclidean_distance(vector)))
         .collect();
     result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-    // Return a set of IDs corresponding to the closest matches
-    let mut final_candidates = vec![];
-
-    for item in result.iter().take(n as usize) {
-        final_candidates.push(*item);
-    }
-
-    final_candidates
+    println!("Exhaustive query: {:?}", start.elapsed().as_micros());
+    result
 }
 
 fn generate_nodes(len: usize) -> Vec<Node<&'static str, 128>> {
