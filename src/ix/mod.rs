@@ -1,16 +1,16 @@
 mod hyperplane;
-mod index;
 mod tree;
-mod vector;
 
+pub mod index;
+pub mod vector;
+
+use hyperplane::*;
+use tree::*;
+use vector::*;
+
+// External deps.
 use dashmap::DashSet;
 use itertools::Itertools;
 use rand::prelude::SliceRandom;
 use std::cmp::min;
 use std::collections::HashMap;
-
-use hyperplane::*;
-use tree::*;
-
-pub use index::*;
-pub use vector::*;

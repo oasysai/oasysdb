@@ -1,8 +1,9 @@
-use oasysdb::*;
+use oasysdb::index::*;
+use oasysdb::vector::*;
 use rand::random;
 
 fn main() {
-    let len = 1000;
+    let len = 10000;
     let n = 10;
     let nodes = generate_nodes(len);
     let config = IndexConfig { num_trees: 3, max_leaf_size: 15 };
