@@ -25,6 +25,15 @@ pub struct IndexConfig {
     pub max_leaf_size: i32,
 }
 
+impl Default for IndexConfig {
+    /// Default configuration for the vector index.
+    /// * `num_trees`: 3
+    /// * `max_leaf_size`: 15
+    fn default() -> Self {
+        IndexConfig { num_trees: 3, max_leaf_size: 15 }
+    }
+}
+
 /// The vector index.
 /// * `M` - Any type of metadata for the vector.
 /// * `N` - The vector dimension.
@@ -52,6 +61,23 @@ impl<M: Copy, const N: usize> Index<M, N> {
         }
 
         unique_nodes
+    }
+
+    /// Returns the number of vector records in the index.
+    pub fn count(&self) -> usize {
+        self.vectors.len()
+    }
+
+    /// Lists vector nodes from the index.
+    /// * `n` - The number of nodes to return.
+    pub fn list(&self, n: usize) -> Vec<Node<M, N>> {
+        let mut nodes = vec![];
+        for (key, vector) in self.vectors.iter().take(n) {
+            let metadata = self.metadata[key];
+            nodes.push(Node { key, vector: *vector, metadata });
+        }
+
+        nodes
     }
 
     /// Creates a new blank index with the given configuration.
