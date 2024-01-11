@@ -1,9 +1,11 @@
 use super::*;
 
+/// The vector embedding where `N` is the vector dimension.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Vector<const N: usize>(#[serde(with = "BigArray")] pub [f32; N]);
 
 impl<const N: usize> Vector<N> {
+    /// Returns the Euclidean distance between two vectors.
     pub fn distance(&self, other: &Self) -> f32 {
         let iter = self.0.iter().zip(other.0.iter());
         iter.map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()

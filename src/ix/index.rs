@@ -1,5 +1,10 @@
 use super::*;
 
+/// The HNSW index graph configuration.
+/// * `ef_construction`: Nodes to consider during construction.
+/// * `ef_search`: Nodes to consider during search.
+/// * `ml`: Layer multiplier. The optimal value is `1/ln(M)`.
+/// * `seed`: Seed for random number generator.
 #[derive(Serialize, Deserialize)]
 pub struct IndexConfig {
     pub ef_construction: usize,
@@ -9,6 +14,11 @@ pub struct IndexConfig {
 }
 
 impl Default for IndexConfig {
+    /// Default configuration for the HNSW index graph.
+    /// * `ef_construction`: 40
+    /// * `ef_search`: 15
+    /// * `ml`: 0.3
+    /// * `seed`: Randomized integer
     fn default() -> Self {
         let ml = 0.3;
         let seed: u64 = random();
@@ -87,11 +97,12 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
     }
 }
 
+/// The HNSW index graph.
+/// * `D`: Data associated with the vector.
+/// * `N`: The vector dimension.
+/// * `M`: Maximum neighbors per vector node.
 #[derive(Serialize, Deserialize)]
-pub struct IndexGraph<D, const N: usize, const M: usize>
-where
-    D: Clone + Copy,
-{
+pub struct IndexGraph<D, const N: usize, const M: usize> {
     pub data: Vec<D>,
     pub config: IndexConfig,
     vectors: Vec<Vector<N>>,
@@ -99,9 +110,8 @@ where
     upper_layers: Vec<Vec<UpperNode<M>>>,
 }
 
-impl<D, const N: usize, const M: usize> Index<VectorID> for IndexGraph<D, N, M>
-where
-    D: Clone + Copy,
+impl<D, const N: usize, const M: usize> Index<VectorID>
+    for IndexGraph<D, N, M>
 {
     type Output = Vector<N>;
     fn index(&self, index: VectorID) -> &Self::Output {
@@ -109,10 +119,9 @@ where
     }
 }
 
-impl<D, const N: usize, const M: usize> IndexGraph<D, N, M>
-where
-    D: Clone + Copy,
-{
+impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
+    /// Creates an empty index graph.
+    /// * `config`: The index configuration.
     pub fn new(config: IndexConfig) -> Self {
         Self {
             config,
@@ -123,6 +132,10 @@ where
         }
     }
 
+    /// Builds an index graph from a list of vectors.
+    /// * `config`: The index configuration.
+    /// * `data`: Data associated with the vectors.
+    /// * `vectors`: The vectors to index.
     pub fn build(
         config: IndexConfig,
         data: &Vec<D>,
@@ -154,10 +167,7 @@ where
         let num_layers = layers.len();
         let top_layer = LayerID(num_layers - 1);
 
-        // Give all vectors a random layer and sort the list of nodes by descending order for
-        // construction. This allows us to copy higher layers to lower layers as construction
-        // progresses, while preserving randomness in each point's layer and insertion order.
-
+        // Ensure the number of vectors is less than u32 capacity.
         assert!(vectors.len() < u32::MAX as usize);
 
         let mut shuffler = |i: usize| {
@@ -183,19 +193,13 @@ where
             .map(|(i, item)| output_mapper((i, item.1)))
             .collect::<Vec<Vector<N>>>();
 
-        // Figure output how many nodes will go on each layer. This helps us allocate memory capacity
-        // for each layer in advance, and also helps enable batch insertion of vectors.
-
         let mut ranges = Vec::with_capacity(top_layer.0);
         for (i, (size, cumulative)) in layers.into_iter().enumerate() {
             let start = cumulative - size;
-            // Skip the first point, since we insert the enter point separately
             let layer_id = LayerID(num_layers - i - 1);
             let value = max(start, 1)..cumulative;
             ranges.push((layer_id, value));
         }
-
-        // Initialize data for layers
 
         let search_pool = SearchPool::new(vectors.len());
         let mut upper_layers = vec![vec![]; top_layer.0];
@@ -222,8 +226,6 @@ where
                 range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
             }
 
-            // For layers above the zero layer, make a copy of the current state of the zero layer
-            // with `nearest` truncated to `M` elements.
             if !layer.is_zero() {
                 (&state.base_layer[..end])
                     .into_par_iter()
@@ -242,6 +244,9 @@ where
         Self { data, vectors, base_layer, upper_layers, config }
     }
 
+    /// Searches the index graph for the nearest neighbors.
+    /// * `vector`: The vector to search.
+    /// * `n`: Number of neighbors to return.
     pub fn search<'a>(
         &'a self,
         vector: &'a Vector<N>,
@@ -282,11 +287,10 @@ where
     }
 }
 
+/// The index graph search result.
+/// * `D`: Data associated with the vector.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SearchResult<D>
-where
-    D: Clone + Copy,
-{
+pub struct SearchResult<D> {
     pub distance: f32,
     pub data: D,
 }

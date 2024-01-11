@@ -14,7 +14,7 @@ fn main() {
     let hnsw: IndexGraph<&str, 3, 32> =
         IndexGraph::build(config, &keys, &vectors);
 
-    let light_coral = Vector([240.0, 128.0, 128.0]);
+    let light_coral = Vector([240.0, 128.0, 127.0]);
     let nearest = hnsw.search(&light_coral, 2);
     println!("Nearest: {:?}", nearest);
 }
