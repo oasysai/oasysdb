@@ -5,7 +5,7 @@ use super::*;
 /// * `ef_search`: Nodes to consider during search.
 /// * `ml`: Layer multiplier. The optimal value is `1/ln(M)`.
 /// * `seed`: Seed for random number generator.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct IndexConfig {
     pub ef_construction: usize,
     pub ef_search: usize,
@@ -37,8 +37,8 @@ struct IndexConstruction<'a, const M: usize, const N: usize> {
 impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
     fn insert(
         &self,
-        vector_id: VectorID,
-        layer: LayerID,
+        vector_id: &VectorID,
+        layer: &LayerID,
         layers: &[Vec<UpperNode<M>>],
     ) {
         let vector = &self.vectors[vector_id];
@@ -48,14 +48,14 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         insertion.ef = self.config.ef_construction;
 
         search.reset();
-        search.push(VectorID(0), vector, self.vectors);
+        search.push(&VectorID(0), vector, self.vectors);
 
         for current_layer in self.top_layer.descend() {
-            if current_layer <= layer {
+            if current_layer <= *layer {
                 search.ef = self.config.ef_construction;
             }
 
-            if current_layer > layer {
+            if current_layer > *layer {
                 let layer = layers[current_layer.0 - 1].as_slice();
                 search.search(layer, vector, self.vectors, M);
                 search.cull();
@@ -72,28 +72,28 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 
         for (i, candidate) in candidates.iter().enumerate() {
             let vec_id = candidate.vector_id;
-            let old = &self.vectors[vec_id];
+            let old = &self.vectors[&vec_id];
 
             let distance = candidate.distance;
             let comparator = |id: &VectorID| {
                 if !id.is_valid() {
                     Ordering::Greater
                 } else {
-                    let other = &self.vectors[*id];
+                    let other = &self.vectors[id];
                     distance.cmp(&old.distance(other).into())
                 }
             };
 
-            let index = self.base_layer[vec_id]
+            let index = self.base_layer[&vec_id]
                 .read()
                 .binary_search_by(|id| comparator(&id))
                 .unwrap_or_else(|error| error);
 
-            self.base_layer[vec_id].write().insert(index, vector_id);
+            self.base_layer[&vec_id].write().insert(index, vector_id);
             node.set(i, vector_id);
         }
 
-        self.search_pool.push((search, insertion));
+        self.search_pool.push(&(search, insertion));
     }
 }
 
@@ -110,11 +110,11 @@ pub struct IndexGraph<D, const N: usize, const M: usize> {
     upper_layers: Vec<Vec<UpperNode<M>>>,
 }
 
-impl<D, const N: usize, const M: usize> Index<VectorID>
+impl<D, const N: usize, const M: usize> Index<&VectorID>
     for IndexGraph<D, N, M>
 {
     type Output = Vector<N>;
-    fn index(&self, index: VectorID) -> &Self::Output {
+    fn index(&self, index: &VectorID) -> &Self::Output {
         &self.vectors[index.0 as usize]
     }
 }
@@ -122,9 +122,9 @@ impl<D, const N: usize, const M: usize> Index<VectorID>
 impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     /// Creates an empty index graph.
     /// * `config`: The index configuration.
-    pub fn new(config: IndexConfig) -> Self {
+    pub fn new(config: &IndexConfig) -> Self {
         Self {
-            config,
+            config: *config,
             data: vec![],
             vectors: vec![],
             base_layer: vec![],
@@ -137,7 +137,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     /// * `data`: Data associated with the vectors.
     /// * `vectors`: The vectors to index.
     pub fn build(
-        config: IndexConfig,
+        config: &IndexConfig,
         data: &Vec<D>,
         vectors: &Vec<Vector<N>>,
     ) -> Self {
@@ -204,7 +204,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         let search_pool = SearchPool::new(vectors.len());
         let mut upper_layers = vec![vec![]; top_layer.0];
         let base_layer = vectors
-            .iter()
+            .par_iter()
             .map(|_| RwLock::new(BaseNode::default()))
             .collect::<Vec<_>>();
 
@@ -217,7 +217,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         };
 
         for (layer, range) in ranges {
-            let inserter = |id| state.insert(id, layer, &upper_layers);
+            let inserter = |id| state.insert(&id, &layer, &upper_layers);
             let end = range.end;
 
             if layer == top_layer {
@@ -234,14 +234,14 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             }
         }
 
-        let mut sorted = output.iter().enumerate().collect::<Vec<_>>();
+        let mut sorted = output.par_iter().enumerate().collect::<Vec<_>>();
         sorted.sort_unstable_by(|a, b| a.1.cmp(&b.1));
         let data = sorted.iter().map(|item| data[item.0]).collect();
 
         let base_iter = base_layer.into_iter();
         let base_layer = base_iter.map(|node| node.into_inner()).collect();
 
-        Self { data, vectors, base_layer, upper_layers, config }
+        Self { data, vectors, base_layer, upper_layers, config: *config }
     }
 
     /// Searches the index graph for the nearest neighbors.
@@ -259,7 +259,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         }
 
         search.visited.reserve_capacity(self.vectors.len());
-        search.push(VectorID(0), vector, &self.vectors);
+        search.push(&VectorID(0), vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
             search.ef = if layer.is_zero() { self.config.ef_search } else { 5 };

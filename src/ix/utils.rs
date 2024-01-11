@@ -15,7 +15,7 @@ impl VectorID {
 
 pub trait Layer {
     type Slice: Deref<Target = [VectorID]>;
-    fn nearest_iter(&self, vector_id: VectorID) -> NearestIter<Self::Slice>;
+    fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice>;
 }
 
 pub struct NearestIter<T> {
@@ -106,7 +106,7 @@ impl<const M: usize> BaseNode<M> {
         }
     }
 
-    pub fn insert(&mut self, index: usize, vector_id: VectorID) {
+    pub fn insert(&mut self, index: usize, vector_id: &VectorID) {
         if index >= self.0.len() {
             return;
         }
@@ -116,17 +116,17 @@ impl<const M: usize> BaseNode<M> {
             self.0.copy_within(index..end, index + 1);
         }
 
-        self.0[index] = vector_id;
+        self.0[index] = *vector_id;
     }
 
-    pub fn set(&mut self, index: usize, vector_id: VectorID) {
-        self.0[index] = vector_id;
+    pub fn set(&mut self, index: usize, vector_id: &VectorID) {
+        self.0[index] = *vector_id;
     }
 }
 
-impl<const M: usize> Index<VectorID> for [RwLock<BaseNode<M>>] {
+impl<const M: usize> Index<&VectorID> for [RwLock<BaseNode<M>>] {
     type Output = RwLock<BaseNode<M>>;
-    fn index(&self, index: VectorID) -> &Self::Output {
+    fn index(&self, index: &VectorID) -> &Self::Output {
         &self[index.0 as usize]
     }
 }
@@ -140,14 +140,14 @@ impl<const M: usize> Deref for BaseNode<M> {
 
 impl<'a, const M: usize> Layer for &'a [BaseNode<M>] {
     type Slice = &'a [VectorID];
-    fn nearest_iter(&self, vector_id: VectorID) -> NearestIter<Self::Slice> {
+    fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice> {
         NearestIter::new(&self[vector_id.0 as usize])
     }
 }
 
 impl<'a, const M: usize> Layer for &'a [RwLock<BaseNode<M>>] {
     type Slice = MappedRwLockReadGuard<'a, [VectorID]>;
-    fn nearest_iter(&self, vector_id: VectorID) -> NearestIter<Self::Slice> {
+    fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice> {
         NearestIter::new(RwLockReadGuard::map(
             self[vector_id.0 as usize].read(),
             Deref::deref,
@@ -170,11 +170,12 @@ impl<const M: usize> UpperNode<M> {
 
 impl<'a, const M: usize> Layer for &'a [UpperNode<M>] {
     type Slice = &'a [VectorID];
-    fn nearest_iter(&self, vector_id: VectorID) -> NearestIter<Self::Slice> {
+    fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice> {
         NearestIter::new(&self[vector_id.0 as usize].0)
     }
 }
 
+#[derive(Clone)]
 pub struct Visited {
     store: Vec<u8>,
     generation: u8,
@@ -191,7 +192,7 @@ impl Visited {
         }
     }
 
-    pub fn insert(&mut self, vector_id: VectorID) -> bool {
+    pub fn insert(&mut self, vector_id: &VectorID) -> bool {
         let slot = &mut self.store[vector_id.0 as usize];
 
         if *slot != self.generation {
@@ -204,7 +205,7 @@ impl Visited {
 
     pub fn extend(&mut self, iter: impl Iterator<Item = VectorID>) {
         for vector_id in iter {
-            self.insert(vector_id);
+            self.insert(&vector_id);
         }
     }
 
@@ -227,6 +228,7 @@ pub struct Candidate {
     pub vector_id: VectorID,
 }
 
+#[derive(Clone)]
 pub struct Search<const M: usize, const N: usize> {
     pub ef: usize,
     pub visited: Visited,
@@ -256,9 +258,9 @@ impl<const M: usize, const N: usize> Search<M, N> {
                 }
             }
 
-            let layer_iter = layer.nearest_iter(candidate.vector_id);
+            let layer_iter = layer.nearest_iter(&candidate.vector_id);
             for vector_id in layer_iter.take(links) {
-                self.push(vector_id, vector, vectors);
+                self.push(&vector_id, vector, vectors);
             }
 
             self.nearest.truncate(self.ef);
@@ -267,7 +269,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
 
     pub fn push(
         &mut self,
-        vector_id: VectorID,
+        vector_id: &VectorID,
         vector: &Vector<N>,
         vectors: &[Vector<N>],
     ) {
@@ -277,7 +279,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
 
         let other = &vectors[vector_id];
         let distance = OrderedFloat::from(vector.distance(other));
-        let new = Candidate { distance, vector_id };
+        let new = Candidate { distance, vector_id: *vector_id };
 
         let index = match self.nearest.binary_search(&new) {
             Err(index) if index < self.ef => index,
@@ -351,7 +353,7 @@ impl<const M: usize, const N: usize> SearchPool<M, N> {
         }
     }
 
-    pub fn push(&self, item: (Search<M, N>, Search<M, N>)) {
-        self.pool.lock().push(item);
+    pub fn push(&self, item: &(Search<M, N>, Search<M, N>)) {
+        self.pool.lock().push(item.clone());
     }
 }

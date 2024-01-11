@@ -12,9 +12,9 @@ impl<const N: usize> Vector<N> {
     }
 }
 
-impl<const N: usize> Index<VectorID> for [Vector<N>] {
+impl<const N: usize> Index<&VectorID> for [Vector<N>] {
     type Output = Vector<N>;
-    fn index(&self, index: VectorID) -> &Self::Output {
+    fn index(&self, index: &VectorID) -> &Self::Output {
         &self[index.0 as usize]
     }
 }
