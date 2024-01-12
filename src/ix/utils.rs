@@ -106,19 +106,22 @@ impl<const M: usize> BaseNode<M> {
         }
     }
 
+    /// Inserts a vector ID to the base node at the index.
     pub fn insert(&mut self, index: usize, vector_id: &VectorID) {
         if index >= self.0.len() {
             return;
         }
 
+        // Shift the vector IDs.
         if self.0[index].is_valid() {
             let end = M - 1;
             self.0.copy_within(index..end, index + 1);
         }
 
-        self.0[index] = *vector_id;
+        self.set(index, vector_id)
     }
 
+    /// Sets the vector ID at the index.
     pub fn set(&mut self, index: usize, vector_id: &VectorID) {
         self.0[index] = *vector_id;
     }
@@ -182,16 +185,18 @@ pub struct Visited {
 }
 
 impl Visited {
+    /// Creates a new visited object with the capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self { store: vec![0; capacity], generation: 1 }
     }
 
-    pub fn reserve_capacity(&mut self, capacity: usize) {
+    pub fn resize_capacity(&mut self, capacity: usize) {
         if self.store.len() != capacity {
             self.store.resize(capacity, self.generation - 1);
         }
     }
 
+    /// Inserts a vector ID into the visited object.
     pub fn insert(&mut self, vector_id: &VectorID) -> bool {
         let slot = &mut self.store[vector_id.0 as usize];
 
@@ -203,6 +208,7 @@ impl Visited {
         false
     }
 
+    /// Inserts multiple vector IDs into the visited object.
     pub fn extend(&mut self, iter: impl Iterator<Item = VectorID>) {
         for vector_id in iter {
             self.insert(&vector_id);
@@ -221,6 +227,7 @@ impl Visited {
     }
 }
 
+/// Candidate for the nearest neighbors.
 #[derive(Clone, Copy, Debug)]
 #[derive(Eq, Ord, PartialEq, PartialOrd)]
 pub struct Candidate {
@@ -244,6 +251,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         Self { visited, ..Default::default() }
     }
 
+    /// Searches the nearest neighbors in the graph layer.
     pub fn search<L: Layer>(
         &mut self,
         layer: L,
@@ -252,6 +260,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         links: usize,
     ) {
         while let Some(Reverse(candidate)) = self.candidates.pop() {
+            // Skip candidates that are too far.
             if let Some(furthest) = self.nearest.last() {
                 if candidate.distance > furthest.distance {
                     break;
@@ -267,6 +276,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         }
     }
 
+    /// Pushes a new neighbor candidate to the search object.
     pub fn push(
         &mut self,
         vector_id: &VectorID,
@@ -277,10 +287,12 @@ impl<const M: usize, const N: usize> Search<M, N> {
             return;
         }
 
+        // Create a new candidate.
         let other = &vectors[vector_id];
         let distance = OrderedFloat::from(vector.distance(other));
         let new = Candidate { distance, vector_id: *vector_id };
 
+        // Make sure the index to insert to is within the EF scope.
         let index = match self.nearest.binary_search(&new) {
             Err(index) if index < self.ef => index,
             Err(_) => return,
@@ -291,6 +303,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         self.candidates.push(Reverse(new));
     }
 
+    /// Lowers the search to the next lower layer.
     pub fn cull(&mut self) {
         self.candidates.clear();
         self.visited.clear();
@@ -303,6 +316,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         self.visited.extend(candidates);
     }
 
+    /// Resets the search object data.
     pub fn reset(&mut self) {
         self.visited.clear();
         self.candidates.clear();
@@ -311,6 +325,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         self.discarded.clear();
     }
 
+    /// Selects the nearest neighbors.
     pub fn select_simple(&mut self) -> &[Candidate] {
         &self.nearest
     }
@@ -346,13 +361,15 @@ impl<const M: usize, const N: usize> SearchPool<M, N> {
         Self { pool, len }
     }
 
+    /// Returns the last searches from the pool.
     pub fn pop(&self) -> (Search<M, N>, Search<M, N>) {
         match self.pool.lock().pop() {
-            Some(res) => res,
+            Some(result) => result,
             None => (Search::new(self.len), Search::new(self.len)),
         }
     }
 
+    /// Pushes the searches to the pool.
     pub fn push(&self, item: &(Search<M, N>, Search<M, N>)) {
         self.pool.lock().push(item.clone());
     }

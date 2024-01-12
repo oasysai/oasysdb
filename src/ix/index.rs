@@ -35,6 +35,10 @@ struct IndexConstruction<'a, const M: usize, const N: usize> {
 }
 
 impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
+    /// Inserts a vector ID into a layer.
+    /// * `vector_id`: The vector ID to insert.
+    /// * `layer`: The layer to insert into.
+    /// * `layers`: The upper layers.
     fn insert(
         &self,
         vector_id: &VectorID,
@@ -55,6 +59,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
                 search.ef = self.config.ef_construction;
             }
 
+            // Find the nearest neighbor candidates.
             if current_layer > *layer {
                 let layer = layers[current_layer.0 - 1].as_slice();
                 search.search(layer, vector, self.vectors, M);
@@ -65,6 +70,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
             }
         }
 
+        // Select the neighbors.
         let candidates = {
             let candidates = search.select_simple();
             &candidates[..Ord::min(candidates.len(), M)]
@@ -73,9 +79,10 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         for (i, candidate) in candidates.iter().enumerate() {
             let vec_id = candidate.vector_id;
             let old = &self.vectors[&vec_id];
-
             let distance = candidate.distance;
-            let comparator = |id: &VectorID| {
+
+            // Function to sort the vectors by distance.
+            let ordering = |id: &VectorID| {
                 if !id.is_valid() {
                     Ordering::Greater
                 } else {
@@ -84,9 +91,10 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
                 }
             };
 
+            // Find the correct index to insert at to keep the order.
             let index = self.base_layer[&vec_id]
                 .read()
-                .binary_search_by(|id| comparator(&id))
+                .binary_search_by(|id| ordering(&id))
                 .unwrap_or_else(|error| error);
 
             self.base_layer[&vec_id].write().insert(index, vector_id);
@@ -147,6 +155,8 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             return Self::new(config);
         }
 
+        // Find the number of layers.
+
         let mut len = vectors.len();
         let mut layers = Vec::new();
 
@@ -169,6 +179,13 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
 
         // Ensure the number of vectors is less than u32 capacity.
         assert!(vectors.len() < u32::MAX as usize);
+
+        // Give all points a random layer and sort the list of nodes
+        // by descending order for construction.
+
+        // This allows us to copy higher layers to lower layers as
+        // construction progresses, while preserving randomness in
+        // each point's layer and insertion order.
 
         let mut shuffler = |i: usize| {
             let x = rng.gen_range(0..vectors.len() as usize);
@@ -193,6 +210,11 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             .map(|(i, item)| output_mapper((i, item.1)))
             .collect::<Vec<Vector<N>>>();
 
+        // Figure out how many nodes will go on each layer.
+        // This helps us allocate memory capacity for each
+        // layer in advance, and also helps enable batch
+        // insertion of points.
+
         let mut ranges = Vec::with_capacity(top_layer.0);
         for (i, (size, cumulative)) in layers.into_iter().enumerate() {
             let start = cumulative - size;
@@ -200,6 +222,8 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             let value = max(start, 1)..cumulative;
             ranges.push((layer_id, value));
         }
+
+        // Initialize data for layers.
 
         let search_pool = SearchPool::new(vectors.len());
         let mut upper_layers = vec![vec![]; top_layer.0];
@@ -226,6 +250,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
                 range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
             }
 
+            // Copy the base layer state to the upper layer.
             if !layer.is_zero() {
                 (&state.base_layer[..end])
                     .into_par_iter()
@@ -234,10 +259,12 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             }
         }
 
+        // Map the vector ID to the data.
         let mut sorted = output.par_iter().enumerate().collect::<Vec<_>>();
         sorted.sort_unstable_by(|a, b| a.1.cmp(&b.1));
         let data = sorted.iter().map(|item| data[item.0]).collect();
 
+        // Unwrap the base nodes for the base layer.
         let base_iter = base_layer.into_iter();
         let base_layer = base_iter.map(|node| node.into_inner()).collect();
 
@@ -258,7 +285,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             return vec![];
         }
 
-        search.visited.reserve_capacity(self.vectors.len());
+        search.visited.resize_capacity(self.vectors.len());
         search.push(&VectorID(0), vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
