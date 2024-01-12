@@ -110,7 +110,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 /// * `N`: The vector dimension.
 /// * `M`: Maximum neighbors per vector node.
 #[derive(Serialize, Deserialize)]
-pub struct IndexGraph<D, const N: usize, const M: usize> {
+pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
     pub data: HashMap<VectorID, D>,
     pub config: IndexConfig,
     vectors: Vec<Vector<N>>,
