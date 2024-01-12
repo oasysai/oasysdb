@@ -2,17 +2,6 @@ use super::*;
 
 pub const INVALID: VectorID = VectorID(u32::MAX);
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
-#[derive(Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub struct VectorID(pub u32);
-
-impl VectorID {
-    /// True if this vector ID is valid.
-    pub fn is_valid(self) -> bool {
-        self.0 != u32::MAX
-    }
-}
-
 pub trait Layer {
     type Slice: Deref<Target = [VectorID]>;
     fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice>;

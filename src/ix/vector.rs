@@ -1,5 +1,16 @@
 use super::*;
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct VectorID(pub u32);
+
+impl VectorID {
+    /// True if this vector ID is valid.
+    pub fn is_valid(self) -> bool {
+        self.0 != u32::MAX
+    }
+}
+
 /// The vector embedding where `N` is the vector dimension.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Vector<const N: usize>(#[serde(with = "BigArray")] pub [f32; N]);
