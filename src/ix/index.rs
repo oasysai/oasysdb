@@ -305,9 +305,10 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         }
 
         let map_result = |candidate: Candidate| {
+            let id = candidate.vector_id.0;
             let distance = candidate.distance.0;
             let data = self.data[candidate.vector_id.0 as usize].clone();
-            SearchResult { distance, data }
+            SearchResult { id, distance, data }
         };
 
         search.iter().map(|candidate| map_result(candidate)).take(n).collect()
@@ -318,6 +319,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
 /// * `D`: Data associated with the vector.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResult<D> {
+    pub id: u32, // Vector ID
     pub distance: f32,
     pub data: D,
 }
