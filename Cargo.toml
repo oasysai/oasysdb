@@ -8,7 +8,7 @@ edition = "2021"
 rayon = "1.8.0"
 parking_lot = "0.12.1"
 ordered-float = "4.2.0"
-rand = { version = "0.8.5", features = ["small_rng"] }
+rand = "0.8.5"
 
 # Serialization.
 serde = { version = "1.0.193", features = ["derive"] }

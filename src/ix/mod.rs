@@ -10,7 +10,6 @@ use vector::*;
 // External dependencies.
 use ordered_float::OrderedFloat;
 use parking_lot::*;
-use rand::rngs::SmallRng;
 use rand::*;
 use rayon::iter::*;
 use serde::{Deserialize, Serialize};

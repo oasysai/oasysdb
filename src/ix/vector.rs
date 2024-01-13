@@ -12,7 +12,7 @@ impl VectorID {
 }
 
 /// The vector embedding where `N` is the vector dimension.
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct Vector<const N: usize>(#[serde(with = "BigArray")] pub [f32; N]);
 
 impl<const N: usize> Vector<N> {

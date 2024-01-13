@@ -30,7 +30,7 @@ struct IndexConstruction<'a, const M: usize, const N: usize> {
     search_pool: SearchPool<M, N>,
     top_layer: LayerID,
     base_layer: &'a [RwLock<BaseNode<M>>],
-    vectors: &'a [Vector<N>],
+    vectors: &'a HashMap<VectorID, Vector<N>>,
     config: &'a IndexConfig,
 }
 
@@ -111,9 +111,9 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 /// * `M`: Maximum neighbors per vector node.
 #[derive(Serialize, Deserialize)]
 pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
-    pub data: HashMap<VectorID, D>,
     pub config: IndexConfig,
-    vectors: Vec<Vector<N>>,
+    pub data: HashMap<VectorID, D>,
+    vectors: HashMap<VectorID, Vector<N>>,
     base_layer: Vec<BaseNode<M>>,
     upper_layers: Vec<Vec<UpperNode<M>>>,
 }
@@ -123,7 +123,7 @@ impl<D, const N: usize, const M: usize> Index<&VectorID>
 {
     type Output = Vector<N>;
     fn index(&self, index: &VectorID) -> &Self::Output {
-        &self.vectors[index.0 as usize]
+        &self.vectors[index]
     }
 }
 
@@ -134,7 +134,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         Self {
             config: *config,
             data: HashMap::new(),
-            vectors: vec![],
+            vectors: HashMap::new(),
             base_layer: vec![],
             upper_layers: vec![],
         }
@@ -145,8 +145,6 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     /// * `data`: Data associated with the vectors.
     /// * `vectors`: The vectors to index.
     pub fn build(config: &IndexConfig, records: &[IndexRecord<D, N>]) -> Self {
-        let mut rng = SmallRng::seed_from_u64(config.seed);
-
         if records.is_empty() {
             return Self::new(config);
         }
@@ -176,35 +174,18 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         // Ensure the number of vectors is less than u32 capacity.
         assert!(records.len() < u32::MAX as usize);
 
-        // Give all points a random layer and sort the list of nodes
+        // Give all vectors a random layer and sort the list of nodes
         // by descending order for construction.
 
         // This allows us to copy higher layers to lower layers as
         // construction progresses, while preserving randomness in
         // each point's layer and insertion order.
 
-        let mut shuffler = |i: usize| {
-            let x = rng.gen_range(0..records.len());
-            (VectorID(x as u32), i)
-        };
-
-        let mut shuffled = (0..records.len())
-            .map(|i| shuffler(i))
-            .collect::<Vec<(VectorID, usize)>>();
-
-        shuffled.sort_unstable();
-
-        let mut output = vec![INVALID; records.len()];
-        let mut output_mapper = |(i, index)| {
-            output[index] = VectorID(i as u32);
-            records[index as usize].vector
-        };
-
-        let vectors = shuffled
+        let vectors = records
             .into_iter()
             .enumerate()
-            .map(|(i, item)| output_mapper((i, item.1)))
-            .collect::<Vec<Vector<N>>>();
+            .map(|(i, item)| (VectorID(i as u32), item.vector))
+            .collect::<HashMap<VectorID, Vector<N>>>();
 
         // Figure out how many nodes will go on each layer.
         // This helps us allocate memory capacity for each
@@ -255,12 +236,11 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             }
         }
 
-        let mut sorted = output.par_iter().enumerate().collect::<Vec<_>>();
-        sorted.sort_unstable_by(|a, b| a.1.cmp(&b.1));
-
-        // Map the vector ID to the data.
-        let data_iter = sorted.into_iter().map(|i| (*i.1, records[i.0].data));
-        let data = HashMap::from_iter(data_iter);
+        let data = records
+            .into_iter()
+            .enumerate()
+            .map(|(i, item)| (VectorID(i as u32), item.data))
+            .collect::<HashMap<VectorID, D>>();
 
         // Unwrap the base nodes for the base layer.
         let base_iter = base_layer.into_iter();

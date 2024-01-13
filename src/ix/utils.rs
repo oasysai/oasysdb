@@ -248,7 +248,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         &mut self,
         layer: L,
         vector: &Vector<N>,
-        vectors: &[Vector<N>],
+        vectors: &HashMap<VectorID, Vector<N>>,
         links: usize,
     ) {
         while let Some(Reverse(candidate)) = self.candidates.pop() {
@@ -273,7 +273,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         &mut self,
         vector_id: &VectorID,
         vector: &Vector<N>,
-        vectors: &[Vector<N>],
+        vectors: &HashMap<VectorID, Vector<N>>,
     ) {
         if !self.visited.insert(vector_id) {
             return;
