@@ -187,7 +187,10 @@ impl Visited {
 
     /// Inserts a vector ID into the visited object.
     pub fn insert(&mut self, vector_id: &VectorID) -> bool {
-        let slot = &mut self.store[vector_id.0 as usize];
+        let slot = match self.store.get_mut(vector_id.0 as usize) {
+            Some(slot) => slot,
+            None => return false,
+        };
 
         if *slot != self.generation {
             *slot = self.generation;

@@ -144,20 +144,16 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     /// * `config`: The index configuration.
     /// * `data`: Data associated with the vectors.
     /// * `vectors`: The vectors to index.
-    pub fn build(
-        config: &IndexConfig,
-        data: &Vec<D>,
-        vectors: &Vec<Vector<N>>,
-    ) -> Self {
+    pub fn build(config: &IndexConfig, records: &[IndexRecord<D, N>]) -> Self {
         let mut rng = SmallRng::seed_from_u64(config.seed);
 
-        if vectors.is_empty() {
+        if records.is_empty() {
             return Self::new(config);
         }
 
         // Find the number of layers.
 
-        let mut len = vectors.len();
+        let mut len = records.len();
         let mut layers = Vec::new();
 
         loop {
@@ -178,7 +174,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         let top_layer = LayerID(num_layers - 1);
 
         // Ensure the number of vectors is less than u32 capacity.
-        assert!(vectors.len() < u32::MAX as usize);
+        assert!(records.len() < u32::MAX as usize);
 
         // Give all points a random layer and sort the list of nodes
         // by descending order for construction.
@@ -188,20 +184,20 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         // each point's layer and insertion order.
 
         let mut shuffler = |i: usize| {
-            let x = rng.gen_range(0..vectors.len() as usize);
+            let x = rng.gen_range(0..records.len());
             (VectorID(x as u32), i)
         };
 
-        let mut shuffled = (0..vectors.len())
+        let mut shuffled = (0..records.len())
             .map(|i| shuffler(i))
             .collect::<Vec<(VectorID, usize)>>();
 
         shuffled.sort_unstable();
 
-        let mut output = vec![INVALID; vectors.len()];
+        let mut output = vec![INVALID; records.len()];
         let mut output_mapper = |(i, index)| {
             output[index] = VectorID(i as u32);
-            vectors[index as usize].clone()
+            records[index as usize].vector
         };
 
         let vectors = shuffled
@@ -263,7 +259,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         sorted.sort_unstable_by(|a, b| a.1.cmp(&b.1));
 
         // Map the vector ID to the data.
-        let data_iter = sorted.into_iter().map(|i| (*i.1, data[i.0]));
+        let data_iter = sorted.into_iter().map(|i| (*i.1, records[i.0].data));
         let data = HashMap::from_iter(data_iter);
 
         // Unwrap the base nodes for the base layer.
@@ -315,6 +311,12 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
 
         search.iter().map(|candidate| map_result(candidate)).take(n).collect()
     }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct IndexRecord<D, const N: usize> {
+    pub vector: Vector<N>,
+    pub data: D,
 }
 
 /// The index graph search result.
