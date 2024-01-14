@@ -71,7 +71,7 @@ impl LayerID {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct BaseNode<const M: usize>(
     #[serde(with = "BigArray")] pub [VectorID; M],
 );

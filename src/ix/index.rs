@@ -46,7 +46,6 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         layers: &[Vec<UpperNode<M>>],
     ) {
         let vector = &self.vectors[vector_id];
-        let mut node = self.base_layer[vector_id].write();
 
         let (mut search, mut insertion) = self.search_pool.pop();
         insertion.ef = self.config.ef_construction;
@@ -98,7 +97,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
                 .unwrap_or_else(|error| error);
 
             self.base_layer[&vec_id].write().insert(index, vector_id);
-            node.set(i, vector_id);
+            self.base_layer[vector_id].write().set(i, vector_id);
         }
 
         self.search_pool.push(&(search, insertion));
@@ -222,7 +221,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             let end = range.end;
 
             if layer == top_layer {
-                range.into_iter().for_each(|i| inserter(VectorID(i as u32)))
+                range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
             } else {
                 range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
             }
@@ -243,10 +242,53 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             .collect::<HashMap<VectorID, D>>();
 
         // Unwrap the base nodes for the base layer.
-        let base_iter = base_layer.into_iter();
+        let base_iter = base_layer.into_par_iter();
         let base_layer = base_iter.map(|node| node.into_inner()).collect();
 
         Self { data, vectors, base_layer, upper_layers, config: *config }
+    }
+
+    /// Inserts a vector into a built or new index graph.
+    /// * `record`: The vector record to insert.
+    pub fn insert(&mut self, record: &IndexRecord<D, N>) {
+        let id = VectorID(self.vectors.len() as u32);
+
+        // Insert the new vector and data.
+        self.vectors.insert(id, record.vector);
+        self.data.insert(id, record.data);
+
+        // Create index constructor.
+
+        self.base_layer.push(BaseNode::default());
+
+        let base_layer = self
+            .base_layer
+            .par_iter()
+            .map(|node| RwLock::new(node.clone()))
+            .collect::<Vec<_>>();
+
+        let top_layer = match self.upper_layers.is_empty() {
+            true => LayerID(0),
+            false => LayerID(self.upper_layers.len()),
+        };
+
+        let state = IndexConstruction {
+            base_layer: base_layer.as_slice(),
+            search_pool: SearchPool::new(self.vectors.len()),
+            top_layer,
+            vectors: &self.vectors,
+            config: &self.config,
+        };
+
+        // Insert new vector into the contructor.
+        state.insert(&id, &top_layer, &self.upper_layers);
+
+        // Update the index base layer.
+        self.base_layer = state
+            .base_layer
+            .into_par_iter()
+            .map(|node| node.read().clone())
+            .collect();
     }
 
     /// Searches the index graph for the nearest neighbors.

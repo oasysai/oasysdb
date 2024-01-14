@@ -3,40 +3,82 @@ use oasysdb::vector::Vector;
 use rand::random;
 
 fn main() {
-    let config = IndexConfig::default();
     let records = gen_records::<128>(1000);
     let records = records.as_slice();
-    let hnsw: IndexGraph<usize, 128> = IndexGraph::build(&config, records);
     let query = gen_vector();
+    let n = 1;
 
-    // Search the index for the nearest neighbors.
-    let start = std::time::Instant::now();
-    let hnsw_nearest = hnsw.search(&query, 1);
-    print!("Index Nearest: {}", hnsw_nearest[0].distance);
-    println!(" {:?}μs", start.elapsed().as_micros());
-
-    // Calculate the real nearest neighbors using brute force.
-    let start = std::time::Instant::now();
-    let real_nearest = real_nearest_neighbors(records, &query, 1);
-    print!("Real Nearest: {:?}", real_nearest[0].0);
-    println!(" {:?}μs", start.elapsed().as_micros());
+    real_nn(records, &query, n);
+    index_built_nn(records, &query, n);
+    index_insert_nn(records, &query, n);
 }
 
-fn real_nearest_neighbors<const N: usize>(
+fn real_nn<const N: usize>(
     records: &[IndexRecord<usize, N>],
     query: &Vector<N>,
     n: usize,
 ) -> Vec<(f32, usize)> {
+    let start = std::time::Instant::now();
+
     let mut nearest = Vec::with_capacity(records.len());
 
+    // Calculate the distance between the query and each record.
     for record in records {
         let distance = query.distance(&record.vector);
         nearest.push((distance, record.data));
     }
 
+    // Sort the nearest neighbors by distance.
     nearest.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     nearest.truncate(n);
+
+    print!("Real Nearest: {:?}", nearest[0].0);
+    println!(" {:?}μs", start.elapsed().as_micros());
+
     nearest
+}
+
+fn index_built_nn<const N: usize>(
+    records: &[IndexRecord<usize, N>],
+    query: &Vector<N>,
+    n: usize,
+) -> Vec<(f32, usize)> {
+    // Build the index.
+    let config = IndexConfig::default();
+    let hnsw: IndexGraph<usize, N> = IndexGraph::build(&config, records);
+
+    // Query the index.
+    let start = std::time::Instant::now();
+    let result = hnsw.search(&query, n);
+
+    print!("Index (Built) Nearest: {}", result[0].distance);
+    println!(" {:?}μs", start.elapsed().as_micros());
+
+    result.iter().map(|c| (c.distance, c.id as usize)).collect()
+}
+
+fn index_insert_nn<const N: usize>(
+    records: &[IndexRecord<usize, N>],
+    query: &Vector<N>,
+    n: usize,
+) -> Vec<(f32, usize)> {
+    // Build the index.
+    let config = IndexConfig::default();
+    let mut hnsw: IndexGraph<usize, N> = IndexGraph::new(&config);
+
+    // Insert records into the index.
+    for record in records {
+        hnsw.insert(record);
+    }
+
+    // Query the index.
+    let start = std::time::Instant::now();
+    let result = hnsw.search(&query, n);
+
+    print!("Index (Insert) Nearest: {}", result[0].distance);
+    println!(" {:?}μs", start.elapsed().as_micros());
+
+    result.iter().map(|c| (c.distance, c.id as usize)).collect()
 }
 
 fn gen_records<const N: usize>(len: usize) -> Vec<IndexRecord<usize, N>> {
