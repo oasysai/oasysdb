@@ -113,6 +113,7 @@ pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
     pub config: IndexConfig,
     pub data: HashMap<VectorID, D>,
     vectors: HashMap<VectorID, Vector<N>>,
+    slots: Vec<VectorID>,
     base_layer: Vec<BaseNode<M>>,
     upper_layers: Vec<Vec<UpperNode<M>>>,
 }
@@ -134,6 +135,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             config: *config,
             data: HashMap::new(),
             vectors: HashMap::new(),
+            slots: vec![],
             base_layer: vec![],
             upper_layers: vec![],
         }
@@ -199,7 +201,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             ranges.push((layer_id, value));
         }
 
-        // Initialize data for layers.
+        // Create index constructor.
 
         let search_pool = SearchPool::new(vectors.len());
         let mut upper_layers = vec![vec![]; top_layer.0];
@@ -215,6 +217,8 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             vectors: &vectors,
             config: &config,
         };
+
+        // Initialize data for layers.
 
         for (layer, range) in ranges {
             let inserter = |id| state.insert(&id, &layer, &upper_layers);
@@ -245,13 +249,19 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         let base_iter = base_layer.into_par_iter();
         let base_layer = base_iter.map(|node| node.into_inner()).collect();
 
-        Self { data, vectors, base_layer, upper_layers, config: *config }
+        // Add IDs to the slots.
+        let slots = (0..vectors.len()).map(|i| VectorID(i as u32)).collect();
+
+        let config = *config;
+
+        Self { data, vectors, base_layer, upper_layers, slots, config }
     }
 
     /// Inserts a vector into a built or new index graph.
     /// * `record`: The vector record to insert.
     pub fn insert(&mut self, record: &IndexRecord<D, N>) {
-        let id = VectorID(self.vectors.len() as u32);
+        // Create a new vector ID using the next available slot.
+        let id = VectorID(self.slots.len() as u32);
 
         // Insert the new vector and data.
         self.vectors.insert(id, record.vector);
@@ -283,12 +293,43 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         // Insert new vector into the contructor.
         state.insert(&id, &top_layer, &self.upper_layers);
 
+        // Add new vector id to the slots.
+        self.slots.push(id);
+
         // Update the index base layer.
         self.base_layer = state
             .base_layer
             .into_par_iter()
             .map(|node| node.read().clone())
             .collect();
+    }
+
+    pub fn delete(&mut self, id: &VectorID) {
+        // Remove the vector from the base layer.
+        let base_node = &mut self.base_layer[id.0 as usize];
+        let index = base_node.iter().position(|x| *x == *id);
+        if let Some(index) = index {
+            base_node.set(index, &INVALID);
+        }
+
+        // Remove the vector from the upper layers.
+        for layer in LayerID(self.upper_layers.len()).descend() {
+            let upper_layer = match layer.0 > 0 {
+                true => &mut self.upper_layers[layer.0 - 1],
+                false => break,
+            };
+
+            let node = &mut upper_layer[id.0 as usize];
+            let index = node.0.iter().position(|x| *x == *id);
+
+            if let Some(index) = index {
+                node.set(index, &INVALID);
+            }
+        }
+
+        self.vectors.remove(id).unwrap();
+        self.data.remove(id).unwrap();
+        self.slots[id.0 as usize] = INVALID;
     }
 
     /// Searches the index graph for the nearest neighbors.
@@ -305,8 +346,12 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
             return vec![];
         }
 
+        // Find the first valid vector ID from the slots.
+        let slots_iter = self.slots.as_slice().into_par_iter();
+        let vector_id = slots_iter.find_first(|id| id.is_valid()).unwrap();
+
         search.visited.resize_capacity(self.vectors.len());
-        search.push(&VectorID(0), vector, &self.vectors);
+        search.push(vector_id, vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
             search.ef = if layer.is_zero() { self.config.ef_search } else { 5 };

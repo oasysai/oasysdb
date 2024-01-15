@@ -147,7 +147,7 @@ impl<'a, const M: usize> Layer for &'a [RwLock<BaseNode<M>>] {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct UpperNode<const M: usize>(
     #[serde(with = "BigArray")] pub [VectorID; M],
 );
@@ -157,6 +157,10 @@ impl<const M: usize> UpperNode<M> {
         let mut nearest = [INVALID; M];
         nearest.copy_from_slice(&node.0[..M]);
         Self(nearest)
+    }
+
+    pub fn set(&mut self, index: usize, vector_id: &VectorID) {
+        self.0[index] = *vector_id;
     }
 }
 
