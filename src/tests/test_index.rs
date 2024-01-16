@@ -39,8 +39,23 @@ fn test_index_delete() {
 }
 
 #[test]
-fn test_index_search() {
+fn test_index_update() {
     let len = 100;
+    let records = gen_records::<128>(len);
+    let mut index = create_test_index::<128>(&records);
+
+    let id = VectorID(5);
+    let data = random::<usize>();
+    let record = IndexRecord { vector: gen_vector::<128>(), data };
+    index.update(&id, &record);
+
+    assert_eq!(index.data.len(), len);
+    assert_eq!(index.data[&id], data);
+}
+
+#[test]
+fn test_index_search() {
+    let len = 1000;
     let records = gen_records::<128>(len);
     let index = create_test_index::<128>(&records);
     let query = gen_vector::<128>();

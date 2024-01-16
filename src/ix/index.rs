@@ -36,9 +36,9 @@ struct IndexConstruction<'a, const M: usize, const N: usize> {
 
 impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
     /// Inserts a vector ID into a layer.
-    /// * `vector_id`: The vector ID to insert.
-    /// * `layer`: The layer to insert into.
-    /// * `layers`: The upper layers.
+    /// * `vector_id`: Vector ID to insert.
+    /// * `layer`: Layer to insert into.
+    /// * `layers`: Upper layers.
     fn insert(
         &self,
         vector_id: &VectorID,
@@ -106,7 +106,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 
 /// The HNSW index graph.
 /// * `D`: Data associated with the vector.
-/// * `N`: The vector dimension.
+/// * `N`: Vector dimension.
 /// * `M`: Maximum neighbors per vector node.
 #[derive(Serialize, Deserialize)]
 pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
@@ -129,7 +129,7 @@ impl<D, const N: usize, const M: usize> Index<&VectorID>
 
 impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     /// Creates an empty index graph.
-    /// * `config`: The index configuration.
+    /// * `config`: Index configuration.
     pub fn new(config: &IndexConfig) -> Self {
         Self {
             config: *config,
@@ -141,10 +141,9 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         }
     }
 
-    /// Builds an index graph from a list of vectors.
-    /// * `config`: The index configuration.
-    /// * `data`: Data associated with the vectors.
-    /// * `vectors`: The vectors to index.
+    /// Builds an index graph from a list of vector records.
+    /// * `config`: Index configuration.
+    /// * `records`: List of vectors to build the index from.
     pub fn build(config: &IndexConfig, records: &[IndexRecord<D, N>]) -> Self {
         if records.is_empty() {
             return Self::new(config);
@@ -258,7 +257,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     }
 
     /// Inserts a vector into a built or new index graph.
-    /// * `record`: The vector record to insert.
+    /// * `record`: Vector record to insert.
     pub fn insert(&mut self, record: &IndexRecord<D, N>) {
         // Create a new vector ID using the next available slot.
         let id = VectorID(self.slots.len() as u32);
@@ -276,7 +275,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     }
 
     /// Deletes a vector record from the index graph.
-    /// * `id`: The vector ID to delete.
+    /// * `id`: Vector ID to delete.
     pub fn delete(&mut self, id: &VectorID) {
         self.delete_from_layers(id);
 
@@ -286,8 +285,18 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         self.slots[id.0 as usize] = INVALID;
     }
 
+    /// Updates a vector record in the index graph.
+    /// * `id`: Vector ID to update.
+    /// * `record`: New vector record.
+    pub fn update(&mut self, id: &VectorID, record: &IndexRecord<D, N>) {
+        self.delete_from_layers(id);
+        self.vectors.insert(id.clone(), record.vector);
+        self.data.insert(id.clone(), record.data);
+        self.insert_to_layers(id);
+    }
+
     /// Searches the index graph for the nearest neighbors.
-    /// * `vector`: The vector to search.
+    /// * `vector`: Vector to search.
     /// * `n`: Number of neighbors to return.
     pub fn search<'a>(
         &'a self,
