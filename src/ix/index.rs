@@ -295,6 +295,12 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         self.insert_to_layers(id);
     }
 
+    /// Returns the vector record associated with the ID.
+    /// * `id`: Vector ID to get.
+    pub fn get(&self, id: &VectorID) -> IndexRecord<D, N> {
+        IndexRecord { vector: self.vectors[id], data: self.data[id] }
+    }
+
     /// Searches the index graph for the nearest neighbors.
     /// * `vector`: Vector to search.
     /// * `n`: Number of neighbors to return.

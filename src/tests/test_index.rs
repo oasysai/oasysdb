@@ -72,3 +72,16 @@ fn test_index_search() {
     // the distance is within the true distances.
     assert_eq!(truth_distances.contains(&result[0].distance), true);
 }
+
+#[test]
+fn test_index_get() {
+    let len = 100;
+    let records = gen_records::<128>(len);
+    let index = create_test_index::<128>(&records);
+
+    let id = VectorID(5);
+    let record = index.get(&id);
+
+    assert_eq!(record.data, records[5].data);
+    assert_eq!(record.vector, records[5].vector);
+}
