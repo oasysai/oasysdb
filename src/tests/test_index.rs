@@ -5,7 +5,7 @@ fn test_index_build_large() {
     let len = 10000;
     let records = gen_records::<128>(len);
     let index = create_test_index::<128>(&records);
-    assert_eq!(index.data.len(), len);
+    assert_eq!(index.len(), len);
 }
 
 #[test]
@@ -20,7 +20,7 @@ fn test_index_insert() {
     let id = VectorID(len as u32);
     index.insert(&IndexRecord { vector, data });
 
-    assert_eq!(index.data.len(), len + 1);
+    assert_eq!(index.len(), len + 1);
     assert_eq!(index.data[&id], data);
 }
 
@@ -33,7 +33,7 @@ fn test_index_delete() {
     let id = VectorID(1);
     index.delete(&id);
 
-    assert_eq!(index.data.len(), len - 1);
+    assert_eq!(index.len(), len - 1);
     // Ensure the data is deleted.
     assert_eq!(index.data.contains_key(&id), false);
 }
@@ -49,7 +49,7 @@ fn test_index_update() {
     let record = IndexRecord { vector: gen_vector::<128>(), data };
     index.update(&id, &record);
 
-    assert_eq!(index.data.len(), len);
+    assert_eq!(index.len(), len);
     assert_eq!(index.data[&id], data);
 }
 

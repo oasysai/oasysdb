@@ -116,6 +116,7 @@ pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
     slots: Vec<VectorID>,
     base_layer: Vec<BaseNode<M>>,
     upper_layers: Vec<Vec<UpperNode<M>>>,
+    count: usize,
 }
 
 impl<D, const N: usize, const M: usize> Index<&VectorID>
@@ -133,6 +134,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     pub fn new(config: &IndexConfig) -> Self {
         Self {
             config: *config,
+            count: 0,
             data: HashMap::new(),
             vectors: HashMap::new(),
             slots: vec![],
@@ -251,9 +253,10 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         // Add IDs to the slots.
         let slots = (0..vectors.len()).map(|i| VectorID(i as u32)).collect();
 
+        let count = records.len();
         let config = *config;
 
-        Self { data, vectors, base_layer, upper_layers, slots, config }
+        Self { data, vectors, base_layer, upper_layers, slots, config, count }
     }
 
     /// Inserts a vector into a built or new index graph.
@@ -269,6 +272,8 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         // Add new vector id to the slots.
         self.slots.push(id);
 
+        self.count += 1;
+
         // This operation is last because it depends on
         // the updated vectors data.
         self.insert_to_layers(&id);
@@ -283,6 +288,8 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         self.vectors.remove(id).unwrap();
         self.data.remove(id).unwrap();
         self.slots[id.0 as usize] = INVALID;
+
+        self.count -= 1;
     }
 
     /// Updates a vector record in the index graph.
@@ -346,6 +353,11 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         };
 
         search.iter().map(|candidate| map_result(candidate)).take(n).collect()
+    }
+
+    /// Returns the number of vector records in the index.
+    pub fn len(&self) -> usize {
+        self.count
     }
 
     /// Inserts a vector ID into the index layers.
