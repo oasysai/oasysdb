@@ -1,4 +1,4 @@
-pub mod index;
+pub mod collection;
 pub mod vector;
 
 // Internal modules.
@@ -10,7 +10,6 @@ use vector::*;
 // External dependencies.
 use ordered_float::OrderedFloat;
 use parking_lot::*;
-use rand::*;
 use rayon::iter::*;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;

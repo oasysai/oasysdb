@@ -1,4 +1,4 @@
-use oasysdb::index::*;
+use oasysdb::collection::*;
 use oasysdb::vector::*;
 use rand::random;
 
@@ -9,12 +9,12 @@ fn main() {
     let n = 1;
 
     real_nn(records, &query, n);
-    index_built_nn(records, &query, n);
-    index_insert_nn(records, &query, n);
+    collection_built_nn(records, &query, n);
+    collection_insert_nn(records, &query, n);
 }
 
 fn real_nn<const N: usize>(
-    records: &[IndexRecord<usize, N>],
+    records: &[Record<usize, N>],
     query: &Vector<N>,
     n: usize,
 ) -> Vec<(f32, usize)> {
@@ -38,60 +38,62 @@ fn real_nn<const N: usize>(
     nearest
 }
 
-fn index_built_nn<const N: usize>(
-    records: &[IndexRecord<usize, N>],
+fn collection_built_nn<const N: usize>(
+    records: &[Record<usize, N>],
     query: &Vector<N>,
     n: usize,
 ) -> Vec<(f32, usize)> {
-    // Build the index.
-    let config = IndexConfig::default();
-    let mut hnsw: IndexGraph<usize, N> = IndexGraph::build(&config, records);
+    // Create the collection using the builder.
+    let config = Config::default();
+    let mut collection: Collection<usize, N> =
+        Collection::build(&config, records);
 
-    hnsw.delete(&VectorID(0));
+    collection.delete(&VectorID(0));
 
-    // Query the index.
+    // Search the collection.
     let start = std::time::Instant::now();
-    let result = hnsw.search(&query, n);
+    let result = collection.search(&query, n);
 
-    print!("Index (Built) Nearest: {}", result[0].distance);
+    print!("Collection (Built) Nearest: {}", result[0].distance);
     println!(" {:?}μs", start.elapsed().as_micros());
 
     result.iter().map(|c| (c.distance, c.id as usize)).collect()
 }
 
-fn index_insert_nn<const N: usize>(
-    records: &[IndexRecord<usize, N>],
+fn collection_insert_nn<const N: usize>(
+    records: &[Record<usize, N>],
     query: &Vector<N>,
     n: usize,
 ) -> Vec<(f32, usize)> {
-    // Build the index.
-    let config = IndexConfig::default();
-    let mut hnsw: IndexGraph<usize, N> = IndexGraph::new(&config);
+    // Create a new collection.
+    let config = Config::default();
+    let mut collection: Collection<usize, N> = Collection::new(&config);
 
-    // Insert records into the index.
+    // Insert records into the collection.
     for record in records {
-        hnsw.insert(record);
+        collection.insert(record);
     }
 
-    hnsw.delete(&VectorID(0));
+    collection.delete(&VectorID(0));
+    collection.insert(&Record { vector: gen_vector(), data: 0 });
 
-    // Query the index.
+    // Search the collection.
     let start = std::time::Instant::now();
-    let result = hnsw.search(&query, n);
+    let result = collection.search(&query, n);
 
-    print!("Index (Insert) Nearest: {}", result[0].distance);
+    print!("Collection (Insert) Nearest: {}", result[0].distance);
     println!(" {:?}μs", start.elapsed().as_micros());
 
     result.iter().map(|c| (c.distance, c.id as usize)).collect()
 }
 
-fn gen_records<const N: usize>(len: usize) -> Vec<IndexRecord<usize, N>> {
+fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {
     let mut records = Vec::with_capacity(len);
 
     for _ in 0..len {
         let vector = gen_vector::<N>();
         let data = random::<usize>();
-        records.push(IndexRecord { vector, data });
+        records.push(Record { vector, data });
     }
 
     records

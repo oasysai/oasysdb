@@ -1,28 +1,23 @@
 use super::*;
 
-/// The HNSW index graph configuration.
+/// The collection HNSW index configuration.
 /// * `ef_construction`: Nodes to consider during construction.
 /// * `ef_search`: Nodes to consider during search.
 /// * `ml`: Layer multiplier. The optimal value is `1/ln(M)`.
-/// * `seed`: Seed for random number generator.
 #[derive(Serialize, Deserialize, Clone, Copy)]
-pub struct IndexConfig {
+pub struct Config {
     pub ef_construction: usize,
     pub ef_search: usize,
     pub ml: f32,
-    pub seed: u64,
 }
 
-impl Default for IndexConfig {
-    /// Default configuration for the HNSW index graph.
+impl Default for Config {
+    /// Default configuration for the collection index.
     /// * `ef_construction`: 40
     /// * `ef_search`: 15
     /// * `ml`: 0.3
-    /// * `seed`: Randomized integer
     fn default() -> Self {
-        let ml = 0.3;
-        let seed: u64 = random();
-        Self { ef_construction: 40, ef_search: 15, ml, seed }
+        Self { ef_construction: 40, ef_search: 15, ml: 0.3 }
     }
 }
 
@@ -31,7 +26,7 @@ struct IndexConstruction<'a, const M: usize, const N: usize> {
     top_layer: LayerID,
     base_layer: &'a [RwLock<BaseNode<M>>],
     vectors: &'a HashMap<VectorID, Vector<N>>,
-    config: &'a IndexConfig,
+    config: &'a Config,
 }
 
 impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
@@ -50,8 +45,15 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         let (mut search, mut insertion) = self.search_pool.pop();
         insertion.ef = self.config.ef_construction;
 
+        // Find the first valid vector ID to push.
+        let validator = |i| self.vectors.get(&VectorID(i)) != None;
+        let valid_id = (0..self.vectors.len())
+            .into_par_iter()
+            .find_first(|i| validator(*i as u32))
+            .unwrap();
+
         search.reset();
-        search.push(&VectorID(0), vector, self.vectors);
+        search.push(&VectorID(valid_id as u32), vector, self.vectors);
 
         for current_layer in self.top_layer.descend() {
             if current_layer <= *layer {
@@ -76,8 +78,8 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         };
 
         for (i, candidate) in candidates.iter().enumerate() {
-            let vec_id = candidate.vector_id;
-            let old = &self.vectors[&vec_id];
+            let vid = candidate.vector_id;
+            let old = &self.vectors[&vid];
             let distance = candidate.distance;
 
             // Function to sort the vectors by distance.
@@ -91,12 +93,12 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
             };
 
             // Find the correct index to insert at to keep the order.
-            let index = self.base_layer[&vec_id]
+            let index = self.base_layer[&vid]
                 .read()
                 .binary_search_by(|id| ordering(&id))
                 .unwrap_or_else(|error| error);
 
-            self.base_layer[&vec_id].write().insert(index, vector_id);
+            self.base_layer[&vid].write().insert(index, vector_id);
             self.base_layer[vector_id].write().set(i, vector_id);
         }
 
@@ -104,14 +106,15 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
     }
 }
 
-/// The HNSW index graph.
+/// The collection of vector records with HNSW indexing.
 /// * `D`: Data associated with the vector.
 /// * `N`: Vector dimension.
-/// * `M`: Maximum neighbors per vector node.
+/// * `M`: Maximum neighbors per vector node. Default to 32.
 #[derive(Serialize, Deserialize)]
-pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
-    pub config: IndexConfig,
-    pub data: HashMap<VectorID, D>,
+pub struct Collection<D, const N: usize, const M: usize = 32> {
+    pub config: Config,
+    // List private fields below.
+    data: HashMap<VectorID, D>,
     vectors: HashMap<VectorID, Vector<N>>,
     slots: Vec<VectorID>,
     base_layer: Vec<BaseNode<M>>,
@@ -120,7 +123,7 @@ pub struct IndexGraph<D, const N: usize, const M: usize = 32> {
 }
 
 impl<D, const N: usize, const M: usize> Index<&VectorID>
-    for IndexGraph<D, N, M>
+    for Collection<D, N, M>
 {
     type Output = Vector<N>;
     fn index(&self, index: &VectorID) -> &Self::Output {
@@ -128,10 +131,9 @@ impl<D, const N: usize, const M: usize> Index<&VectorID>
     }
 }
 
-impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
-    /// Creates an empty index graph.
-    /// * `config`: Index configuration.
-    pub fn new(config: &IndexConfig) -> Self {
+impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
+    /// Creates an empty collection with the given configuration.
+    pub fn new(config: &Config) -> Self {
         Self {
             config: *config,
             count: 0,
@@ -143,10 +145,10 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         }
     }
 
-    /// Builds an index graph from a list of vector records.
-    /// * `config`: Index configuration.
+    /// Builds the collection index from vector records.
+    /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
-    pub fn build(config: &IndexConfig, records: &[IndexRecord<D, N>]) -> Self {
+    pub fn build(config: &Config, records: &[Record<D, N>]) -> Self {
         if records.is_empty() {
             return Self::new(config);
         }
@@ -259,9 +261,9 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         Self { data, vectors, base_layer, upper_layers, slots, config, count }
     }
 
-    /// Inserts a vector into a built or new index graph.
+    /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
-    pub fn insert(&mut self, record: &IndexRecord<D, N>) {
+    pub fn insert(&mut self, record: &Record<D, N>) {
         // Create a new vector ID using the next available slot.
         let id = VectorID(self.slots.len() as u32);
 
@@ -279,12 +281,12 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         self.insert_to_layers(&id);
     }
 
-    /// Deletes a vector record from the index graph.
+    /// Deletes a vector record from the collection.
     /// * `id`: Vector ID to delete.
     pub fn delete(&mut self, id: &VectorID) {
         self.delete_from_layers(id);
 
-        // Update index graph data.
+        // Update the collection data.
         self.vectors.remove(id).unwrap();
         self.data.remove(id).unwrap();
         self.slots[id.0 as usize] = INVALID;
@@ -292,10 +294,10 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         self.count -= 1;
     }
 
-    /// Updates a vector record in the index graph.
+    /// Updates a vector record in the collection.
     /// * `id`: Vector ID to update.
     /// * `record`: New vector record.
-    pub fn update(&mut self, id: &VectorID, record: &IndexRecord<D, N>) {
+    pub fn update(&mut self, id: &VectorID, record: &Record<D, N>) {
         self.delete_from_layers(id);
         self.vectors.insert(id.clone(), record.vector);
         self.data.insert(id.clone(), record.data);
@@ -303,12 +305,12 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     }
 
     /// Returns the vector record associated with the ID.
-    /// * `id`: Vector ID to get.
-    pub fn get(&self, id: &VectorID) -> IndexRecord<D, N> {
-        IndexRecord { vector: self.vectors[id], data: self.data[id] }
+    /// * `id`: Vector ID to retrieve.
+    pub fn get(&self, id: &VectorID) -> Record<D, N> {
+        Record { vector: self.vectors[id], data: self.data[id] }
     }
 
-    /// Searches the index graph for the nearest neighbors.
+    /// Searches the collection for the nearest neighbors.
     /// * `vector`: Vector to search.
     /// * `n`: Number of neighbors to return.
     pub fn search<'a>(
@@ -355,7 +357,7 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
         search.iter().map(|candidate| map_result(candidate)).take(n).collect()
     }
 
-    /// Returns the number of vector records in the index.
+    /// Returns the number of vector records in the collection.
     pub fn len(&self) -> usize {
         self.count
     }
@@ -420,13 +422,16 @@ impl<D: Copy, const N: usize, const M: usize> IndexGraph<D, N, M> {
     }
 }
 
+/// A record containing a vector and its associated data.
+/// * `D`: Data type associated with the vector.
+/// * `N`: Vector dimension. Should be equal to the collection's.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct IndexRecord<D, const N: usize> {
+pub struct Record<D, const N: usize> {
     pub vector: Vector<N>,
     pub data: D,
 }
 
-/// The index graph search result.
+/// The collection nearest neighbor search result.
 /// * `D`: Data associated with the vector.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResult<D> {

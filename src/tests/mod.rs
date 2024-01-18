@@ -1,24 +1,24 @@
 mod test_database;
 mod test_index;
 
-use crate::index::*;
+use crate::collection::*;
 use crate::vector::*;
 use rand::random;
 
-fn create_test_index<const N: usize>(
-    records: &[IndexRecord<usize, N>],
-) -> IndexGraph<usize, N> {
-    let config = IndexConfig::default();
-    IndexGraph::build(&config, &records)
+fn create_collection<const N: usize>(
+    records: &[Record<usize, N>],
+) -> Collection<usize, N> {
+    let config = Config::default();
+    Collection::build(&config, &records)
 }
 
-fn gen_records<const N: usize>(len: usize) -> Vec<IndexRecord<usize, N>> {
+fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {
     let mut records = Vec::with_capacity(len);
 
     for _ in 0..len {
         let vector = gen_vector::<N>();
         let data = random::<usize>();
-        records.push(IndexRecord { vector, data });
+        records.push(Record { vector, data });
     }
 
     records
@@ -35,7 +35,7 @@ fn gen_vector<const N: usize>() -> Vector<N> {
 }
 
 fn brute_force_search<const N: usize>(
-    records: &[IndexRecord<usize, N>],
+    records: &[Record<usize, N>],
     query: &Vector<N>,
     n: usize,
 ) -> Vec<(f32, usize)> {

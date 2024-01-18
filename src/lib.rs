@@ -1,11 +1,11 @@
 //! OasysDB
 
 mod db;
-mod ix;
+mod func;
 
 pub use db::database;
-pub use ix::index;
-pub use ix::vector;
+pub use func::collection;
+pub use func::vector;
 
 #[cfg(test)]
 mod tests;
