@@ -1,3 +1,4 @@
+/// The vector database storing collections.
 pub mod database;
 
 use crate::collection::*;

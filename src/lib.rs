@@ -1,13 +1,13 @@
-//! ![Oasys](https://i.postimg.cc/GtwK53vF/banner.png)
+#![warn(missing_docs)]
+#![doc = include_str!("../readme.md")]
+#![doc(html_favicon_url = "https://i.postimg.cc/W3T230zk/favicon.png")]
+#![doc(html_logo_url = "https://i.postimg.cc/Vv0HPVwB/logo.png")]
 
 mod db;
 mod func;
 
-/// The vector database storing collections.
 pub use db::database;
-/// The collection of vectors and its data.
 pub use func::collection;
-/// Types for the vectors.
 pub use func::vector;
 
 #[cfg(test)]

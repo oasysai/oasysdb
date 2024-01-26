@@ -1,5 +1,6 @@
 use super::*;
 
+/// The ID of a vector record.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct VectorID(pub u32);

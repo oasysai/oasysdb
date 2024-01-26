@@ -1,4 +1,6 @@
+/// The collection of vectors and their data.
 pub mod collection;
+/// Types for the vectors.
 pub mod vector;
 
 // Internal modules.

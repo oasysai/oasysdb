@@ -1,5 +1,5 @@
+mod test_collection;
 mod test_database;
-mod test_index;
 
 use crate::collection::*;
 use crate::database::*;

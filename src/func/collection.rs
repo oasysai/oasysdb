@@ -1,13 +1,13 @@
 use super::*;
 
 /// The collection HNSW index configuration.
-/// * `ef_construction`: Nodes to consider during construction.
-/// * `ef_search`: Nodes to consider during search.
-/// * `ml`: Layer multiplier. The optimal value is `1/ln(M)`.
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct Config {
+    /// Nodes to consider during construction.
     pub ef_construction: usize,
+    /// Nodes to consider during search.
     pub ef_search: usize,
+    /// Layer multiplier. The optimal value is `1/ln(M)`.
     pub ml: f32,
 }
 
@@ -430,7 +430,9 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 /// * `N`: Vector dimension. Should be equal to the collection's.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Record<D, const N: usize> {
+    /// Vector embedding with dimension of `N`.
     pub vector: Vector<N>,
+    /// Data associated with the vector.
     pub data: D,
 }
 
@@ -438,7 +440,10 @@ pub struct Record<D, const N: usize> {
 /// * `D`: Data associated with the vector.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResult<D> {
-    pub id: u32, // Vector ID
+    /// Vector ID.
+    pub id: u32,
+    /// Distance between the query to the collection vector.
     pub distance: f32,
+    /// Data associated with the vector.
     pub data: D,
 }
