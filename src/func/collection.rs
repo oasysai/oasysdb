@@ -46,7 +46,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         insertion.ef = self.config.ef_construction;
 
         // Find the first valid vector ID to push.
-        let validator = |i| self.vectors.get(&VectorID(i)) != None;
+        let validator = |i| self.vectors.get(&VectorID(i)).is_some();
         let valid_id = (0..self.vectors.len())
             .into_par_iter()
             .find_first(|i| validator(*i as u32))
@@ -95,7 +95,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
             // Find the correct index to insert at to keep the order.
             let index = self.base_layer[&vid]
                 .read()
-                .binary_search_by(|id| ordering(&id))
+                .binary_search_by(ordering)
                 .unwrap_or_else(|error| error);
 
             self.base_layer[&vid].write().insert(index, vector_id);
@@ -187,7 +187,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         // each point's layer and insertion order.
 
         let vectors = records
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, item)| (VectorID(i as u32), item.vector))
             .collect::<HashMap<VectorID, Vector<N>>>();
@@ -219,7 +219,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
             search_pool,
             top_layer,
             vectors: &vectors,
-            config: &config,
+            config,
         };
 
         // Initialize data for layers.
@@ -244,7 +244,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         }
 
         let data = records
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, item)| (VectorID(i as u32), item.data))
             .collect::<HashMap<VectorID, D>>();
@@ -300,8 +300,8 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     /// * `record`: New vector record.
     pub fn update(&mut self, id: &VectorID, record: &Record<D, N>) {
         self.delete_from_layers(id);
-        self.vectors.insert(id.clone(), record.vector);
-        self.data.insert(id.clone(), record.data);
+        self.vectors.insert(*id, record.vector);
+        self.data.insert(*id, record.data);
         self.insert_to_layers(id);
     }
 
@@ -355,12 +355,17 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
             SearchResult { id, distance, data }
         };
 
-        search.iter().map(|candidate| map_result(candidate)).take(n).collect()
+        search.iter().map(map_result).take(n).collect()
     }
 
     /// Returns the number of vector records in the collection.
     pub fn len(&self) -> usize {
         self.count
+    }
+
+    /// Returns true if the collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
     }
 
     /// Inserts a vector ID into the index layers.
@@ -370,7 +375,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         let base_layer = self
             .base_layer
             .par_iter()
-            .map(|node| RwLock::new(node.clone()))
+            .map(|node| RwLock::new(*node))
             .collect::<Vec<_>>();
 
         let top_layer = match self.upper_layers.is_empty() {
@@ -387,14 +392,11 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         };
 
         // Insert new vector into the contructor.
-        state.insert(&id, &top_layer, &self.upper_layers);
+        state.insert(id, &top_layer, &self.upper_layers);
 
         // Update the base layer with the new state.
-        self.base_layer = state
-            .base_layer
-            .into_par_iter()
-            .map(|node| node.read().clone())
-            .collect();
+        let iter = state.base_layer.into_par_iter();
+        self.base_layer = iter.map(|node| *node.read()).collect();
     }
 
     /// Removes a vector ID from all index layers.

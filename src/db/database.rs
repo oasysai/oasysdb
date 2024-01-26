@@ -112,4 +112,9 @@ impl Database {
     pub fn len(&self) -> usize {
         self.count
     }
+
+    /// Returns true if the database is empty.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
 }

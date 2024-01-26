@@ -61,7 +61,7 @@ fn collection_built_nn<const N: usize>(
 
     // Search the collection.
     let start = std::time::Instant::now();
-    let result = collection.search(&query, n);
+    let result = collection.search(query, n);
 
     print!("Collection (Built) Nearest: {}", result[0].distance);
     println!(" {:?}μs", start.elapsed().as_micros());
@@ -92,7 +92,7 @@ fn collection_insert_nn<const N: usize>(
 
     // Search the collection.
     let start = std::time::Instant::now();
-    let result = collection.search(&query, n);
+    let result = collection.search(query, n);
 
     print!("Collection (Insert) Nearest: {}", result[0].distance);
     println!(" {:?}μs", start.elapsed().as_micros());
