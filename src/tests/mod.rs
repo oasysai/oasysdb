@@ -2,8 +2,17 @@ mod test_database;
 mod test_index;
 
 use crate::collection::*;
+use crate::database::*;
 use crate::vector::*;
 use rand::random;
+
+fn create_test_database(path: &str) -> Database {
+    let mut db = Database::new(path);
+    let records = gen_records::<128>(100);
+    let records = Some(records.as_slice());
+    db.create_collection::<usize, 128, 32>("vectors", None, records);
+    db
+}
 
 fn create_collection<const N: usize>(
     records: &[Record<usize, N>],
