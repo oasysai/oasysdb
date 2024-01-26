@@ -112,8 +112,9 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 /// * `M`: Maximum neighbors per vector node. Default to 32.
 #[derive(Serialize, Deserialize)]
 pub struct Collection<D, const N: usize, const M: usize = 32> {
+    /// The collection configuration object.
     pub config: Config,
-    // List private fields below.
+    // Private fields below.
     data: HashMap<VectorID, D>,
     vectors: HashMap<VectorID, Vector<N>>,
     slots: Vec<VectorID>,

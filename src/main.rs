@@ -8,11 +8,16 @@ fn main() {
     let query = gen_vector();
     let n = 1;
 
+    // Compare the results.
     real_nn(records, &query, n);
     collection_built_nn(records, &query, n);
     collection_insert_nn(records, &query, n);
 }
 
+/// Finds the nearest neighbors using brute force.
+/// * `records`: Vector records to search.
+/// * `query`: Vector to search for.
+/// * `n`: Number of nearest neighbors to find.
 fn real_nn<const N: usize>(
     records: &[Record<usize, N>],
     query: &Vector<N>,
@@ -38,6 +43,10 @@ fn real_nn<const N: usize>(
     nearest
 }
 
+/// Finds the nearest neighbors using a built collection.
+/// * `records`: Vector records to build the collection.
+/// * `query`: Vector to search for.
+/// * `n`: Number of nearest neighbors to find.
 fn collection_built_nn<const N: usize>(
     records: &[Record<usize, N>],
     query: &Vector<N>,
@@ -60,6 +69,10 @@ fn collection_built_nn<const N: usize>(
     result.iter().map(|c| (c.distance, c.id as usize)).collect()
 }
 
+/// Finds the nearest neighbors using a collection with inserts.
+/// * `records`: Vector records to insert into the collection.
+/// * `query`: Vector to search for.
+/// * `n`: Number of nearest neighbors to find.
 fn collection_insert_nn<const N: usize>(
     records: &[Record<usize, N>],
     query: &Vector<N>,
