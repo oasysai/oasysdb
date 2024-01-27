@@ -1,63 +1,63 @@
-use crate::api::*;
-use crate::create_server;
-use crate::db::database::*;
+mod test_collection;
+mod test_database;
+
+use crate::collection::*;
+use crate::database::*;
+use crate::vector::*;
 use rand::random;
-use rocket::http::*;
-use rocket::local::blocking::Client;
-use std::collections::HashMap;
-use std::env;
 
-mod test_graphs;
-mod test_utils;
-mod test_values;
-
-/// Returns a valid `x-oasysdb-token` header for testing.
-///
-/// # Example
-///
-/// ```rs
-/// let header = get_auth_header();
-/// let response = client.get("/").header(header).dispatch();
-/// ```
-fn get_auth_header() -> Header<'static> {
-    Header::new("x-oasysdb-token", "token")
+fn create_test_database(path: &str) -> Database {
+    let mut db = Database::new(path);
+    let records = gen_records::<128>(100);
+    let records = Some(records.as_slice());
+    db.create_collection::<usize, 128, 32>("vectors", None, records);
+    db
 }
 
-/// Creates a test client with a prepopulated database and default graph
-/// built. `id` is used to create a dedicated folder for the database.
-/// This allows for multiple tests to run in parallel.
-///
-/// # Example
-///
-/// ```rs
-/// let client = create_test_client("test_name");
-/// ```
-fn create_test_client(id: &str) -> Client {
-    // Set environment variables for testing.
-    env::set_var("OASYSDB_DIMENSION", "2");
-    env::set_var("OASYSDB_TOKEN", "token");
+fn create_collection<const N: usize>(
+    records: &[Record<usize, N>],
+) -> Collection<usize, N> {
+    let config = Config::default();
+    Collection::build(&config, &records)
+}
 
-    let path = format!("data/tests/{}", id);
-    let config = Config { path, dimension: 2 };
-    let db = Database::new(config);
+fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {
+    let mut records = Vec::with_capacity(len);
 
-    // Prepopulate database with random values.
-    for i in 0..9 {
-        let embedding = vec![random::<f32>(); 2];
-        let value = Value { embedding, data: HashMap::new() };
-        db.set_value(&i.to_string(), value).unwrap();
+    for _ in 0..len {
+        let vector = gen_vector::<N>();
+        let data = random::<usize>();
+        records.push(Record { vector, data });
     }
 
-    let config = GraphConfig {
-        name: "default".to_string(),
-        ef_construction: 10,
-        ef_search: 10,
-        filter: None,
-    };
+    records
+}
 
-    // Build initial graph for testing.
-    let _ = db.create_graph(config);
+fn gen_vector<const N: usize>() -> Vector<N> {
+    let mut vec = [0.0; N];
 
-    let rocket = create_server(db);
-    Client::tracked(rocket).unwrap()
+    for float in vec.iter_mut() {
+        *float = random::<f32>();
+    }
+
+    Vector(vec)
+}
+
+fn brute_force_search<const N: usize>(
+    records: &[Record<usize, N>],
+    query: &Vector<N>,
+    n: usize,
+) -> Vec<(f32, usize)> {
+    let mut nearest = Vec::with_capacity(records.len());
+
+    // Calculate the distance between the query and each record.
+    for record in records {
+        let distance = query.distance(&record.vector);
+        nearest.push((distance, record.data));
+    }
+
+    // Sort the nearest neighbors by distance.
+    nearest.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    nearest.truncate(n);
+    nearest
 }

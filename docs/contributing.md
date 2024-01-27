@@ -34,15 +34,13 @@ For features, we try to prioritize features that are backed by real-world use ca
 
 Getting started with OasysDB development is easy.
 
-You will need to have Rust installed. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your editor.
+You will need to have Rust installed. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor.
 
-To run OasysDB locally, clone the repository and add `.env` file to the root of the project (refer to `.env.example`). After that, you can run the following command to start OasysDB:
+Once you have Rust installed, you can clone the repository and run the example program with the following command in the root directory of the repository:
 
 ```bash
 cargo run
 ```
-
-By default, this will start OasysDB on port 3141. If for some reason you need to change the port, you can do so by setting the `ROCKET_PORT` environment variable. Then, you can use any HTTP client to interact with OasysDB like curl or Postman.
 
 ## Style guide
 
@@ -50,17 +48,7 @@ We use mostly the default linting and style guide for Rust except for some linti
 
 For commit messages, we use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format. This allows us to maintain consistency and readability in our commit messages.
 
-For commenting your code, please try your best to write comments that are clear and concise with proper English sentence capitalization and punctuation. This will help us and the community understand your code better and keep the codebase maintainable.
-
-## Local Docker development
-
-As an alternative to using Rust, you can use Docker to run OasysDB locally. First, run the following command:
-
-```bash
-docker build -t oasysdb .
-```
-
-This will build the Docker image for OasysDB which you can then run locally. If you need guidance on how to run OasysDB locally, please refer to this [documentation](/readme.md#getting-started).
+When commenting your code, please try your best to write comments that are clear and concise with proper English sentence capitalization and punctuation. This will help us and the community understand your code better and keep the codebase maintainable.
 
 ## Submitting a pull request
 
@@ -83,9 +71,7 @@ This is similar to the format used in [Conventional Commits](https://www.convent
 
 ## Conclusion
 
-Thank you for taking the time to read this document. We look forward to your contributions!
-
-If you want to support us, star this project, share it with your circles, and join us on [Discord](https://discord.gg/bDhQrkqNP4).
+Thank you for taking the time to read this documentation. We look forward to your contributions! Another way to support this project is to star this project, share it with your circles, and join us on [Discord](https://discord.gg/bDhQrkqNP4).
 
 Best regards,<br />
 Edwin Kys

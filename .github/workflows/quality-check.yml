@@ -2,54 +2,19 @@ name: Quality check and testing
 
 # Summary of the workflow
 # For every push to the main branch or any pull request:
-# 1. Run cargo check: A fast way to check for build errors.
-# 2. Run cargo fmt: Check if the code is formatted correctly.
-# 3. Run cargo clippy: Check linting to improve code quality.
-# 4. Run cargo test: Run all tests.
+# 1. Run cargo clippy: Check linting to improve code quality.
+# 2. Run cargo test: Run all tests.
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches:
       - main
 
-env:
-  OASYSDB_TOKEN: token
-  OASYSDB_DIMENSION: 2
-
 jobs:
-  run-check:
-    name: Run check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the code
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Run cargo check
-        run: cargo check
-
-  rustfmt-format:
-    name: Format style with Rustfmt
-    needs: [run-check]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the code
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Run cargo fmt
-        run: cargo fmt -- --check
-
   clippy-lint:
     name: Lint code with Clippy
-    needs: [run-check, rustfmt-format]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
@@ -65,7 +30,7 @@ jobs:
 
   run-tests:
     name: Run all tests
-    needs: [rustfmt-format, clippy-lint, run-check]
+    needs: clippy-lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
