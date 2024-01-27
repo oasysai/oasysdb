@@ -3,6 +3,16 @@ name = "oasysdb"
 version = "0.1.0-beta.3"
 edition = "2021"
 
+# Information.
+authors = ["Edwin Kys", "Oasys"]
+description = "Fast embedded vector database with incremental HNSW indexing."
+homepage = "https://oasysai.com/"
+repository = "https://github.com/oasysai/oasysdb"
+
+# Metadata.
+keywords = ["embedded", "vector", "database", "hnsw", "ann"]
+categories = ["database", "algorithms", "embedded"]
+
 [dependencies]
 sled = "0.34.7"
 

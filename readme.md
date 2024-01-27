@@ -30,7 +30,7 @@ fn main() {
     let records = gen_records::<128>(100);
 
     // Open the database and create a collection.
-    let mut db = Database::open("db");
+    let mut db = Database::open("data/test_readme");
     let collection: Collection<usize, 128, 32> =
         db.create_collection("vectors", None, Some(&records));
 
