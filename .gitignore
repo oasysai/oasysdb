@@ -6,6 +6,10 @@ db
 debug
 target
 
+# Benchmarking.
+*.ivecs
+*.fvecs
+
 # Misc.
 .vscode
 .DS_Store
