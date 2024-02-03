@@ -3,7 +3,7 @@ mod utils;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use oasysdb::collection::{Collection, Config};
 use oasysdb::vector::Vector;
-use utils::{get_records, read_vectors};
+use utils::*;
 
 fn build_collection(path: &str) -> Collection<usize, 128, 32> {
     let records = get_records(path).unwrap();
@@ -13,6 +13,9 @@ fn build_collection(path: &str) -> Collection<usize, 128, 32> {
 
 fn bench_search_collection(criterion: &mut Criterion) {
     let id = "Search collection";
+
+    // Download the dataset.
+    download_siftsmall().unwrap();
 
     // Load the query data.
     let query_path = "data/siftsmall/siftsmall_query.fvecs";

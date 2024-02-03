@@ -1,9 +1,60 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use curl::easy::Easy;
+use flate2::read::GzDecoder;
 use oasysdb::collection::Record;
 use oasysdb::vector::Vector;
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufReader, Seek, SeekFrom};
+use std::fs::{create_dir_all, File};
+use std::io::{BufReader, Seek, SeekFrom, Write};
+use std::path::Path;
+use tar::Archive;
+use tokio::runtime::Runtime;
+
+async fn download_file(url: &str, to: &str) -> Result<(), Box<dyn Error>> {
+    let mut file = File::create(to)?;
+
+    let mut easy = Easy::new();
+    easy.url(url)?;
+
+    // Write the response to the file.
+    easy.write_function(move |data| {
+        file.write_all(data).unwrap();
+        Ok(data.len())
+    })?;
+
+    easy.perform()?;
+    Ok(())
+}
+
+fn extract_file(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
+    let file = File::open(path)?;
+    let decoder = GzDecoder::new(file);
+    let mut archive = Archive::new(decoder);
+    archive.unpack(to)?;
+    Ok(())
+}
+
+pub fn download_siftsmall() -> Result<(), Box<dyn Error>> {
+    // Check if the dataset exists.
+    let source = "data/siftsmall/siftsmall_base.fvecs";
+    if Path::new(source).exists() {
+        return Ok(());
+    }
+
+    // Create the data directory if it does not exist.
+    if !Path::new("data").exists() {
+        create_dir_all("data")?;
+    }
+
+    // Download the dataset.
+    let url = "ftp://ftp.irisa.fr/local/texmex/corpus/siftsmall.tar.gz";
+    let to = "data/siftsmall.tar.gz";
+    Runtime::new()?.block_on(download_file(url, to))?;
+
+    // Extract the dataset.
+    extract_file(to, "data")?;
+    Ok(())
+}
 
 pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     let ext = path.split(".").last().unwrap();
