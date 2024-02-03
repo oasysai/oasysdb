@@ -64,6 +64,18 @@ fn gen_vector<const N: usize>() -> Vector<N> {
 }
 ```
 
+## Benchmarks
+
+OasysDB has a built-in benchmarking suite using Rust's `criterion` crate that can be used to measure the performance of the vector database.
+
+Currently, the benchmarks are focused on the performance of the collection's vector search functionality. We are working on adding more benchmarks to measure the performance of other operations.
+
+If you are curious and want to run the benchmarks, you can use the following command which will download the benchmarking dataset and run the benchmarks:
+
+```bash
+cargo bench
+```
+
 ## Disclaimer
 
 This project is still in the early stages of development. We are actively working on it and we expect the API and functionality to change. We do not recommend using this in production yet.
