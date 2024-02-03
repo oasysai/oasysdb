@@ -57,8 +57,8 @@ pub fn download_siftsmall() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Reads the vectors from a .fvecs file.
-/// * `path`: Path to the .fvecs file.
+/// Reads the vectors from the dataset.
+/// * `path`: Path to the dataset file.
 pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     let ext = path.split(".").last().unwrap();
     if ext != "fvecs" {
@@ -96,8 +96,8 @@ pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     Ok(vectors)
 }
 
-/// Reads the vectors from a file and convert them into records.
-/// * `path`: Path to the .fvecs file.
+/// Reads and converts the vectors from the dataset into records.
+/// * `path`: Path to the dataset file.
 pub fn get_records(
     path: &str,
 ) -> Result<Vec<Record<usize, 128>>, Box<dyn Error>> {
