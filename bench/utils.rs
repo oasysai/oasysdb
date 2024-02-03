@@ -26,14 +26,15 @@ async fn download_file(url: &str, to: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn extract_file(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
+fn extract_tar_gz(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
     let file = File::open(path)?;
     let decoder = GzDecoder::new(file);
     let mut archive = Archive::new(decoder);
-    archive.unpack(to)?;
+    archive.unpack(to).unwrap();
     Ok(())
 }
 
+/// Downloads and extracts the dataset to `/data/siftsmall`.
 pub fn download_siftsmall() -> Result<(), Box<dyn Error>> {
     // Check if the dataset exists.
     let source = "data/siftsmall/siftsmall_base.fvecs";
@@ -52,10 +53,12 @@ pub fn download_siftsmall() -> Result<(), Box<dyn Error>> {
     Runtime::new()?.block_on(download_file(url, to))?;
 
     // Extract the dataset.
-    extract_file(to, "data")?;
+    extract_tar_gz(to, "data")?;
     Ok(())
 }
 
+/// Reads the vectors from a .fvecs file.
+/// * `path`: Path to the .fvecs file.
 pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     let ext = path.split(".").last().unwrap();
     if ext != "fvecs" {
@@ -93,6 +96,8 @@ pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     Ok(vectors)
 }
 
+/// Reads the vectors from a file and convert them into records.
+/// * `path`: Path to the .fvecs file.
 pub fn get_records(
     path: &str,
 ) -> Result<Vec<Record<usize, 128>>, Box<dyn Error>> {
