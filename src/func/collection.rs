@@ -428,7 +428,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 /// A record containing a vector and its associated data.
 /// * `D`: Data type associated with the vector.
 /// * `N`: Vector dimension. Should be equal to the collection's.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Record<D, const N: usize> {
     /// Vector embedding with dimension of `N`.
     pub vector: Vector<N>,
