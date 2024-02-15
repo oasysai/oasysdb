@@ -80,8 +80,7 @@ fn collection_insert_nn<const N: usize>(
 ) -> Vec<(f32, usize)> {
     // Create a new collection.
     let config = Config::default();
-    let mut collection: Collection<usize, N> =
-        Collection::new(&config).unwrap();
+    let mut collection: Collection<usize, N> = Collection::new(&config);
 
     // Insert records into the collection.
     for record in records {
