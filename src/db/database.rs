@@ -16,7 +16,8 @@ impl Database {
             remove_dir_all(path)?;
         }
 
-        // Using sled::Config to prevent name collisions.
+        // Using sled::Config to prevent name collisions
+        // with collection's Config.
         let config = sled::Config::new().path(path);
         let collections = config.open()?;
         Ok(Self { collections, count: 0 })
@@ -71,8 +72,11 @@ impl Database {
     where
         D: Copy + Serialize + DeserializeOwned,
     {
-        let value = self.collections.get(name).unwrap().unwrap();
-        Ok(bincode::deserialize(&value).unwrap())
+        let value = self.collections.get(name)?;
+        match value {
+            Some(value) => Ok(bincode::deserialize(&value)?),
+            None => Err(err::COLLECTION_NOT_FOUND.into()),
+        }
     }
 
     /// Saves new or update existing collection to the database.
@@ -89,12 +93,12 @@ impl Database {
         let mut new = false;
 
         // Check if it's a new collection.
-        if !self.collections.contains_key(name).unwrap() {
+        if !self.collections.contains_key(name)? {
             new = true;
         }
 
-        let value = bincode::serialize(collection).unwrap();
-        self.collections.insert(name, value).unwrap();
+        let value = bincode::serialize(collection)?;
+        self.collections.insert(name, value)?;
 
         // If it's a new collection, update the count.
         if new {
@@ -110,12 +114,10 @@ impl Database {
         &mut self,
         name: &str,
     ) -> Result<(), Box<dyn Error>> {
-        self.collections.remove(name).unwrap();
+        self.collections.remove(name)?;
         self.count -= 1;
         Ok(())
     }
-
-    // Utility methods.
 
     /// Returns the number of collections in the database.
     pub fn len(&self) -> usize {

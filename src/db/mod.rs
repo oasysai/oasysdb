@@ -2,6 +2,7 @@
 pub mod database;
 
 use crate::collection::*;
+use crate::func::err;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sled::Db;
