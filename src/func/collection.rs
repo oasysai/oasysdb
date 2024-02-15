@@ -133,9 +133,11 @@ impl<D, const N: usize, const M: usize> Index<&VectorID>
 }
 
 impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
+    // Primary methods.
+
     /// Creates an empty collection with the given configuration.
-    pub fn new(config: &Config) -> Self {
-        Self {
+    pub fn new(config: &Config) -> Result<Self, Box<dyn Error>> {
+        Ok(Self {
             config: *config,
             count: 0,
             data: HashMap::new(),
@@ -143,13 +145,16 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
             slots: vec![],
             base_layer: vec![],
             upper_layers: vec![],
-        }
+        })
     }
 
     /// Builds the collection index from vector records.
     /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
-    pub fn build(config: &Config, records: &[Record<D, N>]) -> Self {
+    pub fn build(
+        config: &Config,
+        records: &[Record<D, N>],
+    ) -> Result<Self, Box<dyn Error>> {
         if records.is_empty() {
             return Self::new(config);
         }
@@ -256,15 +261,23 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         // Add IDs to the slots.
         let slots = (0..vectors.len()).map(|i| VectorID(i as u32)).collect();
 
-        let count = records.len();
-        let config = *config;
-
-        Self { data, vectors, base_layer, upper_layers, slots, config, count }
+        Ok(Self {
+            data,
+            vectors,
+            base_layer,
+            upper_layers,
+            slots,
+            config: *config,
+            count: records.len(),
+        })
     }
 
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
-    pub fn insert(&mut self, record: &Record<D, N>) {
+    pub fn insert(
+        &mut self,
+        record: &Record<D, N>,
+    ) -> Result<(), Box<dyn Error>> {
         // Create a new vector ID using the next available slot.
         let id = VectorID(self.slots.len() as u32);
 
@@ -275,16 +288,19 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         // Add new vector id to the slots.
         self.slots.push(id);
 
+        // Update the collection count.
         self.count += 1;
 
         // This operation is last because it depends on
         // the updated vectors data.
         self.insert_to_layers(&id);
+
+        Ok(())
     }
 
     /// Deletes a vector record from the collection.
     /// * `id`: Vector ID to delete.
-    pub fn delete(&mut self, id: &VectorID) {
+    pub fn delete(&mut self, id: &VectorID) -> Result<(), Box<dyn Error>> {
         self.delete_from_layers(id);
 
         // Update the collection data.
@@ -292,23 +308,35 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         self.data.remove(id).unwrap();
         self.slots[id.0 as usize] = INVALID;
 
+        // Update the collection count.
         self.count -= 1;
+
+        Ok(())
     }
 
     /// Updates a vector record in the collection.
     /// * `id`: Vector ID to update.
     /// * `record`: New vector record.
-    pub fn update(&mut self, id: &VectorID, record: &Record<D, N>) {
+    pub fn update(
+        &mut self,
+        id: &VectorID,
+        record: &Record<D, N>,
+    ) -> Result<(), Box<dyn Error>> {
+        // Remove the old vector from the index layers.
         self.delete_from_layers(id);
+
+        // Insert the updated vector and data.
         self.vectors.insert(*id, record.vector);
         self.data.insert(*id, record.data);
         self.insert_to_layers(id);
+
+        Ok(())
     }
 
     /// Returns the vector record associated with the ID.
     /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Record<D, N> {
-        Record { vector: self.vectors[id], data: self.data[id] }
+    pub fn get(&self, id: &VectorID) -> Result<Record<D, N>, Box<dyn Error>> {
+        Ok(Record { vector: self.vectors[id], data: self.data[id] })
     }
 
     /// Searches the collection for the nearest neighbors.
@@ -318,11 +346,11 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         &'a self,
         vector: &'a Vector<N>,
         n: usize,
-    ) -> Vec<SearchResult<D>> {
+    ) -> Result<Vec<SearchResult<D>>, Box<dyn Error>> {
         let mut search: Search<M, N> = Search::default();
 
         if self.vectors.is_empty() {
-            return vec![];
+            return Ok(vec![]);
         }
 
         // Find the first valid vector ID from the slots.
@@ -355,8 +383,10 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
             SearchResult { id, distance, data }
         };
 
-        search.iter().map(map_result).take(n).collect()
+        Ok(search.iter().map(map_result).take(n).collect())
     }
+
+    // Utility methods.
 
     /// Returns the number of vector records in the collection.
     pub fn len(&self) -> usize {

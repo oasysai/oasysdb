@@ -30,13 +30,13 @@ fn main() {
     let records = gen_records::<128>(100);
 
     // Open the database and create a collection.
-    let mut db = Database::open("data/test_readme");
+    let mut db = Database::open("data/test_readme").unwrap();
     let collection: Collection<usize, 128, 32> =
-        db.create_collection("vectors", None, Some(&records));
+        db.create_collection("vectors", None, Some(&records)).unwrap();
 
     // Utility function to generate a random vector.
     let query = gen_vector::<128>();
-    let result = collection.search(&query, 5);
+    let result = collection.search(&query, 5).unwrap();
 
     println!("Nearest neighbor ID: {}", result[0].id);
 }

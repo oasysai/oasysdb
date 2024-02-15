@@ -18,10 +18,10 @@ fn insert() {
     let data = random::<usize>();
 
     let id = VectorID(len as u32);
-    collection.insert(&Record { vector, data });
+    collection.insert(&Record { vector, data }).unwrap();
 
     assert_eq!(collection.len(), len + 1);
-    assert_eq!(collection.get(&id).data, data);
+    assert_eq!(collection.get(&id).unwrap().data, data);
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn delete() {
     let mut collection = create_collection::<128>(&records);
 
     let id = VectorID(1);
-    collection.delete(&id);
+    collection.delete(&id).unwrap();
 
     assert_eq!(collection.len(), len - 1);
 }
@@ -45,10 +45,10 @@ fn update() {
     let id = VectorID(5);
     let data = random::<usize>();
     let record = Record { vector: gen_vector::<128>(), data };
-    collection.update(&id, &record);
+    collection.update(&id, &record).unwrap();
 
     assert_eq!(collection.len(), len);
-    assert_eq!(collection.get(&id).data, data);
+    assert_eq!(collection.get(&id).unwrap().data, data);
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn search() {
     let collection = create_collection::<128>(&records);
     let query = gen_vector::<128>();
 
-    let result = collection.search(&query, 5);
+    let result = collection.search(&query, 5).unwrap();
     let truth = brute_force_search(&records, &query, 10);
 
     // Collect the distances from the true nearest neighbors.
@@ -78,7 +78,7 @@ fn get() {
     let collection = create_collection::<128>(&records);
 
     let id = VectorID(5);
-    let record = collection.get(&id);
+    let record = collection.get(&id).unwrap();
 
     assert_eq!(record.data, records[5].data);
     assert_eq!(record.vector, records[5].vector);

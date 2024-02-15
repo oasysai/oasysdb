@@ -8,7 +8,7 @@ use utils::*;
 fn build_collection(path: &str) -> Collection<usize, 128, 32> {
     let records = get_records(path).unwrap();
     let config = Config::default();
-    Collection::build(&config, &records)
+    Collection::build(&config, &records).unwrap()
 }
 
 fn bench_search_collection(criterion: &mut Criterion) {
@@ -28,7 +28,7 @@ fn bench_search_collection(criterion: &mut Criterion) {
 
     // Benchmark the search speed.
     let routine = || {
-        black_box(collection.search(&Vector(query), 10));
+        black_box(collection.search(&Vector(query), 10).unwrap());
     };
 
     criterion.bench_function(id, |bencher| bencher.iter(routine));
