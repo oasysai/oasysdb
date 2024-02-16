@@ -326,9 +326,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
         &self.nearest
     }
 
-    pub fn iter(
-        &self,
-    ) -> impl Iterator<Item = Candidate> + ExactSizeIterator + '_ {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = Candidate> + '_ {
         self.nearest.iter().copied()
     }
 }
