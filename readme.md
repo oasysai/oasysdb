@@ -14,8 +14,8 @@ OasysDB implements **HNSW** (Hierachical Navigable Small World) as its indexing 
 
 OasysDB is very flexible for use cases related with vector search such as using RAG (Retrieval-Augmented Generation) method with an LLM to generate a context-aware output. OasysDB offers 2 major features that make it stand out from other vector databases or libraries:
 
-- **Incremental operations on the collection index**: You can add, remove, or modify vectors from the index without having to rebuild it.
-- **Flexible persistence options**: You can choose to persist the collection to disk or to keep it in memory.
+- **Incremental vector operations**: OasysDB allows you to add, remove, or modify vectors from the collections without having to rebuild their indexes. This allows for a more flexible and efficient approach on storing your vector data.
+- **Flexible persistence options**: You can choose to persist the vector collection to the disk or to keep it in memory. By default, whenever you use a collection, it will be loaded to the memory to ensure that the search performance is high.
 
 # 🚀 Quickstart
 
