@@ -101,10 +101,8 @@ pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
 pub fn get_records(
     path: &str,
 ) -> Result<Vec<Record<usize, 128>>, Box<dyn Error>> {
-    let vectors = read_vectors(path)?;
-
     // Create records where the ID is the index.
-    let records = vectors
+    let records = read_vectors(path)?
         .iter()
         .enumerate()
         .map(|(id, vec)| {

@@ -7,10 +7,10 @@ use crate::vector::*;
 use rand::random;
 
 fn create_test_database(path: &str) -> Database {
-    let mut db = Database::new(path);
+    let mut db = Database::new(path).unwrap();
     let records = gen_records::<128>(100);
     let records = Some(records.as_slice());
-    db.create_collection::<usize, 128, 32>("vectors", None, records);
+    db.create_collection::<usize, 128, 32>("vectors", None, records).unwrap();
     db
 }
 
@@ -18,7 +18,7 @@ fn create_collection<const N: usize>(
     records: &[Record<usize, N>],
 ) -> Collection<usize, N> {
     let config = Config::default();
-    Collection::build(&config, &records)
+    Collection::build(&config, &records).unwrap()
 }
 
 fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {

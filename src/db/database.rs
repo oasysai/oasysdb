@@ -10,25 +10,26 @@ impl Database {
     /// Re-creates and opens the database at the given path.
     /// This method will delete the database if it exists.
     /// * `path` - Directory to store the database.
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &str) -> Result<Self, Box<dyn Error>> {
         // Remove the database dir if it exists.
         if Path::new(path).exists() {
-            remove_dir_all(path).unwrap();
+            remove_dir_all(path)?;
         }
 
-        // Using sled::Config to prevent name collisions.
+        // Using sled::Config to prevent name collisions
+        // with collection's Config.
         let config = sled::Config::new().path(path);
-        let collections = config.open().unwrap();
-        Self { collections, count: 0 }
+        let collections = config.open()?;
+        Ok(Self { collections, count: 0 })
     }
 
     /// Opens existing or creates new database.
     /// If the database doesn't exist, it will be created.
     /// * `path` - Directory to store the database.
-    pub fn open(path: &str) -> Self {
-        let collections = sled::open(path).unwrap();
+    pub fn open(path: &str) -> Result<Self, Box<dyn Error>> {
+        let collections = sled::open(path)?;
         let count = collections.len();
-        Self { collections, count }
+        Ok(Self { collections, count })
     }
 
     /// Creates a new collection in the database.
@@ -40,7 +41,7 @@ impl Database {
         name: &str,
         config: Option<&Config>,
         records: Option<&[Record<D, N>]>,
-    ) -> Collection<D, N, M>
+    ) -> Result<Collection<D, N, M>, Box<dyn Error>>
     where
         D: Copy + Serialize,
     {
@@ -54,12 +55,12 @@ impl Database {
 
         // Create new or build a collection.
         let collection = match records {
-            Some(records) => Collection::build(config, records),
+            Some(records) => Collection::build(config, records)?,
             None => Collection::new(config),
         };
 
-        self.save_collection(name, &collection);
-        collection
+        self.save_collection(name, &collection)?;
+        Ok(collection)
     }
 
     /// Gets a collection from the database.
@@ -67,12 +68,15 @@ impl Database {
     pub fn get_collection<D, const N: usize, const M: usize>(
         &self,
         name: &str,
-    ) -> Collection<D, N, M>
+    ) -> Result<Collection<D, N, M>, Box<dyn Error>>
     where
         D: Copy + Serialize + DeserializeOwned,
     {
-        let value = self.collections.get(name).unwrap().unwrap();
-        bincode::deserialize(&value).unwrap()
+        let value = self.collections.get(name)?;
+        match value {
+            Some(value) => Ok(bincode::deserialize(&value)?),
+            None => Err(err::COLLECTION_NOT_FOUND.into()),
+        }
     }
 
     /// Saves new or update existing collection to the database.
@@ -82,30 +86,37 @@ impl Database {
         &mut self,
         name: &str,
         collection: &Collection<D, N, M>,
-    ) where
+    ) -> Result<(), Box<dyn Error>>
+    where
         D: Copy + Serialize,
     {
         let mut new = false;
 
         // Check if it's a new collection.
-        if !self.collections.contains_key(name).unwrap() {
+        if !self.collections.contains_key(name)? {
             new = true;
         }
 
-        let value = bincode::serialize(collection).unwrap();
-        self.collections.insert(name, value).unwrap();
+        let value = bincode::serialize(collection)?;
+        self.collections.insert(name, value)?;
 
         // If it's a new collection, update the count.
         if new {
             self.count += 1;
         }
+
+        Ok(())
     }
 
     /// Deletes a collection from the database.
     /// * `name` - Collection name to delete.
-    pub fn delete_collection(&mut self, name: &str) {
-        self.collections.remove(name).unwrap();
+    pub fn delete_collection(
+        &mut self,
+        name: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        self.collections.remove(name)?;
         self.count -= 1;
+        Ok(())
     }
 
     /// Returns the number of collections in the database.

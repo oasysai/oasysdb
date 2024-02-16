@@ -55,13 +55,13 @@ fn collection_built_nn<const N: usize>(
     // Create the collection using the builder.
     let config = Config::default();
     let mut collection: Collection<usize, N> =
-        Collection::build(&config, records);
+        Collection::build(&config, records).unwrap();
 
-    collection.delete(&VectorID(0));
+    collection.delete(&VectorID(0)).unwrap();
 
     // Search the collection.
     let start = std::time::Instant::now();
-    let result = collection.search(query, n);
+    let result = collection.search(query, n).unwrap();
 
     print!("Collection (Built) Nearest: {}", result[0].distance);
     println!(" {:?}μs", start.elapsed().as_micros());
@@ -84,15 +84,15 @@ fn collection_insert_nn<const N: usize>(
 
     // Insert records into the collection.
     for record in records {
-        collection.insert(record);
+        collection.insert(record).unwrap();
     }
 
-    collection.delete(&VectorID(0));
-    collection.insert(&Record { vector: gen_vector(), data: 0 });
+    collection.delete(&VectorID(0)).unwrap();
+    collection.insert(&Record { vector: gen_vector(), data: 0 }).unwrap();
 
     // Search the collection.
     let start = std::time::Instant::now();
-    let result = collection.search(query, n);
+    let result = collection.search(query, n).unwrap();
 
     print!("Collection (Insert) Nearest: {}", result[0].distance);
     println!(" {:?}μs", start.elapsed().as_micros());
