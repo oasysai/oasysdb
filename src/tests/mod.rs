@@ -40,22 +40,3 @@ fn gen_vector(dimension: usize) -> Vector {
 
     Vector(vec)
 }
-
-fn brute_force_search(
-    records: &[Record<usize>],
-    query: &Vector,
-    n: usize,
-) -> Vec<(f32, usize)> {
-    let mut nearest = Vec::with_capacity(records.len());
-
-    // Calculate the distance between the query and each record.
-    for record in records {
-        let distance = query.distance(&record.vector);
-        nearest.push((distance, record.data));
-    }
-
-    // Sort the nearest neighbors by distance.
-    nearest.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-    nearest.truncate(n);
-    nearest
-}

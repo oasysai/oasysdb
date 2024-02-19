@@ -403,6 +403,31 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         Ok(search.iter().map(map_result).take(n).collect())
     }
 
+    /// Searches the collection for the true nearest neighbors.
+    /// * `vector`: Vector to search.
+    /// * `n`: Number of neighbors to return.
+    pub fn true_search(
+        &self,
+        vector: &Vector,
+        n: usize,
+    ) -> Result<Vec<SearchResult<D>>, Box<dyn Error>> {
+        let mut nearest = Vec::with_capacity(self.vectors.len());
+
+        // Calculate the distance between the query and each record.
+        // Then, create a search result for each record.
+        for (id, vec) in self.vectors.iter() {
+            let distance = vector.distance(vec);
+            let data = self.data[id];
+            let res = SearchResult { id: id.0, distance, data };
+            nearest.push(res);
+        }
+
+        // Sort the nearest neighbors by distance.
+        nearest.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+        nearest.truncate(n);
+        Ok(nearest)
+    }
+
     /// Returns the number of vector records in the collection.
     pub fn len(&self) -> usize {
         self.count
