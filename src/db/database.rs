@@ -36,12 +36,12 @@ impl Database {
     /// * `name` - Name of the collection.
     /// * `config` - Collection configuration. Uses default if none.
     /// * `records` - Vector records to insert into the collection.
-    pub fn create_collection<D, const N: usize, const M: usize>(
+    pub fn create_collection<D, const M: usize>(
         &mut self,
         name: &str,
         config: Option<&Config>,
-        records: Option<&[Record<D, N>]>,
-    ) -> Result<Collection<D, N, M>, Box<dyn Error>>
+        records: Option<&[Record<D>]>,
+    ) -> Result<Collection<D, M>, Box<dyn Error>>
     where
         D: Copy + Serialize,
     {
@@ -65,10 +65,10 @@ impl Database {
 
     /// Gets a collection from the database.
     /// * `name` - Name of the collection.
-    pub fn get_collection<D, const N: usize, const M: usize>(
+    pub fn get_collection<D, const M: usize>(
         &self,
         name: &str,
-    ) -> Result<Collection<D, N, M>, Box<dyn Error>>
+    ) -> Result<Collection<D, M>, Box<dyn Error>>
     where
         D: Copy + Serialize + DeserializeOwned,
     {
@@ -82,10 +82,10 @@ impl Database {
     /// Saves new or update existing collection to the database.
     /// * `name` - Name of the collection.
     /// * `collection` - Vector collection to save.
-    pub fn save_collection<D, const N: usize, const M: usize>(
+    pub fn save_collection<D, const M: usize>(
         &mut self,
         name: &str,
-        collection: &Collection<D, N, M>,
+        collection: &Collection<D, M>,
     ) -> Result<(), Box<dyn Error>>
     where
         D: Copy + Serialize,

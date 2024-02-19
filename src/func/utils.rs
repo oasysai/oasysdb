@@ -232,7 +232,7 @@ pub struct Candidate {
 }
 
 #[derive(Clone)]
-pub struct Search<const M: usize, const N: usize> {
+pub struct Search<const M: usize> {
     pub ef: usize,
     pub visited: Visited,
     candidates: BinaryHeap<Reverse<Candidate>>,
@@ -241,7 +241,7 @@ pub struct Search<const M: usize, const N: usize> {
     discarded: Vec<Candidate>,
 }
 
-impl<const M: usize, const N: usize> Search<M, N> {
+impl<const M: usize> Search<M> {
     pub fn new(capacity: usize) -> Self {
         let visited = Visited::with_capacity(capacity);
         Self { visited, ..Default::default() }
@@ -251,8 +251,8 @@ impl<const M: usize, const N: usize> Search<M, N> {
     pub fn search<L: Layer>(
         &mut self,
         layer: L,
-        vector: &Vector<N>,
-        vectors: &HashMap<VectorID, Vector<N>>,
+        vector: &Vector,
+        vectors: &HashMap<VectorID, Vector>,
         links: usize,
     ) {
         while let Some(Reverse(candidate)) = self.candidates.pop() {
@@ -276,8 +276,8 @@ impl<const M: usize, const N: usize> Search<M, N> {
     pub fn push(
         &mut self,
         vector_id: &VectorID,
-        vector: &Vector<N>,
-        vectors: &HashMap<VectorID, Vector<N>>,
+        vector: &Vector,
+        vectors: &HashMap<VectorID, Vector>,
     ) {
         if !self.visited.insert(vector_id) {
             return;
@@ -331,7 +331,7 @@ impl<const M: usize, const N: usize> Search<M, N> {
     }
 }
 
-impl<const M: usize, const N: usize> Default for Search<M, N> {
+impl<const M: usize> Default for Search<M> {
     fn default() -> Self {
         Self {
             visited: Visited::with_capacity(0),
@@ -344,19 +344,19 @@ impl<const M: usize, const N: usize> Default for Search<M, N> {
     }
 }
 
-pub struct SearchPool<const M: usize, const N: usize> {
-    pool: Mutex<Vec<(Search<M, N>, Search<M, N>)>>,
+pub struct SearchPool<const M: usize> {
+    pool: Mutex<Vec<(Search<M>, Search<M>)>>,
     len: usize,
 }
 
-impl<const M: usize, const N: usize> SearchPool<M, N> {
+impl<const M: usize> SearchPool<M> {
     pub fn new(len: usize) -> Self {
         let pool = Mutex::new(Vec::new());
         Self { pool, len }
     }
 
     /// Returns the last searches from the pool.
-    pub fn pop(&self) -> (Search<M, N>, Search<M, N>) {
+    pub fn pop(&self) -> (Search<M>, Search<M>) {
         match self.pool.lock().pop() {
             Some(result) => result,
             None => (Search::new(self.len), Search::new(self.len)),
@@ -364,7 +364,7 @@ impl<const M: usize, const N: usize> SearchPool<M, N> {
     }
 
     /// Pushes the searches to the pool.
-    pub fn push(&self, item: &(Search<M, N>, Search<M, N>)) {
+    pub fn push(&self, item: &(Search<M>, Search<M>)) {
         self.pool.lock().push(item.clone());
     }
 }

@@ -21,15 +21,15 @@ impl Default for Config {
     }
 }
 
-struct IndexConstruction<'a, const M: usize, const N: usize> {
-    search_pool: SearchPool<M, N>,
+struct IndexConstruction<'a, const M: usize> {
+    search_pool: SearchPool<M>,
     top_layer: LayerID,
     base_layer: &'a [RwLock<BaseNode<M>>],
-    vectors: &'a HashMap<VectorID, Vector<N>>,
+    vectors: &'a HashMap<VectorID, Vector>,
     config: &'a Config,
 }
 
-impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
+impl<'a, const M: usize> IndexConstruction<'a, M> {
     /// Inserts a vector ID into a layer.
     /// * `vector_id`: Vector ID to insert.
     /// * `layer`: Layer to insert into.
@@ -108,31 +108,28 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 
 /// The collection of vector records with HNSW indexing.
 /// * `D`: Data associated with the vector.
-/// * `N`: Vector dimension.
 /// * `M`: Maximum neighbors per vector node. Default to 32.
 #[derive(Serialize, Deserialize)]
-pub struct Collection<D, const N: usize, const M: usize = 32> {
+pub struct Collection<D, const M: usize = 32> {
     /// The collection configuration object.
     pub config: Config,
     // Private fields below.
     data: HashMap<VectorID, D>,
-    vectors: HashMap<VectorID, Vector<N>>,
+    vectors: HashMap<VectorID, Vector>,
     slots: Vec<VectorID>,
     base_layer: Vec<BaseNode<M>>,
     upper_layers: Vec<Vec<UpperNode<M>>>,
     count: usize,
 }
 
-impl<D, const N: usize, const M: usize> Index<&VectorID>
-    for Collection<D, N, M>
-{
-    type Output = Vector<N>;
+impl<D, const M: usize> Index<&VectorID> for Collection<D, M> {
+    type Output = Vector;
     fn index(&self, index: &VectorID) -> &Self::Output {
         &self.vectors[index]
     }
 }
 
-impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
+impl<D: Copy, const M: usize> Collection<D, M> {
     /// Creates an empty collection with the given configuration.
     pub fn new(config: &Config) -> Self {
         Self {
@@ -151,7 +148,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     /// * `records`: List of vectors to build the index from.
     pub fn build(
         config: &Config,
-        records: &[Record<D, N>],
+        records: &[Record<D>],
     ) -> Result<Self, Box<dyn Error>> {
         if records.is_empty() {
             return Ok(Self::new(config));
@@ -194,8 +191,8 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         let vectors = records
             .iter()
             .enumerate()
-            .map(|(i, item)| (VectorID(i as u32), item.vector))
-            .collect::<HashMap<VectorID, Vector<N>>>();
+            .map(|(i, item)| (VectorID(i as u32), item.vector.clone()))
+            .collect::<HashMap<VectorID, Vector>>();
 
         // Figure out how many nodes will go on each layer.
         // This helps us allocate memory capacity for each
@@ -274,10 +271,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
-    pub fn insert(
-        &mut self,
-        record: &Record<D, N>,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn insert(&mut self, record: &Record<D>) -> Result<(), Box<dyn Error>> {
         // Ensure the number of records is within the limit.
         if self.slots.len() == u32::MAX as usize {
             return Err(err::COLLECTION_LIMIT.into());
@@ -287,7 +281,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         let id = VectorID(self.slots.len() as u32);
 
         // Insert the new vector and data.
-        self.vectors.insert(id, record.vector);
+        self.vectors.insert(id, record.vector.clone());
         self.data.insert(id, record.data);
 
         // Add new vector id to the slots.
@@ -330,7 +324,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     pub fn update(
         &mut self,
         id: &VectorID,
-        record: &Record<D, N>,
+        record: &Record<D>,
     ) -> Result<(), Box<dyn Error>> {
         if !self.contains(id) {
             return Err(err::RECORD_NOT_FOUND.into());
@@ -340,7 +334,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         self.delete_from_layers(id);
 
         // Insert the updated vector and data.
-        self.vectors.insert(*id, record.vector);
+        self.vectors.insert(*id, record.vector.clone());
         self.data.insert(*id, record.data);
         self.insert_to_layers(id);
 
@@ -349,12 +343,12 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
     /// Returns the vector record associated with the ID.
     /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Result<Record<D, N>, Box<dyn Error>> {
+    pub fn get(&self, id: &VectorID) -> Result<Record<D>, Box<dyn Error>> {
         if !self.contains(id) {
             return Err(err::RECORD_NOT_FOUND.into());
         }
 
-        let vector = self.vectors[id];
+        let vector = self.vectors[id].clone();
         let data = self.data[id];
         Ok(Record { vector, data })
     }
@@ -364,10 +358,10 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     /// * `n`: Number of neighbors to return.
     pub fn search(
         &self,
-        vector: &Vector<N>,
+        vector: &Vector,
         n: usize,
     ) -> Result<Vec<SearchResult<D>>, Box<dyn Error>> {
-        let mut search: Search<M, N> = Search::default();
+        let mut search: Search<M> = Search::default();
 
         if self.vectors.is_empty() {
             return Ok(vec![]);
@@ -484,11 +478,10 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
 /// A record containing a vector and its associated data.
 /// * `D`: Data type associated with the vector.
-/// * `N`: Vector dimension. Should be equal to the collection's.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Record<D, const N: usize> {
-    /// Vector embedding with dimension of `N`.
-    pub vector: Vector<N>,
+pub struct Record<D> {
+    /// The vector embedding.
+    pub vector: Vector,
     /// Data associated with the vector.
     pub data: D,
 }

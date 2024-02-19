@@ -8,24 +8,22 @@ use rand::random;
 
 fn create_test_database(path: &str) -> Database {
     let mut db = Database::new(path).unwrap();
-    let records = gen_records::<128>(100);
+    let records = gen_records(128, 100);
     let records = Some(records.as_slice());
-    db.create_collection::<usize, 128, 32>("vectors", None, records).unwrap();
+    db.create_collection::<usize, 32>("vectors", None, records).unwrap();
     db
 }
 
-fn create_collection<const N: usize>(
-    records: &[Record<usize, N>],
-) -> Collection<usize, N> {
+fn create_collection(records: &[Record<usize>]) -> Collection<usize> {
     let config = Config::default();
     Collection::build(&config, &records).unwrap()
 }
 
-fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {
+fn gen_records(dimension: usize, len: usize) -> Vec<Record<usize>> {
     let mut records = Vec::with_capacity(len);
 
     for _ in 0..len {
-        let vector = gen_vector::<N>();
+        let vector = gen_vector(dimension);
         let data = random::<usize>();
         records.push(Record { vector, data });
     }
@@ -33,8 +31,8 @@ fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {
     records
 }
 
-fn gen_vector<const N: usize>() -> Vector<N> {
-    let mut vec = [0.0; N];
+fn gen_vector(dimension: usize) -> Vector {
+    let mut vec = vec![0.0; dimension];
 
     for float in vec.iter_mut() {
         *float = random::<f32>();
@@ -43,9 +41,9 @@ fn gen_vector<const N: usize>() -> Vector<N> {
     Vector(vec)
 }
 
-fn brute_force_search<const N: usize>(
-    records: &[Record<usize, N>],
-    query: &Vector<N>,
+fn brute_force_search(
+    records: &[Record<usize>],
+    query: &Vector,
     n: usize,
 ) -> Vec<(f32, usize)> {
     let mut nearest = Vec::with_capacity(records.len());

@@ -3,18 +3,20 @@ use super::*;
 #[test]
 fn build_large() {
     let len = 10000;
-    let records = gen_records::<128>(len);
-    let collection = create_collection::<128>(&records);
+    let dimension = 128;
+    let records = gen_records(dimension, len);
+    let collection = create_collection(&records);
     assert_eq!(collection.len(), len);
 }
 
 #[test]
 fn insert() {
     let len = 100;
-    let records = gen_records::<128>(len);
-    let mut collection = create_collection::<128>(&records);
+    let dimension = 128;
+    let records = gen_records(dimension, len);
+    let mut collection = create_collection(&records);
 
-    let vector = gen_vector::<128>();
+    let vector = gen_vector(dimension);
     let data = random::<usize>();
 
     let id = VectorID(len as u32);
@@ -27,8 +29,9 @@ fn insert() {
 #[test]
 fn delete() {
     let len = 100;
-    let records = gen_records::<128>(len);
-    let mut collection = create_collection::<128>(&records);
+    let dimension = 128;
+    let records = gen_records(dimension, len);
+    let mut collection = create_collection(&records);
 
     let id = VectorID(1);
     collection.delete(&id).unwrap();
@@ -39,12 +42,13 @@ fn delete() {
 #[test]
 fn update() {
     let len = 100;
-    let records = gen_records::<128>(len);
-    let mut collection = create_collection::<128>(&records);
+    let dimension = 128;
+    let records = gen_records(dimension, len);
+    let mut collection = create_collection(&records);
 
     let id = VectorID(5);
     let data = random::<usize>();
-    let record = Record { vector: gen_vector::<128>(), data };
+    let record = Record { vector: gen_vector(128), data };
     collection.update(&id, &record).unwrap();
 
     assert_eq!(collection.len(), len);
@@ -54,9 +58,10 @@ fn update() {
 #[test]
 fn search() {
     let len = 1000;
-    let records = gen_records::<128>(len);
-    let collection = create_collection::<128>(&records);
-    let query = gen_vector::<128>();
+    let dimension = 128;
+    let records = gen_records(dimension, len);
+    let collection = create_collection(&records);
+    let query = gen_vector(128);
 
     let result = collection.search(&query, 5).unwrap();
     let truth = brute_force_search(&records, &query, 10);
@@ -74,8 +79,9 @@ fn search() {
 #[test]
 fn get() {
     let len = 100;
-    let records = gen_records::<128>(len);
-    let collection = create_collection::<128>(&records);
+    let dimension = 128;
+    let records = gen_records(dimension, len);
+    let collection = create_collection(&records);
 
     let id = VectorID(5);
     let record = collection.get(&id).unwrap();
