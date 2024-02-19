@@ -1,0 +1,18 @@
+[build-system]
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "oasysdb"
+requires-python = ">=3.8"
+dynamic = ["version"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Rust",
+    "Topic :: Database",
+    "Topic :: Text Processing :: Indexing",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
