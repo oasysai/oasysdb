@@ -159,13 +159,24 @@ impl<D: Copy, const M: usize> Collection<D, M> {
 
         // Ensure the number of records is within the limit.
         if records.len() >= u32::MAX as usize {
-            return Err(err::RECORDS_TOO_MANY.into());
+            let message = format!(
+                "The collection record limit is {}. Given: {}",
+                u32::MAX,
+                records.len()
+            );
+
+            return Err(message.into());
         }
 
         // Ensure that the vector dimension is consistent.
         let dimension = records[0].vector.len();
         if records.iter().any(|i| i.vector.len() != dimension) {
-            return Err(err::DIMENSION_MISMATCH.into());
+            let message = format!(
+                "The vector dimension is inconsistent. Expected: {}.",
+                dimension
+            );
+
+            return Err(message.into());
         }
 
         // Find the number of layers.
@@ -292,7 +303,12 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         if self.vectors.is_empty() {
             self.dimension = record.vector.len();
         } else if record.vector.len() != self.dimension {
-            return Err(err::DIMENSION_MISMATCH.into());
+            let message = format!(
+                "Invalid vector dimension. Expected dimension of {}.",
+                self.dimension
+            );
+
+            return Err(message.into());
         }
 
         // Create a new vector ID using the next available slot.
@@ -389,7 +405,7 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         let slots_iter = self.slots.as_slice().into_par_iter();
         let vector_id = match slots_iter.find_first(|id| id.is_valid()) {
             Some(id) => id,
-            None => return Err(err::SEARCH_INVALID_ID.into()),
+            None => return Err("Unable to initiate search.".into()),
         };
 
         search.visited.resize_capacity(self.vectors.len());
