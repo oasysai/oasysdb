@@ -18,6 +18,11 @@ impl VectorID {
 pub struct Vector(pub Vec<f32>);
 
 impl Vector {
+    /// Returns the dimension of the vector.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     /// Returns the Euclidean distance between two vectors.
     pub fn distance(&self, other: &Self) -> f32 {
         assert_eq!(self.0.len(), other.0.len());

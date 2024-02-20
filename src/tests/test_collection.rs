@@ -31,6 +31,22 @@ fn insert() {
 }
 
 #[test]
+fn insert_invalid_dimension() {
+    let records = gen_records(DIMENSION, LEN);
+    let mut collection = create_collection(&records);
+
+    // Create a new record with an invalid dimension.
+    let vector = gen_vector(DIMENSION + 1);
+    let data = random::<usize>();
+    let new_record = Record { vector, data };
+
+    assert_eq!(collection.dimension(), DIMENSION);
+
+    // Assert the new record is not inserted.
+    assert_eq!(collection.insert(&new_record).is_err(), true);
+}
+
+#[test]
 fn delete() {
     let records = gen_records(DIMENSION, LEN);
     let mut collection = create_collection(&records);

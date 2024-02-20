@@ -119,7 +119,9 @@ pub struct Collection<D, const M: usize = 32> {
     slots: Vec<VectorID>,
     base_layer: Vec<BaseNode<M>>,
     upper_layers: Vec<Vec<UpperNode<M>>>,
+    // Utility fields.
     count: usize,
+    dimension: usize,
 }
 
 impl<D, const M: usize> Index<&VectorID> for Collection<D, M> {
@@ -135,6 +137,7 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         Self {
             config: *config,
             count: 0,
+            dimension: 0,
             data: HashMap::new(),
             vectors: HashMap::new(),
             slots: vec![],
@@ -157,6 +160,12 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         // Ensure the number of records is within the limit.
         if records.len() >= u32::MAX as usize {
             return Err(err::RECORDS_TOO_MANY.into());
+        }
+
+        // Ensure that the vector dimension is consistent.
+        let dimension = records[0].vector.len();
+        if records.iter().any(|i| i.vector.len() != dimension) {
+            return Err(err::DIMENSION_MISMATCH.into());
         }
 
         // Find the number of layers.
@@ -264,6 +273,7 @@ impl<D: Copy, const M: usize> Collection<D, M> {
             base_layer,
             upper_layers,
             slots,
+            dimension,
             config: *config,
             count: records.len(),
         })
@@ -275,6 +285,14 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         // Ensure the number of records is within the limit.
         if self.slots.len() == u32::MAX as usize {
             return Err(err::COLLECTION_LIMIT.into());
+        }
+
+        // Ensure the vector dimension matches the collection config.
+        // If it's the first record, set the dimension.
+        if self.vectors.is_empty() {
+            self.dimension = record.vector.len();
+        } else if record.vector.len() != self.dimension {
+            return Err(err::DIMENSION_MISMATCH.into());
         }
 
         // Create a new vector ID using the next available slot.
@@ -426,6 +444,11 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         nearest.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
         nearest.truncate(n);
         Ok(nearest)
+    }
+
+    /// Returns the configured vector dimension of the collection.
+    pub fn dimension(&self) -> usize {
+        self.dimension
     }
 
     /// Returns the number of vector records in the collection.
