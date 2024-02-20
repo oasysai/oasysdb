@@ -10,7 +10,7 @@ fn create_test_database(path: &str) -> Database {
     let mut db = Database::new(path).unwrap();
     let records = gen_records(128, 100);
     let records = Some(records.as_slice());
-    db.create_collection::<usize, 32>("vectors", None, records).unwrap();
+    db.create_collection::<usize>("vectors", None, records).unwrap();
     db
 }
 

@@ -21,15 +21,15 @@ impl Default for Config {
     }
 }
 
-struct IndexConstruction<'a, const M: usize> {
-    search_pool: SearchPool<M>,
+struct IndexConstruction<'a> {
+    search_pool: SearchPool,
     top_layer: LayerID,
-    base_layer: &'a [RwLock<BaseNode<M>>],
+    base_layer: &'a [RwLock<BaseNode>],
     vectors: &'a HashMap<VectorID, Vector>,
     config: &'a Config,
 }
 
-impl<'a, const M: usize> IndexConstruction<'a, M> {
+impl<'a> IndexConstruction<'a> {
     /// Inserts a vector ID into a layer.
     /// * `vector_id`: Vector ID to insert.
     /// * `layer`: Layer to insert into.
@@ -38,7 +38,7 @@ impl<'a, const M: usize> IndexConstruction<'a, M> {
         &self,
         vector_id: &VectorID,
         layer: &LayerID,
-        layers: &[Vec<UpperNode<M>>],
+        layers: &[Vec<UpperNode>],
     ) {
         let vector = &self.vectors[vector_id];
 
@@ -66,7 +66,7 @@ impl<'a, const M: usize> IndexConstruction<'a, M> {
                 search.search(layer, vector, self.vectors, M);
                 search.cull();
             } else {
-                search.search(self.base_layer, vector, self.vectors, M);
+                search.search(self.base_layer, vector, self.vectors, M * 2);
                 break;
             }
         }
@@ -108,30 +108,29 @@ impl<'a, const M: usize> IndexConstruction<'a, M> {
 
 /// The collection of vector records with HNSW indexing.
 /// * `D`: Data associated with the vector.
-/// * `M`: Maximum neighbors per vector node. Default to 32.
 #[derive(Serialize, Deserialize)]
-pub struct Collection<D, const M: usize = 32> {
+pub struct Collection<D> {
     /// The collection configuration object.
     pub config: Config,
     // Private fields below.
     data: HashMap<VectorID, D>,
     vectors: HashMap<VectorID, Vector>,
     slots: Vec<VectorID>,
-    base_layer: Vec<BaseNode<M>>,
-    upper_layers: Vec<Vec<UpperNode<M>>>,
+    base_layer: Vec<BaseNode>,
+    upper_layers: Vec<Vec<UpperNode>>,
     // Utility fields.
     count: usize,
     dimension: usize,
 }
 
-impl<D, const M: usize> Index<&VectorID> for Collection<D, M> {
+impl<D> Index<&VectorID> for Collection<D> {
     type Output = Vector;
     fn index(&self, index: &VectorID) -> &Self::Output {
         &self.vectors[index]
     }
 }
 
-impl<D: Copy, const M: usize> Collection<D, M> {
+impl<D: Copy> Collection<D> {
     /// Creates an empty collection with the given configuration.
     pub fn new(config: &Config) -> Self {
         Self {
@@ -395,7 +394,7 @@ impl<D: Copy, const M: usize> Collection<D, M> {
         vector: &Vector,
         n: usize,
     ) -> Result<Vec<SearchResult<D>>, Box<dyn Error>> {
-        let mut search: Search<M> = Search::default();
+        let mut search = Search::default();
 
         if self.vectors.is_empty() {
             return Ok(vec![]);
@@ -416,7 +415,7 @@ impl<D: Copy, const M: usize> Collection<D, M> {
 
             if layer.0 == 0 {
                 let layer = self.base_layer.as_slice();
-                search.search(layer, vector, &self.vectors, M);
+                search.search(layer, vector, &self.vectors, M * 2);
             } else {
                 let layer = self.upper_layers[layer.0 - 1].as_slice();
                 search.search(layer, vector, &self.vectors, M);

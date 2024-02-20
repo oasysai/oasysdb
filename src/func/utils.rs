@@ -2,6 +2,9 @@ use super::*;
 
 pub const INVALID: VectorID = VectorID(u32::MAX);
 
+/// The M value for the HNSW algorithm.
+pub const M: usize = 32;
+
 pub trait Layer {
     type Slice: Deref<Target = [VectorID]>;
     fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice>;
@@ -72,17 +75,15 @@ impl LayerID {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
-pub struct BaseNode<const M: usize>(
-    #[serde(with = "BigArray")] pub [VectorID; M],
-);
+pub struct BaseNode(#[serde(with = "BigArray")] pub [VectorID; M * 2]);
 
-impl<const M: usize> Default for BaseNode<M> {
+impl Default for BaseNode {
     fn default() -> Self {
-        Self([INVALID; M])
+        Self([INVALID; M * 2])
     }
 }
 
-impl<const M: usize> BaseNode<M> {
+impl BaseNode {
     pub fn allocate(&mut self, mut iter: impl Iterator<Item = VectorID>) {
         for slot in self.0.iter_mut() {
             if let Some(vector_id) = iter.next() {
@@ -103,7 +104,7 @@ impl<const M: usize> BaseNode<M> {
 
         // Shift the vector IDs.
         if self.0[index].is_valid() {
-            let end = M - 1;
+            let end = M * 2 - 1;
             self.0.copy_within(index..end, index + 1);
         }
 
@@ -116,28 +117,28 @@ impl<const M: usize> BaseNode<M> {
     }
 }
 
-impl<const M: usize> Index<&VectorID> for [RwLock<BaseNode<M>>] {
-    type Output = RwLock<BaseNode<M>>;
+impl Index<&VectorID> for [RwLock<BaseNode>] {
+    type Output = RwLock<BaseNode>;
     fn index(&self, index: &VectorID) -> &Self::Output {
         &self[index.0 as usize]
     }
 }
 
-impl<const M: usize> Deref for BaseNode<M> {
+impl Deref for BaseNode {
     type Target = [VectorID];
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a, const M: usize> Layer for &'a [BaseNode<M>] {
+impl<'a> Layer for &'a [BaseNode] {
     type Slice = &'a [VectorID];
     fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice> {
         NearestIter::new(&self[vector_id.0 as usize])
     }
 }
 
-impl<'a, const M: usize> Layer for &'a [RwLock<BaseNode<M>>] {
+impl<'a> Layer for &'a [RwLock<BaseNode>] {
     type Slice = MappedRwLockReadGuard<'a, [VectorID]>;
     fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice> {
         NearestIter::new(RwLockReadGuard::map(
@@ -148,12 +149,10 @@ impl<'a, const M: usize> Layer for &'a [RwLock<BaseNode<M>>] {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
-pub struct UpperNode<const M: usize>(
-    #[serde(with = "BigArray")] pub [VectorID; M],
-);
+pub struct UpperNode(#[serde(with = "BigArray")] pub [VectorID; M]);
 
-impl<const M: usize> UpperNode<M> {
-    pub fn from_zero(node: &BaseNode<M>) -> Self {
+impl UpperNode {
+    pub fn from_zero(node: &BaseNode) -> Self {
         let mut nearest = [INVALID; M];
         nearest.copy_from_slice(&node.0[..M]);
         Self(nearest)
@@ -164,7 +163,7 @@ impl<const M: usize> UpperNode<M> {
     }
 }
 
-impl<'a, const M: usize> Layer for &'a [UpperNode<M>] {
+impl<'a> Layer for &'a [UpperNode] {
     type Slice = &'a [VectorID];
     fn nearest_iter(&self, vector_id: &VectorID) -> NearestIter<Self::Slice> {
         NearestIter::new(&self[vector_id.0 as usize].0)
@@ -232,7 +231,7 @@ pub struct Candidate {
 }
 
 #[derive(Clone)]
-pub struct Search<const M: usize> {
+pub struct Search {
     pub ef: usize,
     pub visited: Visited,
     candidates: BinaryHeap<Reverse<Candidate>>,
@@ -241,7 +240,7 @@ pub struct Search<const M: usize> {
     discarded: Vec<Candidate>,
 }
 
-impl<const M: usize> Search<M> {
+impl Search {
     pub fn new(capacity: usize) -> Self {
         let visited = Visited::with_capacity(capacity);
         Self { visited, ..Default::default() }
@@ -331,7 +330,7 @@ impl<const M: usize> Search<M> {
     }
 }
 
-impl<const M: usize> Default for Search<M> {
+impl Default for Search {
     fn default() -> Self {
         Self {
             visited: Visited::with_capacity(0),
@@ -344,19 +343,19 @@ impl<const M: usize> Default for Search<M> {
     }
 }
 
-pub struct SearchPool<const M: usize> {
-    pool: Mutex<Vec<(Search<M>, Search<M>)>>,
+pub struct SearchPool {
+    pool: Mutex<Vec<(Search, Search)>>,
     len: usize,
 }
 
-impl<const M: usize> SearchPool<M> {
+impl SearchPool {
     pub fn new(len: usize) -> Self {
         let pool = Mutex::new(Vec::new());
         Self { pool, len }
     }
 
     /// Returns the last searches from the pool.
-    pub fn pop(&self) -> (Search<M>, Search<M>) {
+    pub fn pop(&self) -> (Search, Search) {
         match self.pool.lock().pop() {
             Some(result) => result,
             None => (Search::new(self.len), Search::new(self.len)),
@@ -364,7 +363,7 @@ impl<const M: usize> SearchPool<M> {
     }
 
     /// Pushes the searches to the pool.
-    pub fn push(&self, item: &(Search<M>, Search<M>)) {
+    pub fn push(&self, item: &(Search, Search)) {
         self.pool.lock().push(item.clone());
     }
 }
