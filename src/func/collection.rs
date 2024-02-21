@@ -298,7 +298,7 @@ impl Collection {
 
         // Ensure the vector dimension matches the collection config.
         // If it's the first record, set the dimension.
-        if self.vectors.is_empty() {
+        if self.vectors.is_empty() && self.dimension == 0 {
             self.dimension = record.vector.len();
         } else if record.vector.len() != self.dimension {
             let message = format!(
@@ -463,6 +463,21 @@ impl Collection {
     /// Returns the configured vector dimension of the collection.
     pub fn dimension(&self) -> usize {
         self.dimension
+    }
+
+    /// Sets the vector dimension of the collection.
+    /// * `dimension`: New vector dimension.
+    pub fn set_dimension(
+        &mut self,
+        dimension: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        // This can only be set if the collection is empty.
+        if !self.vectors.is_empty() {
+            return Err("The collection must be empty.".into());
+        }
+
+        self.dimension = dimension;
+        Ok(())
     }
 
     /// Returns the number of vector records in the collection.
