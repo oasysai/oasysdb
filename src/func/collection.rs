@@ -46,14 +46,14 @@ impl<'a> IndexConstruction<'a> {
         insertion.ef = self.config.ef_construction;
 
         // Find the first valid vector ID to push.
-        let validator = |i| self.vectors.get(&VectorID(i)).is_some();
+        let validator = |i: usize| self.vectors.get(&i.into()).is_some();
         let valid_id = (0..self.vectors.len())
             .into_par_iter()
-            .find_first(|i| validator(*i as u32))
+            .find_first(|i| validator(*i))
             .unwrap();
 
         search.reset();
-        search.push(&VectorID(valid_id as u32), vector, self.vectors);
+        search.push(&valid_id.into(), vector, self.vectors);
 
         for current_layer in self.top_layer.descend() {
             if current_layer <= *layer {
@@ -209,7 +209,7 @@ impl Collection {
         let vectors = records
             .par_iter()
             .enumerate()
-            .map(|(i, item)| (VectorID(i as u32), item.vector.clone()))
+            .map(|(i, item)| (i.into(), item.vector.clone()))
             .collect::<HashMap<VectorID, Vector>>();
 
         // Figure out how many nodes will go on each layer.
@@ -249,9 +249,9 @@ impl Collection {
             let end = range.end;
 
             if layer == top_layer {
-                range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
+                range.into_par_iter().for_each(|i| inserter(i.into()))
             } else {
-                range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
+                range.into_par_iter().for_each(|i| inserter(i.into()))
             }
 
             // Copy the base layer state to the upper layer.
@@ -266,7 +266,7 @@ impl Collection {
         let data = records
             .iter()
             .enumerate()
-            .map(|(i, item)| (VectorID(i as u32), item.data.clone()))
+            .map(|(i, item)| (i.into(), item.data.clone()))
             .collect();
 
         // Unwrap the base nodes for the base layer.
@@ -274,7 +274,7 @@ impl Collection {
         let base_layer = base_iter.map(|node| node.into_inner()).collect();
 
         // Add IDs to the slots.
-        let slots = (0..vectors.len()).map(|i| VectorID(i as u32)).collect();
+        let slots = (0..vectors.len()).map(|i| i.into()).collect();
 
         Ok(Self {
             data,
@@ -310,7 +310,7 @@ impl Collection {
         }
 
         // Create a new vector ID using the next available slot.
-        let id = VectorID(self.slots.len() as u32);
+        let id: VectorID = self.slots.len().into();
 
         // Insert the new vector and data.
         self.vectors.insert(id, record.vector.clone());
@@ -382,7 +382,7 @@ impl Collection {
 
         let vector = self.vectors[id].clone();
         let data = self.data[id].clone();
-        Ok(Record { vector, data })
+        Ok(Record::new(&vector, &data))
     }
 
     /// Searches the collection for the nearest neighbors.
@@ -545,6 +545,13 @@ pub struct Record {
     pub vector: Vector,
     /// Data associated with the vector.
     pub data: Metadata,
+}
+
+impl Record {
+    /// Creates a new record with a vector and data.
+    pub fn new(vector: &Vector, data: &Metadata) -> Self {
+        Self { vector: vector.clone(), data: data.clone() }
+    }
 }
 
 /// The collection nearest neighbor search result.

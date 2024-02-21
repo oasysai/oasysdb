@@ -2,7 +2,6 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use curl::easy::Easy;
 use flate2::read::GzDecoder;
 use oasysdb::collection::Record;
-use oasysdb::vector::Vector;
 use rayon::iter::*;
 use std::error::Error;
 use std::fs::{create_dir_all, File};
@@ -104,10 +103,7 @@ pub fn get_records(path: &str) -> Result<Vec<Record>, Box<dyn Error>> {
     let records = read_vectors(path)?
         .par_iter()
         .enumerate()
-        .map(|(id, vec)| Record {
-            vector: Vector(vec.clone()),
-            data: id.into(),
-        })
+        .map(|(id, vec)| Record::new(&vec.into(), &id.into()))
         .collect();
 
     Ok(records)

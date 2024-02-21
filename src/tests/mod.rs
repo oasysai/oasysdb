@@ -27,7 +27,7 @@ fn gen_records(dimension: usize, len: usize) -> Vec<Record> {
     for _ in 0..len {
         let vector = gen_vector(dimension);
         let data = random::<usize>();
-        records.push(Record { vector, data: data.into() });
+        records.push(Record::new(&vector, &data.into()));
     }
 
     records
@@ -40,5 +40,5 @@ fn gen_vector(dimension: usize) -> Vector {
         *float = random::<f32>();
     }
 
-    Vector(vec)
+    vec.into()
 }

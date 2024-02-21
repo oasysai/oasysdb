@@ -12,7 +12,19 @@ impl VectorID {
     }
 }
 
-/// The vector embedding where `N` is the vector dimension.
+impl From<u32> for VectorID {
+    fn from(id: u32) -> Self {
+        VectorID(id)
+    }
+}
+
+impl From<usize> for VectorID {
+    fn from(id: usize) -> Self {
+        VectorID(id as u32)
+    }
+}
+
+/// The vector embedding of float numbers.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
 pub struct Vector(pub Vec<f32>);
@@ -35,5 +47,17 @@ impl Index<&VectorID> for [Vector] {
     type Output = Vector;
     fn index(&self, index: &VectorID) -> &Self::Output {
         &self[index.0 as usize]
+    }
+}
+
+impl From<Vec<f32>> for Vector {
+    fn from(vec: Vec<f32>) -> Self {
+        Vector(vec)
+    }
+}
+
+impl From<&Vec<f32>> for Vector {
+    fn from(vec: &Vec<f32>) -> Self {
+        Vector(vec.clone())
     }
 }

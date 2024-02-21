@@ -20,7 +20,7 @@ fn bench_search_collection(criterion: &mut Criterion) {
     // Load the query data.
     let query_path = "data/siftsmall/siftsmall_query.fvecs";
     let query_data = read_vectors(query_path).unwrap();
-    let query = &query_data[0];
+    let query: &Vector = &query_data[0].clone().into();
 
     // Create the collection.
     let base_path = "data/siftsmall/siftsmall_base.fvecs";
@@ -28,7 +28,7 @@ fn bench_search_collection(criterion: &mut Criterion) {
 
     // Benchmark the search speed.
     let routine = || {
-        black_box(collection.search(&Vector(query.clone()), 10).unwrap());
+        black_box(collection.search(query, 10).unwrap());
     };
 
     criterion.bench_function(id, |bencher| bencher.iter(routine));
