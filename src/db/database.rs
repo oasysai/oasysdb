@@ -36,15 +36,12 @@ impl Database {
     /// * `name` - Name of the collection.
     /// * `config` - Collection configuration. Uses default if none.
     /// * `records` - Vector records to insert into the collection.
-    pub fn create_collection<D>(
+    pub fn create_collection(
         &mut self,
         name: &str,
         config: Option<&Config>,
-        records: Option<&[Record<D>]>,
-    ) -> Result<Collection<D>, Box<dyn Error>>
-    where
-        D: Copy + Serialize,
-    {
+        records: Option<&[Record]>,
+    ) -> Result<Collection, Box<dyn Error>> {
         // This prevents the variable from being dropped.
         let default_config = Config::default();
 
@@ -65,13 +62,10 @@ impl Database {
 
     /// Gets a collection from the database.
     /// * `name` - Name of the collection.
-    pub fn get_collection<D>(
+    pub fn get_collection(
         &self,
         name: &str,
-    ) -> Result<Collection<D>, Box<dyn Error>>
-    where
-        D: Copy + Serialize + DeserializeOwned,
-    {
+    ) -> Result<Collection, Box<dyn Error>> {
         let value = self.collections.get(name)?;
         match value {
             Some(value) => Ok(bincode::deserialize(&value)?),
@@ -82,14 +76,11 @@ impl Database {
     /// Saves new or update existing collection to the database.
     /// * `name` - Name of the collection.
     /// * `collection` - Vector collection to save.
-    pub fn save_collection<D>(
+    pub fn save_collection(
         &mut self,
         name: &str,
-        collection: &Collection<D>,
-    ) -> Result<(), Box<dyn Error>>
-    where
-        D: Copy + Serialize,
-    {
+        collection: &Collection,
+    ) -> Result<(), Box<dyn Error>> {
         let mut new = false;
 
         // Check if it's a new collection.

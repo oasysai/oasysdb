@@ -12,17 +12,3 @@ mod func;
 pub use db::database;
 pub use func::collection;
 pub use func::vector;
-
-use pyo3::prelude::*;
-
-#[pymodule]
-fn oasysdb(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    collection_module(py, m)?;
-    Ok(())
-}
-
-fn collection_module(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    let module = PyModule::new(py, "collection")?;
-    m.add_submodule(module)?;
-    Ok(())
-}

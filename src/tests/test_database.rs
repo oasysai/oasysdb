@@ -11,7 +11,7 @@ fn create_collection() {
     let mut db = Database::new("data/create_collection").unwrap();
 
     let records = gen_records(128, 100);
-    let collection: Collection<usize> =
+    let collection =
         db.create_collection("test", None, Some(&records)).unwrap();
 
     assert_eq!(collection.len(), 100);
@@ -21,7 +21,7 @@ fn create_collection() {
 #[test]
 fn get_collection() {
     let db = create_test_database("data/get_collection");
-    let collection: Collection<usize> = db.get_collection("vectors").unwrap();
+    let collection = db.get_collection("vectors").unwrap();
     assert_eq!(collection.len(), 100);
 }
 
@@ -31,7 +31,7 @@ fn save_collection_new() {
 
     // Create a collection from scratch.
     let config = Config::default();
-    let mut collection: Collection<usize> = Collection::new(&config);
+    let mut collection = Collection::new(&config);
     collection.insert(&gen_records(128, 1)[0]).unwrap();
 
     db.save_collection("new", &collection).unwrap();
@@ -44,8 +44,7 @@ fn save_collection_update() {
     let mut db = create_test_database("data/save_collection_update");
 
     // Update the collection.
-    let mut collection: Collection<usize> =
-        db.get_collection("vectors").unwrap();
+    let mut collection = db.get_collection("vectors").unwrap();
     collection.insert(&gen_records(128, 1)[0]).unwrap();
 
     db.save_collection("vectors", &collection).unwrap();

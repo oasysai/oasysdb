@@ -18,7 +18,7 @@ fn insert() {
     // Create a new record to insert.
     let vector = gen_vector(DIMENSION);
     let data = random::<usize>();
-    let new_record = Record { vector, data };
+    let new_record = Record { vector, data: data.into() };
 
     let mut collection = create_collection(&records);
     collection.insert(&new_record).unwrap();
@@ -27,7 +27,7 @@ fn insert() {
 
     // Assert the new data is in the collection.
     let id = VectorID(LEN as u32);
-    assert_eq!(collection.get(&id).unwrap().data, data);
+    assert_eq!(collection.get(&id).unwrap().data, data.into());
 }
 
 #[test]
@@ -38,12 +38,31 @@ fn insert_invalid_dimension() {
     // Create a new record with an invalid dimension.
     let vector = gen_vector(DIMENSION + 1);
     let data = random::<usize>();
-    let new_record = Record { vector, data };
+    let new_record = Record { vector, data: data.into() };
 
     assert_eq!(collection.dimension(), DIMENSION);
 
     // Assert the new record is not inserted.
     assert_eq!(collection.insert(&new_record).is_err(), true);
+}
+
+#[test]
+fn insert_data_type_object() {
+    let records = gen_records(DIMENSION, LEN);
+    let mut collection = create_collection(&records);
+
+    // Create a new record with a data of type HashMap.
+    let vector = gen_vector(DIMENSION);
+    let data = HashMap::from([("key", "value")]);
+    let new_record = Record { vector, data: data.clone().into() };
+
+    collection.insert(&new_record).unwrap();
+
+    assert_eq!(collection.len(), LEN + 1);
+
+    // Assert the new data is in the collection.
+    let id = VectorID(LEN as u32);
+    assert_eq!(collection.get(&id).unwrap().data, data.into());
 }
 
 #[test]
@@ -64,14 +83,15 @@ fn update() {
     let mut collection = create_collection(&records);
 
     // Create new record to update.
-    let id = VectorID(5);
     let data = random::<usize>();
-    let record = Record { vector: gen_vector(DIMENSION), data };
+    let vector = gen_vector(DIMENSION);
+    let record = Record { vector, data: data.into() };
 
+    let id = VectorID(5);
     collection.update(&id, &record).unwrap();
 
     assert_eq!(collection.len(), LEN);
-    assert_eq!(collection.get(&id).unwrap().data, data);
+    assert_eq!(collection.get(&id).unwrap().data, data.into());
 }
 
 #[test]
@@ -88,7 +108,7 @@ fn search() {
     let truth = collection.true_search(&query, 10).unwrap();
 
     // Collect the distances from the true nearest neighbors.
-    let distances: Vec<f32> = truth.iter().map(|i| i.distance).collect();
+    let distances: Vec<f32> = truth.par_iter().map(|i| i.distance).collect();
 
     assert_eq!(result.len(), 5);
 
