@@ -567,6 +567,21 @@ impl Record {
     pub fn new(vector: &Vector, data: &Metadata) -> Self {
         Self { vector: vector.clone(), data: data.clone() }
     }
+
+    /// Generates a random record for testing.
+    /// * `dimension`: Vector dimension.
+    pub fn random(dimension: usize) -> Self {
+        let vector = Vector::random(dimension);
+        let data = random::<usize>().into();
+        Self::new(&vector, &data)
+    }
+
+    /// Generates many random records for testing.
+    /// * `dimension`: Vector dimension.
+    /// * `len`: Number of records to generate.
+    pub fn many_random(dimension: usize, len: usize) -> Vec<Self> {
+        (0..len).map(|_| Self::random(dimension)).collect()
+    }
 }
 
 /// The collection nearest neighbor search result.

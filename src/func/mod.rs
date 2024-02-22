@@ -16,6 +16,7 @@ use vector::*;
 // External dependencies.
 use ordered_float::OrderedFloat;
 use parking_lot::*;
+use rand::random;
 use rayon::iter::*;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;

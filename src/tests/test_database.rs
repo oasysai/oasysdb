@@ -10,7 +10,7 @@ fn new() {
 fn create_collection() {
     let mut db = Database::new("data/create_collection").unwrap();
 
-    let records = gen_records(128, 100);
+    let records = Record::many_random(128, 100);
     let collection =
         db.create_collection("test", None, Some(&records)).unwrap();
 
@@ -32,7 +32,7 @@ fn save_collection_new() {
     // Create a collection from scratch.
     let config = Config::default();
     let mut collection = Collection::new(&config);
-    collection.insert(&gen_records(128, 1)[0]).unwrap();
+    collection.insert(&Record::random(128)).unwrap();
 
     db.save_collection("new", &collection).unwrap();
     assert_eq!(collection.len(), 1);
@@ -45,7 +45,7 @@ fn save_collection_update() {
 
     // Update the collection.
     let mut collection = db.get_collection("vectors").unwrap();
-    collection.insert(&gen_records(128, 1)[0]).unwrap();
+    collection.insert(&Record::random(128)).unwrap();
 
     db.save_collection("vectors", &collection).unwrap();
     assert_eq!(collection.len(), 101);

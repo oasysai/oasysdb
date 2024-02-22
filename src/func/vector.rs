@@ -46,6 +46,18 @@ impl Vector {
         let iter = self.0.iter().zip(other.0.iter());
         iter.map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
     }
+
+    /// Generates a random vector for testing.
+    /// * `dimension`: Vector dimension.
+    pub fn random(dimension: usize) -> Self {
+        let mut vec = vec![0.0; dimension];
+
+        for float in vec.iter_mut() {
+            *float = random::<f32>();
+        }
+
+        vec.into()
+    }
 }
 
 impl Index<&VectorID> for [Vector] {

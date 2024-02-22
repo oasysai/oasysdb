@@ -6,39 +6,34 @@ const LEN: usize = 100;
 #[test]
 fn build_large() {
     let len = 10000;
-    let records = gen_records(DIMENSION, len);
+    let records = Record::many_random(DIMENSION, len);
     let collection = create_collection(&records);
     assert_eq!(collection.len(), len);
 }
 
 #[test]
 fn insert() {
-    let records = gen_records(DIMENSION, LEN);
+    let records = Record::many_random(DIMENSION, LEN);
+    let mut collection = create_collection(&records);
 
     // Create a new record to insert.
-    let vector = gen_vector(DIMENSION);
-    let data = random::<usize>();
-    let new_record = Record::new(&vector, &data.into());
-
-    let mut collection = create_collection(&records);
+    let new_record = Record::random(DIMENSION);
     collection.insert(&new_record).unwrap();
 
     assert_eq!(collection.len(), LEN + 1);
 
     // Assert the new data is in the collection.
     let id: VectorID = LEN.into();
-    assert_eq!(collection.get(&id).unwrap().data, data.into());
+    assert_eq!(collection.get(&id).unwrap().data, new_record.data);
 }
 
 #[test]
 fn insert_invalid_dimension() {
-    let records = gen_records(DIMENSION, LEN);
+    let records = Record::many_random(DIMENSION, LEN);
     let mut collection = create_collection(&records);
 
     // Create a new record with an invalid dimension.
-    let vector = gen_vector(DIMENSION + 1);
-    let data = random::<usize>();
-    let new_record = Record::new(&vector, &data.into());
+    let new_record = Record::random(DIMENSION + 1);
 
     assert_eq!(collection.dimension(), DIMENSION);
 
@@ -48,11 +43,11 @@ fn insert_invalid_dimension() {
 
 #[test]
 fn insert_data_type_object() {
-    let records = gen_records(DIMENSION, LEN);
+    let records = Record::many_random(DIMENSION, LEN);
     let mut collection = create_collection(&records);
 
     // Create a new record with a data of type HashMap.
-    let vector = gen_vector(DIMENSION);
+    let vector = Vector::random(DIMENSION);
     let data = HashMap::from([("key", "value")]);
     let new_record = Record::new(&vector, &data.clone().into());
 
@@ -67,7 +62,7 @@ fn insert_data_type_object() {
 
 #[test]
 fn delete() {
-    let records = gen_records(DIMENSION, LEN);
+    let records = Record::many_random(DIMENSION, LEN);
     let mut collection = create_collection(&records);
 
     // Delete a record from the collection.
@@ -79,29 +74,26 @@ fn delete() {
 
 #[test]
 fn update() {
-    let records = gen_records(DIMENSION, LEN);
+    let records = Record::many_random(DIMENSION, LEN);
     let mut collection = create_collection(&records);
 
-    // Create new record to update.
-    let data = random::<usize>();
-    let vector = gen_vector(DIMENSION);
-    let record = Record::new(&vector, &data.into());
-
+    // New record to update.
     let id = VectorID(5);
+    let record = Record::random(DIMENSION);
     collection.update(&id, &record).unwrap();
 
     assert_eq!(collection.len(), LEN);
-    assert_eq!(collection.get(&id).unwrap().data, data.into());
+    assert_eq!(collection.get(&id).unwrap().data, record.data);
 }
 
 #[test]
 fn search() {
     let len = 1000;
-    let records = gen_records(DIMENSION, len);
+    let records = Record::many_random(DIMENSION, len);
     let collection = create_collection(&records);
 
     // Generate a random query vector.
-    let query = gen_vector(DIMENSION);
+    let query = Vector::random(DIMENSION);
 
     // Get the approximate and true nearest neighbors.
     let result = collection.search(&query, 5).unwrap();
@@ -119,7 +111,7 @@ fn search() {
 
 #[test]
 fn get() {
-    let records = gen_records(DIMENSION, LEN);
+    let records = Record::many_random(DIMENSION, LEN);
     let collection = create_collection(&records);
 
     // Get a record from the collection.
