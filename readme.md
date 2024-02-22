@@ -59,14 +59,18 @@ cargo bench
 
 # 🤝 Contributing
 
-We welcome contributions from the community. Please see [contributing.md](/docs/contributing.md) for more information.
+The easiest way to contribute to this project is to star this project and share it with your friends. This will help us grow the community and make the project more visible to others.
 
-We are also looking for advisors to help guide the project direction and roadmap. If you are interested, please contact us via [Discord](https://discord.gg/bDhQrkqNP4) or alternatively, you can email me at edwin@oasysai.com.
+If you want to go further and contribute your expertise, we will gladly welcome your code contributions. For more information and guidance about this, please see [contributing.md](/docs/contributing.md).
 
-## Disclaimer
+If you have deep experience in the space but don't have the free time to contribute codes, we also welcome advices, suggestions, or feature requests. We are also looking for advisors to help guide the project direction and roadmap.
 
-This project is still in the early stages of development. We are actively working on it and we expect the API and functionality to change. We do not recommend using this in production yet.
+If you are interested about the project in any way, please join us on [Discord](https://discord.gg/bDhQrkqNP4). Help us grow the community and make OasysDB better 😁
 
 ## Code of Conduct
 
 We are committed to creating a welcoming community. Any participant in our project is expected to act respectfully and to follow the [Code of Conduct](/docs/code_of_conduct.md).
+
+## Disclaimer
+
+This project is still in the early stages of development. We are actively working on it and we expect the API and functionality to change. We do not recommend using this in production yet.

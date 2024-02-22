@@ -24,9 +24,10 @@ If you encounter a bug or have a feature request, please open an issue on [GitHu
 
 **TLDR: Check and open an issue first before forking the repository and submitting a pull request.**
 
-Before you start working on a pull request, we encourage you to check out the existing issues and pull requests to make sure that someone else isn't already working on the same thing. After all, we don't want you to waste your time!
+Before you start working on a pull request, we encourage you to check out the existing issues and pull requests to make sure that
+the feature you want to work on is in our roadmap and is aligned with the project's vision. After all, we don't want you to waste your precious time!
 
-We try to prioritize features and bug fixes that are requested by the community. If you want to work on a feature or bug fix that isn't already in the issue tracker, please open an issue first to discuss it with the community.
+We try to prioritize features and bug fixes that are on our roadmap or requested a lot by the community. If you want to work on a feature or bug fix that isn't already in the issue tracker, please open an issue first to discuss it with the community.
 
 For features, we try to prioritize features that are backed by real-world use cases. If you have a use case for a feature, please include it in the issue. We'd love to hear about it!
 
@@ -36,11 +37,19 @@ Getting started with OasysDB development is easy.
 
 You will need to have Rust installed. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor.
 
-Once you have Rust installed, you can clone the repository and run the example program with the following command in the root directory of the repository:
+Once you have Rust installed, you can clone the repository and run the following commands in the root directory of the repository:
 
 ```bash
-cargo run
+cargo test
 ```
+
+This command will run the tests to make sure that everything is working as expected before you start working on your changes.
+
+```bash
+cargo bench
+```
+
+This command will run the benchmarks to measure the performance of the vector database. This is useful to make sure that your changes don't introduce any significant performance regressions.
 
 ## Style guide
 
