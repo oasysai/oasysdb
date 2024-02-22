@@ -245,14 +245,11 @@ impl Collection {
         // Initialize data for layers.
 
         for (layer, range) in ranges {
-            let inserter = |id| state.insert(&id, &layer, &upper_layers);
             let end = range.end;
 
-            if layer == top_layer {
-                range.into_par_iter().for_each(|i| inserter(i.into()))
-            } else {
-                range.into_par_iter().for_each(|i| inserter(i.into()))
-            }
+            range.into_par_iter().for_each(|i: usize| {
+                state.insert(&i.into(), &layer, &upper_layers)
+            });
 
             // Copy the base layer state to the upper layer.
             if !layer.is_zero() {
