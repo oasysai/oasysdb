@@ -21,15 +21,15 @@ impl Default for Config {
     }
 }
 
-struct IndexConstruction<'a, const M: usize, const N: usize> {
-    search_pool: SearchPool<M, N>,
+struct IndexConstruction<'a> {
+    search_pool: SearchPool,
     top_layer: LayerID,
-    base_layer: &'a [RwLock<BaseNode<M>>],
-    vectors: &'a HashMap<VectorID, Vector<N>>,
+    base_layer: &'a [RwLock<BaseNode>],
+    vectors: &'a HashMap<VectorID, Vector>,
     config: &'a Config,
 }
 
-impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
+impl<'a> IndexConstruction<'a> {
     /// Inserts a vector ID into a layer.
     /// * `vector_id`: Vector ID to insert.
     /// * `layer`: Layer to insert into.
@@ -38,7 +38,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         &self,
         vector_id: &VectorID,
         layer: &LayerID,
-        layers: &[Vec<UpperNode<M>>],
+        layers: &[Vec<UpperNode>],
     ) {
         let vector = &self.vectors[vector_id];
 
@@ -46,14 +46,14 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
         insertion.ef = self.config.ef_construction;
 
         // Find the first valid vector ID to push.
-        let validator = |i| self.vectors.get(&VectorID(i)).is_some();
+        let validator = |i: usize| self.vectors.get(&i.into()).is_some();
         let valid_id = (0..self.vectors.len())
             .into_par_iter()
-            .find_first(|i| validator(*i as u32))
+            .find_first(|i| validator(*i))
             .unwrap();
 
         search.reset();
-        search.push(&VectorID(valid_id as u32), vector, self.vectors);
+        search.push(&valid_id.into(), vector, self.vectors);
 
         for current_layer in self.top_layer.descend() {
             if current_layer <= *layer {
@@ -66,7 +66,7 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
                 search.search(layer, vector, self.vectors, M);
                 search.cull();
             } else {
-                search.search(self.base_layer, vector, self.vectors, M);
+                search.search(self.base_layer, vector, self.vectors, M * 2);
                 break;
             }
         }
@@ -107,37 +107,35 @@ impl<'a, const M: usize, const N: usize> IndexConstruction<'a, M, N> {
 }
 
 /// The collection of vector records with HNSW indexing.
-/// * `D`: Data associated with the vector.
-/// * `N`: Vector dimension.
-/// * `M`: Maximum neighbors per vector node. Default to 32.
 #[derive(Serialize, Deserialize)]
-pub struct Collection<D, const N: usize, const M: usize = 32> {
+pub struct Collection {
     /// The collection configuration object.
     pub config: Config,
     // Private fields below.
-    data: HashMap<VectorID, D>,
-    vectors: HashMap<VectorID, Vector<N>>,
+    data: HashMap<VectorID, Metadata>,
+    vectors: HashMap<VectorID, Vector>,
     slots: Vec<VectorID>,
-    base_layer: Vec<BaseNode<M>>,
-    upper_layers: Vec<Vec<UpperNode<M>>>,
+    base_layer: Vec<BaseNode>,
+    upper_layers: Vec<Vec<UpperNode>>,
+    // Utility fields.
     count: usize,
+    dimension: usize,
 }
 
-impl<D, const N: usize, const M: usize> Index<&VectorID>
-    for Collection<D, N, M>
-{
-    type Output = Vector<N>;
+impl Index<&VectorID> for Collection {
+    type Output = Vector;
     fn index(&self, index: &VectorID) -> &Self::Output {
         &self.vectors[index]
     }
 }
 
-impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
+impl Collection {
     /// Creates an empty collection with the given configuration.
     pub fn new(config: &Config) -> Self {
         Self {
             config: *config,
             count: 0,
+            dimension: 0,
             data: HashMap::new(),
             vectors: HashMap::new(),
             slots: vec![],
@@ -151,7 +149,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     /// * `records`: List of vectors to build the index from.
     pub fn build(
         config: &Config,
-        records: &[Record<D, N>],
+        records: &[Record],
     ) -> Result<Self, Box<dyn Error>> {
         if records.is_empty() {
             return Ok(Self::new(config));
@@ -159,7 +157,24 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
         // Ensure the number of records is within the limit.
         if records.len() >= u32::MAX as usize {
-            return Err(err::RECORDS_TOO_MANY.into());
+            let message = format!(
+                "The collection record limit is {}. Given: {}",
+                u32::MAX,
+                records.len()
+            );
+
+            return Err(message.into());
+        }
+
+        // Ensure that the vector dimension is consistent.
+        let dimension = records[0].vector.len();
+        if records.par_iter().any(|i| i.vector.len() != dimension) {
+            let message = format!(
+                "The vector dimension is inconsistent. Expected: {}.",
+                dimension
+            );
+
+            return Err(message.into());
         }
 
         // Find the number of layers.
@@ -192,10 +207,10 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         // each point's layer and insertion order.
 
         let vectors = records
-            .iter()
+            .par_iter()
             .enumerate()
-            .map(|(i, item)| (VectorID(i as u32), item.vector))
-            .collect::<HashMap<VectorID, Vector<N>>>();
+            .map(|(i, item)| (i.into(), item.vector.clone()))
+            .collect::<HashMap<VectorID, Vector>>();
 
         // Figure out how many nodes will go on each layer.
         // This helps us allocate memory capacity for each
@@ -230,14 +245,11 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         // Initialize data for layers.
 
         for (layer, range) in ranges {
-            let inserter = |id| state.insert(&id, &layer, &upper_layers);
             let end = range.end;
 
-            if layer == top_layer {
-                range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
-            } else {
-                range.into_par_iter().for_each(|i| inserter(VectorID(i as u32)))
-            }
+            range.into_par_iter().for_each(|i: usize| {
+                state.insert(&i.into(), &layer, &upper_layers)
+            });
 
             // Copy the base layer state to the upper layer.
             if !layer.is_zero() {
@@ -251,15 +263,15 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         let data = records
             .iter()
             .enumerate()
-            .map(|(i, item)| (VectorID(i as u32), item.data))
-            .collect::<HashMap<VectorID, D>>();
+            .map(|(i, item)| (i.into(), item.data.clone()))
+            .collect();
 
         // Unwrap the base nodes for the base layer.
         let base_iter = base_layer.into_par_iter();
         let base_layer = base_iter.map(|node| node.into_inner()).collect();
 
         // Add IDs to the slots.
-        let slots = (0..vectors.len()).map(|i| VectorID(i as u32)).collect();
+        let slots = (0..vectors.len()).map(|i| i.into()).collect();
 
         Ok(Self {
             data,
@@ -267,6 +279,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
             base_layer,
             upper_layers,
             slots,
+            dimension,
             config: *config,
             count: records.len(),
         })
@@ -274,21 +287,31 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
-    pub fn insert(
-        &mut self,
-        record: &Record<D, N>,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn insert(&mut self, record: &Record) -> Result<(), Box<dyn Error>> {
         // Ensure the number of records is within the limit.
         if self.slots.len() == u32::MAX as usize {
             return Err(err::COLLECTION_LIMIT.into());
         }
 
+        // Ensure the vector dimension matches the collection config.
+        // If it's the first record, set the dimension.
+        if self.vectors.is_empty() && self.dimension == 0 {
+            self.dimension = record.vector.len();
+        } else if record.vector.len() != self.dimension {
+            let message = format!(
+                "Invalid vector dimension. Expected dimension of {}.",
+                self.dimension
+            );
+
+            return Err(message.into());
+        }
+
         // Create a new vector ID using the next available slot.
-        let id = VectorID(self.slots.len() as u32);
+        let id: VectorID = self.slots.len().into();
 
         // Insert the new vector and data.
-        self.vectors.insert(id, record.vector);
-        self.data.insert(id, record.data);
+        self.vectors.insert(id, record.vector.clone());
+        self.data.insert(id, record.data.clone());
 
         // Add new vector id to the slots.
         self.slots.push(id);
@@ -330,7 +353,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     pub fn update(
         &mut self,
         id: &VectorID,
-        record: &Record<D, N>,
+        record: &Record,
     ) -> Result<(), Box<dyn Error>> {
         if !self.contains(id) {
             return Err(err::RECORD_NOT_FOUND.into());
@@ -340,8 +363,8 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         self.delete_from_layers(id);
 
         // Insert the updated vector and data.
-        self.vectors.insert(*id, record.vector);
-        self.data.insert(*id, record.data);
+        self.vectors.insert(*id, record.vector.clone());
+        self.data.insert(*id, record.data.clone());
         self.insert_to_layers(id);
 
         Ok(())
@@ -349,14 +372,14 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
     /// Returns the vector record associated with the ID.
     /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Result<Record<D, N>, Box<dyn Error>> {
+    pub fn get(&self, id: &VectorID) -> Result<Record, Box<dyn Error>> {
         if !self.contains(id) {
             return Err(err::RECORD_NOT_FOUND.into());
         }
 
-        let vector = self.vectors[id];
-        let data = self.data[id];
-        Ok(Record { vector, data })
+        let vector = self.vectors[id].clone();
+        let data = self.data[id].clone();
+        Ok(Record::new(&vector, &data))
     }
 
     /// Searches the collection for the nearest neighbors.
@@ -364,10 +387,10 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     /// * `n`: Number of neighbors to return.
     pub fn search(
         &self,
-        vector: &Vector<N>,
+        vector: &Vector,
         n: usize,
-    ) -> Result<Vec<SearchResult<D>>, Box<dyn Error>> {
-        let mut search: Search<M, N> = Search::default();
+    ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+        let mut search = Search::default();
 
         if self.vectors.is_empty() {
             return Ok(vec![]);
@@ -377,7 +400,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         let slots_iter = self.slots.as_slice().into_par_iter();
         let vector_id = match slots_iter.find_first(|id| id.is_valid()) {
             Some(id) => id,
-            None => return Err(err::SEARCH_INVALID_ID.into()),
+            None => return Err("Unable to initiate search.".into()),
         };
 
         search.visited.resize_capacity(self.vectors.len());
@@ -388,7 +411,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 
             if layer.0 == 0 {
                 let layer = self.base_layer.as_slice();
-                search.search(layer, vector, &self.vectors, M);
+                search.search(layer, vector, &self.vectors, M * 2);
             } else {
                 let layer = self.upper_layers[layer.0 - 1].as_slice();
                 search.search(layer, vector, &self.vectors, M);
@@ -402,11 +425,56 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
         let map_result = |candidate: Candidate| {
             let id = candidate.vector_id.0;
             let distance = candidate.distance.0;
-            let data = self.data[&candidate.vector_id];
+            let data = self.data[&candidate.vector_id].clone();
             SearchResult { id, distance, data }
         };
 
         Ok(search.iter().map(map_result).take(n).collect())
+    }
+
+    /// Searches the collection for the true nearest neighbors.
+    /// * `vector`: Vector to search.
+    /// * `n`: Number of neighbors to return.
+    pub fn true_search(
+        &self,
+        vector: &Vector,
+        n: usize,
+    ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+        let mut nearest = Vec::with_capacity(self.vectors.len());
+
+        // Calculate the distance between the query and each record.
+        // Then, create a search result for each record.
+        for (id, vec) in self.vectors.iter() {
+            let distance = vector.distance(vec);
+            let data = self.data[id].clone();
+            let res = SearchResult { id: id.0, distance, data };
+            nearest.push(res);
+        }
+
+        // Sort the nearest neighbors by distance.
+        nearest.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+        nearest.truncate(n);
+        Ok(nearest)
+    }
+
+    /// Returns the configured vector dimension of the collection.
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Sets the vector dimension of the collection.
+    /// * `dimension`: New vector dimension.
+    pub fn set_dimension(
+        &mut self,
+        dimension: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        // This can only be set if the collection is empty.
+        if !self.vectors.is_empty() {
+            return Err("The collection must be empty.".into());
+        }
+
+        self.dimension = dimension;
+        Ok(())
     }
 
     /// Returns the number of vector records in the collection.
@@ -460,7 +528,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
     fn delete_from_layers(&mut self, id: &VectorID) {
         // Remove the vector from the base layer.
         let base_node = &mut self.base_layer[id.0 as usize];
-        let index = base_node.iter().position(|x| *x == *id);
+        let index = base_node.par_iter().position_first(|x| *x == *id);
         if let Some(index) = index {
             base_node.set(index, &INVALID);
         }
@@ -473,7 +541,7 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
             };
 
             let node = &mut upper_layer[id.0 as usize];
-            let index = node.0.iter().position(|x| *x == *id);
+            let index = node.0.par_iter().position_first(|x| *x == *id);
 
             if let Some(index) = index {
                 node.set(index, &INVALID);
@@ -483,24 +551,43 @@ impl<D: Copy, const N: usize, const M: usize> Collection<D, N, M> {
 }
 
 /// A record containing a vector and its associated data.
-/// * `D`: Data type associated with the vector.
-/// * `N`: Vector dimension. Should be equal to the collection's.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Record<D, const N: usize> {
-    /// Vector embedding with dimension of `N`.
-    pub vector: Vector<N>,
+pub struct Record {
+    /// The vector embedding.
+    pub vector: Vector,
     /// Data associated with the vector.
-    pub data: D,
+    pub data: Metadata,
+}
+
+impl Record {
+    /// Creates a new record with a vector and data.
+    pub fn new(vector: &Vector, data: &Metadata) -> Self {
+        Self { vector: vector.clone(), data: data.clone() }
+    }
+
+    /// Generates a random record for testing.
+    /// * `dimension`: Vector dimension.
+    pub fn random(dimension: usize) -> Self {
+        let vector = Vector::random(dimension);
+        let data = random::<usize>().into();
+        Self::new(&vector, &data)
+    }
+
+    /// Generates many random records for testing.
+    /// * `dimension`: Vector dimension.
+    /// * `len`: Number of records to generate.
+    pub fn many_random(dimension: usize, len: usize) -> Vec<Self> {
+        (0..len).map(|_| Self::random(dimension)).collect()
+    }
 }
 
 /// The collection nearest neighbor search result.
-/// * `D`: Data associated with the vector.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SearchResult<D> {
+pub struct SearchResult {
     /// Vector ID.
     pub id: u32,
     /// Distance between the query to the collection vector.
     pub distance: f32,
     /// Data associated with the vector.
-    pub data: D,
+    pub data: Metadata,
 }

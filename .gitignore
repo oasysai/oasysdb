@@ -5,13 +5,18 @@ data
 debug
 target
 
+# Python stuff.
+__pycache__
+.pytest_cache
+.venv
+
 # Benchmarking.
 *.ivecs
 *.fvecs
 
 # Misc.
 .vscode
-.DS_Store
+.ds_store
 
 # Environment variables.
 .env

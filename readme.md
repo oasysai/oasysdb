@@ -22,47 +22,26 @@ OasysDB is very flexible for use cases related with vector search such as using 
 This is a code snippet that you can use as a reference to get started with OasysDB. In short, use `Collection` to store your vector records or search similar vector and use `Database` to persist a vector collection to the disk.
 
 ```rust
-use oasysdb::database::Database;
 use oasysdb::collection::*;
+use oasysdb::database::Database;
 use oasysdb::vector::*;
-use rand::random; // Utility
 
 fn main() {
-    // Utility functions to generate random vector records.
-    let records = gen_records::<128>(100);
+    // Vector dimension must be uniform.
+    let dimension = 128;
+
+    // Replace with your own data.
+    let records = Record::many_random(dimension, 100);
+    let query = Vector::random(dimension);
 
     // Open the database and create a collection.
     let mut db = Database::open("data/readme").unwrap();
-    let collection: Collection<usize, 128, 32> =
+    let collection =
         db.create_collection("vectors", None, Some(&records)).unwrap();
 
-    // Utility function to generate a random vector.
-    let query = gen_vector::<128>();
+    // Search for the nearest neighbors.
     let result = collection.search(&query, 5).unwrap();
-
-    println!("Nearest neighbor ID: {}", result[0].id);
-}
-
-fn gen_records<const N: usize>(len: usize) -> Vec<Record<usize, N>> {
-    let mut records = Vec::with_capacity(len);
-
-    for _ in 0..len {
-        let vector = gen_vector::<N>();
-        let data = random::<usize>();
-        records.push(Record { vector, data });
-    }
-
-    records
-}
-
-fn gen_vector<const N: usize>() -> Vector<N> {
-    let mut vec = [0.0; N];
-
-    for float in vec.iter_mut() {
-        *float = random::<f32>();
-    }
-
-    Vector(vec)
+    println!("Nearest ID: {}", result[0].id);
 }
 ```
 
