@@ -502,7 +502,7 @@ dependencies = [
 
 [[package]]
 name = "oasysdb"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "byteorder",
@@ -516,7 +516,6 @@ dependencies = [
  "rayon",
  "serde",
  "serde-big-array",
- "serde_json",
  "sled",
  "tar",
  "tokio",
