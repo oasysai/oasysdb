@@ -3,23 +3,37 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?style=for-the-badge)](/docs/code_of_conduct.md)
 [![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
+[![Crates.io](https://img.shields.io/crates/d/oasysdb?style=for-the-badge&label=Crates.io&color=%23f43f5e)](https://crates.io/crates/oasysdb)
 
 # 👋 Meet OasysDB
 
-OasysDB is an **embeddable**, **efficient**, and **easy to use** vector database. It is designed to be used as a library and embedded inside your AI application. It is written in Rust and uses [Sled](https://docs.rs/sled) as its persistence storage engine to save vector collections to the disk.
+OasysDB is a SQLite-inspired **lightweight** and **easy to use** embedded vector database. It is designed to be embedded directly inside your AI application. It is written in Rust and uses [Sled](https://docs.rs/sled) as its persistence storage engine to save vector collections to the disk.
 
-OasysDB implements **HNSW** (Hierachical Navigable Small World) as its indexing algorithm. It is a state-of-the-art algorithm that is used by many vector databases. It is fast, memory efficient, and it scales well to large datasets.
+OasysDB implements **HNSW** (Hierachical Navigable Small World) as its indexing algorithm. It is a state-of-the-art algorithm that is used by many vector databases. It is fast and scales well to large datasets.
 
 ## Why OasysDB?
 
-OasysDB is very flexible for use cases related with vector search such as using RAG (Retrieval-Augmented Generation) method with an LLM to generate a context-aware output. OasysDB offers 2 major features that make it stand out from other vector databases or libraries:
+OasysDB is very flexible for use cases related with vector search such as using RAG (Retrieval-Augmented Generation) method with an LLM to generate a context-aware output. These are some of the reasons why you might want to use OasysDB:
 
-- **Incremental vector operations**: OasysDB allows you to add, remove, or modify vectors from the collections without having to rebuild their indexes. This allows for a more flexible and efficient approach on storing your vector data.
-- **Flexible persistence options**: You can choose to persist the vector collection to the disk or to keep it in memory. By default, whenever you use a collection, it will be loaded to the memory to ensure that the search performance is high.
+- ⭐️ **Embedded database**: OasysDB doesn't require you to set up a separate server and manage it. You can embed it directly into your application and use its simple API like a regular library.
 
-# 🚀 Quickstart
+- ⭐️ **Optional persistence**: You can choose to persist the vector collection to the disk or keep it in memory. By default, whenever you use a collection, it will be loaded to the memory to ensure that the search performance is high.
 
-This is a code snippet that you can use as a reference to get started with OasysDB. In short, use `Collection` to store your vector records or search similar vector and use `Database` to persist a vector collection to the disk.
+- ⭐️ **Incremental operations**: OasysDB allows you to add, remove, or modify vectors from collections without having to rebuild indexes. This allows for a more flexible and efficient approach on storing your vector data.
+
+- ⭐ **Flexible schema**: Along with the vectors, you can store additional metadata for each vector. This is useful for storing information about the vectors such as the original text, image URL, or any other data that you want to associate with the vectors.
+
+# 🚀 Quickstart with Rust
+
+To get started with OasysDB in Rust, you need to add `oasysdb` to your `Cargo.toml` by running the following command:
+
+```bash
+cargo add oasysdb
+```
+
+After that, you can use the code snippet below as a reference to get started with OasysDB.
+
+In short, use `Collection` to store your vector records or search similar vector and use `Database` to persist a vector collection to the disk.
 
 ```rust
 use oasysdb::collection::*;
@@ -59,13 +73,11 @@ cargo bench
 
 ## Memory Usage
 
-OasysDB implements HNSW algorithm which is known to be a memory hog compared to other flat indexing algorithms. We decided to use HNSW because it is fast and scales well to large datasets of vectors with large dimension.
+OasysDB uses HNSW which is known to be a memory hog compared to other indexing algorithms. We decided to use it because of its performance even when storing large datasets of vectors with high dimension.
 
-Currently, we don't have any plan to change this indexing algorithm since we are currently focusing on the functionality and the interoperability of OasysDB with other libraries in different programming languages.
+In the future, we might consider adding more indexing algorithms to make OasysDB more flexible and to cater to different use cases. If you have any suggestions of which indexing algorithms we should add, please let us know.
 
-We might consider adding more indexing algorithms in the future to make OasysDB more flexible and to cater to different use cases.
-
-If you are curious about the memory usage of OasysDB, you can use the following command to run the memory usage measurement:
+Anyway, if you are curious about the memory usage of OasysDB, you can use the command below to run the memory usage measurement script. You can tweak the parameters in the `examples/measure-memory.rs` file to see how the memory usage changes.
 
 ```bash
 cargo run --example measure-memory
