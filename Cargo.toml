@@ -41,9 +41,15 @@ pyo3 = "0.20.2"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 tokio = { version = "1.5.0", features = ["rt-multi-thread"] }
 curl = "0.4.44"
+byteorder = "1.5.0"
+
+# File compression.
 tar = "0.4.40"
 flate2 = "1.0.28"
-byteorder = "1.5.0"
+
+# Memory management.
+jemallocator = "0.5.4"
+jemalloc-ctl = "0.5.4"
 
 [profile.release]
 lto = true
