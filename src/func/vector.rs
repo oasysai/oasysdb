@@ -25,11 +25,22 @@ impl From<usize> for VectorID {
 }
 
 /// The vector embedding of float numbers.
+#[pyclass(module = "oasysdb.vector")]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
 pub struct Vector(pub Vec<f32>);
 
+// Methods available to Python.
+// If this implementation is modified, make sure to modify:
+// - py/tests/test_vector.py
+// - py/oasysdb/vector.pyi
+#[pymethods]
 impl Vector {
+    #[new]
+    fn py_new(vector: Vec<f32>) -> Self {
+        vector.into()
+    }
+
     /// Returns the dimension of the vector.
     pub fn len(&self) -> usize {
         self.0.len()
@@ -40,15 +51,9 @@ impl Vector {
         self.0.is_empty()
     }
 
-    /// Returns the Euclidean distance between two vectors.
-    pub fn distance(&self, other: &Self) -> f32 {
-        assert_eq!(self.0.len(), other.0.len());
-        let iter = self.0.iter().zip(other.0.iter());
-        iter.map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
-    }
-
     /// Generates a random vector for testing.
     /// * `dimension`: Vector dimension.
+    #[staticmethod]
     pub fn random(dimension: usize) -> Self {
         let mut vec = vec![0.0; dimension];
 
@@ -57,6 +62,23 @@ impl Vector {
         }
 
         vec.into()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Vector({:?})", self.0)
+    }
+
+    fn __len__(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Vector {
+    /// Returns the Euclidean distance between two vectors.
+    pub fn distance(&self, other: &Self) -> f32 {
+        assert_eq!(self.0.len(), other.0.len());
+        let iter = self.0.iter().zip(other.0.iter());
+        iter.map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
     }
 }
 

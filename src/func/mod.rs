@@ -16,6 +16,7 @@ use vector::*;
 // External dependencies.
 use ordered_float::OrderedFloat;
 use parking_lot::*;
+use pyo3::prelude::*;
 use rand::random;
 use rayon::iter::*;
 use serde::{Deserialize, Serialize};
