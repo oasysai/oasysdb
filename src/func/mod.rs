@@ -2,11 +2,12 @@
 pub mod collection;
 /// Error types for the database.
 pub mod err;
+/// Types for the metadata.
+pub mod metadata;
 /// Types for the vectors.
 pub mod vector;
 
 // Internal modules.
-mod metadata;
 mod utils;
 
 use metadata::*;
