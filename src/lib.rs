@@ -9,6 +9,10 @@ mod tests;
 mod db;
 mod func;
 
+/// Convenience re-exports for the public APIs.
+pub mod prelude;
+
 pub use db::database;
 pub use func::collection;
+pub use func::metadata;
 pub use func::vector;
