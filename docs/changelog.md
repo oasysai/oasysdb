@@ -1,3 +1,18 @@
+# v0.2.1
+
+### What's Changed
+
+- `Metadata` enum can now be accessed publicly using `oasysdb::metadata::Metadata`. This allows users to use `match` statements to extract the data from it.
+- Added a `prelude` module that re-exports the most commonly used types and traits. This makes it easier to use the library by importing the prelude module by `use oasysdb::prelude::*`.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.2.0...v0.2.1
+
 # v0.2.0
 
 ### What's Changed
