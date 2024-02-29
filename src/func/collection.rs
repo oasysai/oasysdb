@@ -1,14 +1,36 @@
 use super::*;
 
 /// The collection HNSW index configuration.
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[pyclass(module = "oasysdb.collection")]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct Config {
     /// Nodes to consider during construction.
+    #[pyo3(get, set)]
     pub ef_construction: usize,
     /// Nodes to consider during search.
+    #[pyo3(get, set)]
     pub ef_search: usize,
     /// Layer multiplier. The optimal value is `1/ln(M)`.
+    #[pyo3(get, set)]
     pub ml: f32,
+}
+
+#[pymethods]
+impl Config {
+    /// Creates a new collection config with the given parameters.
+    #[new]
+    pub fn new(ef_construction: usize, ef_search: usize, ml: f32) -> Self {
+        Self { ef_construction, ef_search, ml }
+    }
+
+    #[staticmethod]
+    fn create_default() -> Self {
+        Self::default()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl Default for Config {
