@@ -65,7 +65,7 @@ impl Vector {
     }
 
     fn __repr__(&self) -> String {
-        format!("Vector({:?})", self.0)
+        format!("{:?}", self)
     }
 
     fn __len__(&self) -> usize {
