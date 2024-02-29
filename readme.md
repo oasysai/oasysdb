@@ -34,9 +34,7 @@ cargo add oasysdb
 After that, you can use the code snippet below as a reference to get started with OasysDB. In short, use `Collection` to store your vector records or search similar vector and use `Database` to persist a vector collection to the disk.
 
 ```rust
-use oasysdb::collection::*;
-use oasysdb::database::Database;
-use oasysdb::vector::*;
+use oasysdb::prelude::*;
 
 fn main() {
     // Vector dimension must be uniform.
@@ -54,6 +52,30 @@ fn main() {
     // Search for the nearest neighbors.
     let result = collection.search(&query, 5).unwrap();
     println!("Nearest ID: {}", result[0].id);
+}
+```
+
+## Dealing with Metadata
+
+In OasysDB, you can store additional metadata for each vector which is useful to associate the vectors with other data. The code snippet below shows how to insert the `Metadata` to the `Record` or extract it.
+
+```rust
+use oasysdb::prelude::*;
+
+fn main() {
+    // Inserting a metadata value into a record.
+    let data: &str = "This is an example.";
+    let vector = Vector::random(128);
+    let record = Record::new(&vector, &data.into());
+
+    // Extracting the metadata value.
+    let metadata = record.data.clone();
+    let data = match metadata {
+        Metadata::Text(value) => value,
+        _ => panic!("Data is not a text."),
+    };
+
+    println!("{}", data);
 }
 ```
 
