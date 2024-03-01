@@ -2,7 +2,7 @@ use super::*;
 
 /// The collection HNSW index configuration.
 #[pyclass(module = "oasysdb.collection")]
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct Config {
     /// Nodes to consider during construction.
     #[pyo3(get, set)]
