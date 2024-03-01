@@ -2,7 +2,7 @@ use super::*;
 
 /// The collection HNSW index configuration.
 #[pyclass(module = "oasysdb.collection")]
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Config {
     /// Nodes to consider during construction.
     #[pyo3(get, set)]
@@ -129,7 +129,7 @@ impl<'a> IndexConstruction<'a> {
 }
 
 /// The collection of vector records with HNSW indexing.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Collection {
     /// The collection configuration object.
     pub config: Config,
