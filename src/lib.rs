@@ -46,6 +46,7 @@ fn oasysdb(py: Python, m: &PyModule) -> PyResult<()> {
 #[pymodule]
 fn collection_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<collection::Config>()?;
+    m.add_class::<collection::Record>()?;
     Ok(())
 }
 

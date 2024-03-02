@@ -15,6 +15,9 @@ pub struct Config {
     pub ml: f32,
 }
 
+// Any modifications to this methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
 #[pymethods]
 impl Config {
     /// Creates a new collection config with the given parameters.
@@ -573,12 +576,32 @@ impl Collection {
 }
 
 /// A record containing a vector and its associated data.
+#[pyclass(module = "oasysdb.collection")]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Record {
     /// The vector embedding.
+    #[pyo3(get, set)]
     pub vector: Vector,
     /// Data associated with the vector.
+    #[pyo3(get)]
     pub data: Metadata,
+}
+
+// Any modifications to the Python methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
+#[pymethods]
+impl Record {
+    #[new]
+    fn py_new(vector: Vec<f32>, data: &PyAny) -> Self {
+        let vector = Vector::from(vector);
+        let data = Metadata::from(data);
+        Self::new(&vector, &data)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl Record {
@@ -586,7 +609,9 @@ impl Record {
     pub fn new(vector: &Vector, data: &Metadata) -> Self {
         Self { vector: vector.clone(), data: data.clone() }
     }
+}
 
+impl Record {
     /// Generates a random record for testing.
     /// * `dimension`: Vector dimension.
     pub fn random(dimension: usize) -> Self {

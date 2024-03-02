@@ -1,5 +1,8 @@
 # flake8: noqa F821
 
+from typing import Any, List
+
+
 class Config:
     """The configuration for the vector collection.
 
@@ -25,3 +28,24 @@ class Config:
         - ef_search: 15
         - ml: 0.3
         """
+
+
+class Record:
+    """The vector record to store in the collection.
+
+    Args:
+    - vector (List[float]): Vector embedding of float values.
+    - data (Metadata): Metadata of the vector.
+
+    Metadata types:
+    - String
+    - Number
+    - List of metadata types
+    - Dictionary of metadata types
+    """
+
+    def __init__(
+        self,
+        vector: List[float],
+        data: Any,
+    ) -> None: ...

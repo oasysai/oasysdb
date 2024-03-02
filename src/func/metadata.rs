@@ -70,3 +70,71 @@ where
         Metadata::Object(obj)
     }
 }
+
+// This implementation attempts to convert the
+// Python object into the Metadata enum.
+impl From<&PyAny> for Metadata {
+    fn from(value: &PyAny) -> Self {
+        // Extract string.
+        if let Ok(text) = value.extract::<String>() {
+            return Metadata::Text(text);
+        }
+
+        // Extract integer.
+        if let Ok(int) = value.extract::<usize>() {
+            return Metadata::Integer(int);
+        }
+
+        // Extract float.
+        if let Ok(float) = value.extract::<f32>() {
+            return Metadata::Float(float);
+        }
+
+        // Extract list.
+        if let Ok(list) = value.extract::<Vec<&PyAny>>() {
+            let arr = list.into_iter().map(|v| v.into()).collect();
+            return Metadata::Array(arr);
+        }
+
+        // Extract dictionary.
+        if let Ok(dict) = value.extract::<HashMap<String, &PyAny>>() {
+            let obj = dict.into_iter().map(|(k, v)| (k, v.into())).collect();
+            return Metadata::Object(obj);
+        }
+
+        // Throw an error if the type is not supported.
+        panic!("Unsupported type for the metadata.");
+    }
+}
+
+// This implementation converts the Metadata
+// enum back to the Python object.
+impl IntoPy<Py<PyAny>> for Metadata {
+    fn into_py(self, py: Python) -> Py<PyAny> {
+        // Convert array of Metadata to Python list.
+        let list_converter = |vec: Vec<Metadata>| {
+            let list = vec
+                .into_iter()
+                .map(|metadata: Metadata| metadata.into_py(py))
+                .collect::<Vec<Py<PyAny>>>();
+            list.into_py(py)
+        };
+
+        // Convert HashMap of Metadata to Python dictionary.
+        let dict_converter = |map: HashMap<String, Metadata>| {
+            let dict = map
+                .into_iter()
+                .map(|(key, value)| (key, value.into_py(py)))
+                .collect::<HashMap<String, Py<PyAny>>>();
+            dict.into_py(py)
+        };
+
+        match self {
+            Metadata::Text(text) => text.into_py(py),
+            Metadata::Integer(int) => int.into_py(py),
+            Metadata::Float(float) => float.into_py(py),
+            Metadata::Array(arr) => list_converter(arr),
+            Metadata::Object(obj) => dict_converter(obj),
+        }
+    }
+}
