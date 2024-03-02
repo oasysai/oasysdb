@@ -41,6 +41,10 @@ impl Vector {
         vector.into()
     }
 
+    fn to_list(&self) -> Vec<f32> {
+        self.0.clone()
+    }
+
     /// Returns the dimension of the vector.
     pub fn len(&self) -> usize {
         self.0.len()

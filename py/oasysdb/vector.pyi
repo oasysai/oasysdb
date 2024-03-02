@@ -14,6 +14,9 @@ class Vector:
     def is_empty(self) -> bool:
         """Returns True if the vector is empty."""
 
+    def to_list(self) -> List[float]:
+        """Returns the vector as a list of floats."""
+
     @staticmethod
     def random(dimension: int) -> Vector:
         """Generates a random vector of the given dimension."""
