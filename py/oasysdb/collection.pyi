@@ -83,7 +83,19 @@ class Collection:
         config: Config,
         records: List[Record],
     ) -> Collection:
-        """Creates a collection from the given records."""
+        """Creates a collection from the given records.
+
+        Args:
+        - config (Config): Collection configuration.
+        - records (List[Record]): Records used to build the collection.
+        """
+
+    def insert_record(self, record: Record) -> Collection:
+        """Inserts a record into the collection.
+
+        Args:
+        - record (Record): The record to insert.
+        """
 
     def len(self) -> int:
         """Returns the number of records in the collection."""
@@ -92,4 +104,4 @@ class Collection:
         """Returns True if the collection is empty."""
 
     def contains(self, id: VectorID) -> bool:
-        """Returns True if the record ID is in the collection."""
+        """Returns True if the vector ID is in the collection."""

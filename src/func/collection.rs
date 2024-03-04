@@ -133,7 +133,7 @@ impl<'a> IndexConstruction<'a> {
 
 /// The collection of vector records with HNSW indexing.
 #[pyclass(module = "oasysdb.collection")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Collection {
     /// The collection configuration object.
     #[pyo3(get)]
@@ -188,6 +188,11 @@ impl Collection {
         let collection =
             Collection::build(config, &records).map_err(to_pyerr)?;
         Ok(collection)
+    }
+
+    fn insert_record(&mut self, record: &Record) -> PyResult<Self> {
+        self.insert(record).map_err(to_pyerr)?;
+        Ok(self.clone())
     }
 
     /// Returns the number of vector records in the collection.
