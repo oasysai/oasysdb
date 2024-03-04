@@ -158,7 +158,7 @@ impl Index<&VectorID> for Collection {
 
 /// Converts standard Error to PyErr for Python methods.
 fn to_pyerr(e: Box<dyn Error>) -> PyErr {
-    let message = format!("{}", e.to_string());
+    let message = format!("{}", e);
     PyErr::new::<PyAny, String>(message)
 }
 
