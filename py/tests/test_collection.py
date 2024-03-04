@@ -18,6 +18,20 @@ def test_create_record():
     assert record.data == data
 
 
+def test_generate_random_record():
+    dimension = 128
+    record = Record.random(dimension=dimension)
+    assert len(record.vector) == dimension
+    assert isinstance(record.data, int)
+
+
+def test_generate_many_random_records():
+    dimension = 128
+    records = Record.many_random(dimension=dimension, len=10)
+    assert len(records) == 10
+    assert all(len(record.vector) == dimension for record in records)
+
+
 def test_create_collection():
     config = Config.create_default()
     collection = Collection(config=config)

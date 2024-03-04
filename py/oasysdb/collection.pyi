@@ -51,6 +51,24 @@ class Record:
         data: Any,
     ) -> None: ...
 
+    @staticmethod
+    def random(dimension: int) -> Record:
+        """Generates a random record with the given dimension
+        with a random integer metadata.
+
+        Args:
+        - dimension (int): Vector dimension.
+        """
+
+    @staticmethod
+    def many_random(dimension: int, len: int) -> List[Record]:
+        """Generates a list of random records.
+
+        Args:
+        - dimension (int): Vector dimension.
+        - len (int): Number of records.
+        """
+
 
 class Collection:
     """The collection of vectors and their metadata."""

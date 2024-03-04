@@ -626,21 +626,9 @@ impl Record {
         Self::new(&vector, &data)
     }
 
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-impl Record {
-    /// Creates a new record with a vector and data.
-    pub fn new(vector: &Vector, data: &Metadata) -> Self {
-        Self { vector: vector.clone(), data: data.clone() }
-    }
-}
-
-impl Record {
     /// Generates a random record for testing.
     /// * `dimension`: Vector dimension.
+    #[staticmethod]
     pub fn random(dimension: usize) -> Self {
         let vector = Vector::random(dimension);
         let data = random::<usize>().into();
@@ -650,8 +638,20 @@ impl Record {
     /// Generates many random records for testing.
     /// * `dimension`: Vector dimension.
     /// * `len`: Number of records to generate.
+    #[staticmethod]
     pub fn many_random(dimension: usize, len: usize) -> Vec<Self> {
         (0..len).map(|_| Self::random(dimension)).collect()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl Record {
+    /// Creates a new record with a vector and data.
+    pub fn new(vector: &Vector, data: &Metadata) -> Self {
+        Self { vector: vector.clone(), data: data.clone() }
     }
 }
 
