@@ -20,3 +20,12 @@ class Vector:
     @staticmethod
     def random(dimension: int) -> Vector:
         """Generates a random vector of the given dimension."""
+
+
+class VectorID:
+    """Identifier of the vector in the collection."""
+
+    def __init__(self, id: int) -> None: ...
+
+    def is_valid(self) -> bool:
+        """Returns True if the vector ID is valid."""

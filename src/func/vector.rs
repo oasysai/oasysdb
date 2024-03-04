@@ -1,11 +1,18 @@
 use super::*;
 
 /// The ID of a vector record.
+#[pyclass(module = "oasysdb.vector")]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct VectorID(pub u32);
 
+#[pymethods]
 impl VectorID {
+    #[new]
+    fn py_new(id: u32) -> Self {
+        id.into()
+    }
+
     /// True if this vector ID is valid.
     pub fn is_valid(&self) -> bool {
         self.0 != u32::MAX
