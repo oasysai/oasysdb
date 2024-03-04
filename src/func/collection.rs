@@ -132,9 +132,11 @@ impl<'a> IndexConstruction<'a> {
 }
 
 /// The collection of vector records with HNSW indexing.
+#[pyclass(module = "oasysdb.collection")]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Collection {
     /// The collection configuration object.
+    #[pyo3(get)]
     pub config: Config,
     // Private fields below.
     data: HashMap<VectorID, Metadata>,
@@ -154,8 +156,20 @@ impl Index<&VectorID> for Collection {
     }
 }
 
+/// Converts standard Error to PyErr for Python methods.
+fn to_pyerr(e: Box<dyn Error>) -> PyErr {
+    let message = format!("{}", e.to_string());
+    PyErr::new::<PyAny, String>(message)
+}
+
+// This exposes Collection methods to Python.
+// Any modifications to these methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
+#[pymethods]
 impl Collection {
     /// Creates an empty collection with the given configuration.
+    #[new]
     pub fn new(config: &Config) -> Self {
         Self {
             config: *config,
@@ -169,6 +183,35 @@ impl Collection {
         }
     }
 
+    #[staticmethod]
+    fn from_records(config: &Config, records: Vec<Record>) -> PyResult<Self> {
+        let collection =
+            Collection::build(config, &records).map_err(to_pyerr)?;
+        Ok(collection)
+    }
+
+    /// Returns the number of vector records in the collection.
+    pub fn len(&self) -> usize {
+        self.count
+    }
+
+    /// Returns true if the collection is empty.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// Checks if the collection contains a vector ID.
+    /// * `id`: Vector ID to check.
+    pub fn contains(&self, id: &VectorID) -> bool {
+        self.vectors.contains_key(id)
+    }
+
+    fn __len__(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Collection {
     /// Builds the collection index from vector records.
     /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
@@ -500,22 +543,6 @@ impl Collection {
 
         self.dimension = dimension;
         Ok(())
-    }
-
-    /// Returns the number of vector records in the collection.
-    pub fn len(&self) -> usize {
-        self.count
-    }
-
-    /// Returns true if the collection is empty.
-    pub fn is_empty(&self) -> bool {
-        self.count == 0
-    }
-
-    /// Checks if the collection contains a vector ID.
-    /// * `id`: Vector ID to check.
-    pub fn contains(&self, id: &VectorID) -> bool {
-        self.vectors.contains_key(id)
     }
 
     /// Inserts a vector ID into the index layers.

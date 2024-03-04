@@ -1,6 +1,7 @@
 # flake8: noqa F821
 
 from typing import Any, List
+from oasysdb.vector import VectorID
 
 
 class Config:
@@ -49,3 +50,28 @@ class Record:
         vector: List[float],
         data: Any,
     ) -> None: ...
+
+
+class Collection:
+    """The collection of vectors and their metadata."""
+
+    def __init__(
+        self,
+        config: Config,
+    ) -> None: ...
+
+    @staticmethod
+    def from_records(
+        config: Config,
+        records: List[Record],
+    ) -> Collection:
+        """Creates a collection from the given records."""
+
+    def len(self) -> int:
+        """Returns the number of records in the collection."""
+
+    def is_empty(self) -> bool:
+        """Returns True if the collection is empty."""
+
+    def contains(self, id: VectorID) -> bool:
+        """Returns True if the record ID is in the collection."""

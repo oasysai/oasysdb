@@ -1,4 +1,5 @@
-from oasysdb.collection import Config, Record
+from oasysdb.collection import Config, Record, Collection
+from oasysdb.vector import VectorID
 
 
 def test_create_config():
@@ -15,3 +16,23 @@ def test_create_record():
     record = Record(vector=vector, data=data)
     assert len(record.vector) == len(vector)
     assert record.data == data
+
+
+def test_create_collection():
+    config = Config.create_default()
+    collection = Collection(config=config)
+    assert collection.config.ml == config.ml
+    assert collection.is_empty()
+
+
+def test_create_collection_from_records():
+    vector = [0.1, 0.2, 0.3]
+    data = "This is an example."
+    records = [Record(vector=vector, data=data)]
+
+    config = Config.create_default()
+    collection = Collection.from_records(config=config, records=records)
+
+    assert collection.contains(VectorID(0))
+    assert collection.len() == len(records)
+    assert not collection.is_empty()
