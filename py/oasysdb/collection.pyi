@@ -90,7 +90,7 @@ class Collection:
         - records (List[Record]): Records used to build the collection.
         """
 
-    def insert_record(self, record: Record) -> Collection:
+    def insert(self, record: Record) -> Collection:
         """Inserts a record into the collection.
 
         Args:

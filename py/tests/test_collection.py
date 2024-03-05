@@ -58,6 +58,6 @@ def test_create_collection_from_records():
 def test_insert_record():
     collection = create_test_collection()
     record = Record.random(dimension=128)
-    collection.insert_record(record)
+    collection.insert(record)
     assert collection.len() == LEN + 1
     assert collection.contains(VectorID(LEN))
