@@ -14,6 +14,7 @@ pub mod prelude;
 
 pub use db::database;
 pub use func::collection;
+pub use func::err;
 pub use func::metadata;
 pub use func::vector;
 

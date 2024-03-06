@@ -156,12 +156,6 @@ impl Index<&VectorID> for Collection {
     }
 }
 
-/// Converts standard Error to PyErr for Python methods.
-fn to_pyerr(e: Box<dyn Error>) -> PyErr {
-    let message = format!("{}", e);
-    PyErr::new::<PyAny, String>(message)
-}
-
 // This exposes Collection methods to Python.
 // Any modifications to these methods should be reflected in:
 // - py/tests/test_collection.py
@@ -185,14 +179,49 @@ impl Collection {
 
     #[staticmethod]
     fn from_records(config: &Config, records: Vec<Record>) -> PyResult<Self> {
-        let collection =
-            Collection::build(config, &records).map_err(to_pyerr)?;
+        let collection = Collection::build(config, &records)?;
         Ok(collection)
     }
 
-    fn insert_record(&mut self, record: &Record) -> PyResult<Self> {
-        self.insert(record).map_err(to_pyerr)?;
-        Ok(self.clone())
+    /// Inserts a vector record into the collection.
+    /// * `record`: Vector record to insert.
+    pub fn insert(&mut self, record: &Record) -> Result<(), Error> {
+        // Ensure the number of records is within the limit.
+        if self.slots.len() == u32::MAX as usize {
+            return Err(Error::collection_limit());
+        }
+
+        // Ensure the vector dimension matches the collection config.
+        // If it's the first record, set the dimension.
+        if self.vectors.is_empty() && self.dimension == 0 {
+            self.dimension = record.vector.len();
+        } else if record.vector.len() != self.dimension {
+            let message = format!(
+                "Invalid vector dimension. Expected dimension of {}.",
+                self.dimension
+            );
+
+            return Err(message.into());
+        }
+
+        // Create a new vector ID using the next available slot.
+        let id: VectorID = self.slots.len().into();
+
+        // Insert the new vector and data.
+        self.vectors.insert(id, record.vector.clone());
+        self.data.insert(id, record.data.clone());
+
+        // Add new vector id to the slots.
+        self.slots.push(id);
+
+        // Update the collection count.
+        self.count += 1;
+
+        // This operation is last because it depends on
+        // the updated vectors data.
+        self.insert_to_layers(&id);
+
+        Ok(())
     }
 
     /// Returns the number of vector records in the collection.
@@ -220,10 +249,7 @@ impl Collection {
     /// Builds the collection index from vector records.
     /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
-    pub fn build(
-        config: &Config,
-        records: &[Record],
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn build(config: &Config, records: &[Record]) -> Result<Self, Error> {
         if records.is_empty() {
             return Ok(Self::new(config));
         }
@@ -358,53 +384,12 @@ impl Collection {
         })
     }
 
-    /// Inserts a vector record into the collection.
-    /// * `record`: Vector record to insert.
-    pub fn insert(&mut self, record: &Record) -> Result<(), Box<dyn Error>> {
-        // Ensure the number of records is within the limit.
-        if self.slots.len() == u32::MAX as usize {
-            return Err(err::COLLECTION_LIMIT.into());
-        }
-
-        // Ensure the vector dimension matches the collection config.
-        // If it's the first record, set the dimension.
-        if self.vectors.is_empty() && self.dimension == 0 {
-            self.dimension = record.vector.len();
-        } else if record.vector.len() != self.dimension {
-            let message = format!(
-                "Invalid vector dimension. Expected dimension of {}.",
-                self.dimension
-            );
-
-            return Err(message.into());
-        }
-
-        // Create a new vector ID using the next available slot.
-        let id: VectorID = self.slots.len().into();
-
-        // Insert the new vector and data.
-        self.vectors.insert(id, record.vector.clone());
-        self.data.insert(id, record.data.clone());
-
-        // Add new vector id to the slots.
-        self.slots.push(id);
-
-        // Update the collection count.
-        self.count += 1;
-
-        // This operation is last because it depends on
-        // the updated vectors data.
-        self.insert_to_layers(&id);
-
-        Ok(())
-    }
-
     /// Deletes a vector record from the collection.
     /// * `id`: Vector ID to delete.
-    pub fn delete(&mut self, id: &VectorID) -> Result<(), Box<dyn Error>> {
+    pub fn delete(&mut self, id: &VectorID) -> Result<(), Error> {
         // Ensure the vector ID exists in the collection.
         if !self.contains(id) {
-            return Err(err::RECORD_NOT_FOUND.into());
+            return Err(Error::record_not_found());
         }
 
         self.delete_from_layers(id);
@@ -427,9 +412,9 @@ impl Collection {
         &mut self,
         id: &VectorID,
         record: &Record,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         if !self.contains(id) {
-            return Err(err::RECORD_NOT_FOUND.into());
+            return Err(Error::record_not_found());
         }
 
         // Remove the old vector from the index layers.
@@ -445,9 +430,9 @@ impl Collection {
 
     /// Returns the vector record associated with the ID.
     /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Result<Record, Box<dyn Error>> {
+    pub fn get(&self, id: &VectorID) -> Result<Record, Error> {
         if !self.contains(id) {
-            return Err(err::RECORD_NOT_FOUND.into());
+            return Err(Error::record_not_found());
         }
 
         let vector = self.vectors[id].clone();
@@ -462,7 +447,7 @@ impl Collection {
         &self,
         vector: &Vector,
         n: usize,
-    ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    ) -> Result<Vec<SearchResult>, Error> {
         let mut search = Search::default();
 
         if self.vectors.is_empty() {
@@ -512,7 +497,7 @@ impl Collection {
         &self,
         vector: &Vector,
         n: usize,
-    ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    ) -> Result<Vec<SearchResult>, Error> {
         let mut nearest = Vec::with_capacity(self.vectors.len());
 
         // Calculate the distance between the query and each record.
@@ -537,10 +522,7 @@ impl Collection {
 
     /// Sets the vector dimension of the collection.
     /// * `dimension`: New vector dimension.
-    pub fn set_dimension(
-        &mut self,
-        dimension: usize,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
         // This can only be set if the collection is empty.
         if !self.vectors.is_empty() {
             return Err("The collection must be empty.".into());

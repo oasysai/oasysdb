@@ -10,7 +10,7 @@ impl Database {
     /// Re-creates and opens the database at the given path.
     /// This method will delete the database if it exists.
     /// * `path` - Directory to store the database.
-    pub fn new(path: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn new(path: &str) -> Result<Self, Error> {
         // Remove the database dir if it exists.
         if Path::new(path).exists() {
             remove_dir_all(path)?;
@@ -26,7 +26,7 @@ impl Database {
     /// Opens existing or creates new database.
     /// If the database doesn't exist, it will be created.
     /// * `path` - Directory to store the database.
-    pub fn open(path: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn open(path: &str) -> Result<Self, Error> {
         let collections = sled::open(path)?;
         let count = collections.len();
         Ok(Self { collections, count })
@@ -41,7 +41,7 @@ impl Database {
         name: &str,
         config: Option<&Config>,
         records: Option<&[Record]>,
-    ) -> Result<Collection, Box<dyn Error>> {
+    ) -> Result<Collection, Error> {
         // This prevents the variable from being dropped.
         let default_config = Config::default();
 
@@ -62,14 +62,11 @@ impl Database {
 
     /// Gets a collection from the database.
     /// * `name` - Name of the collection.
-    pub fn get_collection(
-        &self,
-        name: &str,
-    ) -> Result<Collection, Box<dyn Error>> {
+    pub fn get_collection(&self, name: &str) -> Result<Collection, Error> {
         let value = self.collections.get(name)?;
         match value {
             Some(value) => Ok(bincode::deserialize(&value)?),
-            None => Err(err::COLLECTION_NOT_FOUND.into()),
+            None => Err(Error::collection_not_found()),
         }
     }
 
@@ -80,7 +77,7 @@ impl Database {
         &mut self,
         name: &str,
         collection: &Collection,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut new = false;
 
         // Check if it's a new collection.
@@ -101,10 +98,7 @@ impl Database {
 
     /// Deletes a collection from the database.
     /// * `name` - Collection name to delete.
-    pub fn delete_collection(
-        &mut self,
-        name: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn delete_collection(&mut self, name: &str) -> Result<(), Error> {
         self.collections.remove(name)?;
         self.count -= 1;
         Ok(())
