@@ -224,6 +224,27 @@ impl Collection {
         Ok(())
     }
 
+    /// Deletes a vector record from the collection.
+    /// * `id`: Vector ID to delete.
+    pub fn delete(&mut self, id: &VectorID) -> Result<(), Error> {
+        // Ensure the vector ID exists in the collection.
+        if !self.contains(id) {
+            return Err(Error::record_not_found());
+        }
+
+        self.delete_from_layers(id);
+
+        // Update the collection data.
+        self.vectors.remove(id);
+        self.data.remove(id);
+        self.slots[id.0 as usize] = INVALID;
+
+        // Update the collection count.
+        self.count -= 1;
+
+        Ok(())
+    }
+
     /// Returns the number of vector records in the collection.
     pub fn len(&self) -> usize {
         self.count
@@ -382,27 +403,6 @@ impl Collection {
             config: *config,
             count: records.len(),
         })
-    }
-
-    /// Deletes a vector record from the collection.
-    /// * `id`: Vector ID to delete.
-    pub fn delete(&mut self, id: &VectorID) -> Result<(), Error> {
-        // Ensure the vector ID exists in the collection.
-        if !self.contains(id) {
-            return Err(Error::record_not_found());
-        }
-
-        self.delete_from_layers(id);
-
-        // Update the collection data.
-        self.vectors.remove(id);
-        self.data.remove(id);
-        self.slots[id.0 as usize] = INVALID;
-
-        // Update the collection count.
-        self.count -= 1;
-
-        Ok(())
     }
 
     /// Updates a vector record in the collection.

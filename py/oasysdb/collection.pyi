@@ -90,11 +90,18 @@ class Collection:
         - records (List[Record]): Records used to build the collection.
         """
 
-    def insert(self, record: Record) -> Collection:
+    def insert(self, record: Record) -> None:
         """Inserts a record into the collection.
 
         Args:
         - record (Record): The record to insert.
+        """
+
+    def delete(self, id: VectorID) -> None:
+        """Deletes a record from the collection.
+
+        Args:
+        - id (VectorID): The vector ID to delete.
         """
 
     def len(self) -> int:

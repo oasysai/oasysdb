@@ -61,3 +61,11 @@ def test_insert_record():
     collection.insert(record)
     assert collection.len() == LEN + 1
     assert collection.contains(VectorID(LEN))
+
+
+def test_delete_record():
+    collection = create_test_collection()
+    id = VectorID(0)
+    collection.delete(id)
+    assert not collection.contains(id)
+    assert collection.len() == LEN - 1
