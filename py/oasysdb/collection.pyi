@@ -8,10 +8,14 @@ class Config:
     """The configuration for the vector collection.
 
     Args:
-    - ef_construction (int): Elements to consider during index construction.
-    - ef_search (int): Elements to consider during the search.
-    - ml (float): Layer multiplier of HNSW index.
+    - ef_construction (int): Nodes to consider during index construction.
+    - ef_search (int): Nodes to consider during the search.
+    - ml (float): Layer multiplier of the HNSW index.
     """
+
+    ef_construction: int
+    ef_search: int
+    ml: float
 
     def __init__(
         self,
@@ -45,6 +49,9 @@ class Record:
     - Dictionary of metadata types
     """
 
+    vector: List[float]
+    data: Any
+
     def __init__(
         self,
         vector: List[float],
@@ -73,6 +80,8 @@ class Record:
 class Collection:
     """The collection of vectors and their metadata."""
 
+    config: Config
+
     def __init__(
         self,
         config: Config,
@@ -94,14 +103,29 @@ class Collection:
         """Inserts a record into the collection.
 
         Args:
-        - record (Record): The record to insert.
+        - record (Record): Record to insert.
         """
 
     def delete(self, id: VectorID) -> None:
         """Deletes a record from the collection.
 
         Args:
-        - id (VectorID): The vector ID to delete.
+        - id (VectorID): Vector ID to delete.
+        """
+
+    def get(self, id: VectorID) -> Record:
+        """Returns a record from the collection.
+
+        Args:
+        - id (VectorID): Vector ID to fetch.
+        """
+
+    def update(self, id: VectorID, record: Record) -> None:
+        """Updates a record in the collection.
+
+        Args:
+        - id (VectorID): Vector ID to update.
+        - record (Record): New record.
         """
 
     def len(self) -> int:

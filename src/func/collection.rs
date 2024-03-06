@@ -196,12 +196,9 @@ impl Collection {
         if self.vectors.is_empty() && self.dimension == 0 {
             self.dimension = record.vector.len();
         } else if record.vector.len() != self.dimension {
-            let message = format!(
-                "Invalid vector dimension. Expected dimension of {}.",
-                self.dimension
-            );
-
-            return Err(message.into());
+            let len = record.vector.len();
+            let err = Error::invalid_dimension(len, self.dimension);
+            return Err(err);
         }
 
         // Create a new vector ID using the next available slot.
@@ -241,6 +238,48 @@ impl Collection {
 
         // Update the collection count.
         self.count -= 1;
+
+        Ok(())
+    }
+
+    /// Returns the vector record associated with the ID.
+    /// * `id`: Vector ID to retrieve.
+    pub fn get(&self, id: &VectorID) -> Result<Record, Error> {
+        if !self.contains(id) {
+            return Err(Error::record_not_found());
+        }
+
+        let vector = self.vectors[id].clone();
+        let data = self.data[id].clone();
+        Ok(Record::new(&vector, &data))
+    }
+
+    /// Updates a vector record in the collection.
+    /// * `id`: Vector ID to update.
+    /// * `record`: New vector record.
+    pub fn update(
+        &mut self,
+        id: &VectorID,
+        record: &Record,
+    ) -> Result<(), Error> {
+        if !self.contains(id) {
+            return Err(Error::record_not_found());
+        }
+
+        // Validate the new vector dimension.
+        if record.vector.len() != self.dimension {
+            let len = record.vector.len();
+            let err = Error::invalid_dimension(len, self.dimension);
+            return Err(err);
+        }
+
+        // Remove the old vector from the index layers.
+        self.delete_from_layers(id);
+
+        // Insert the updated vector and data.
+        self.vectors.insert(*id, record.vector.clone());
+        self.data.insert(*id, record.data.clone());
+        self.insert_to_layers(id);
 
         Ok(())
     }
@@ -403,41 +442,6 @@ impl Collection {
             config: *config,
             count: records.len(),
         })
-    }
-
-    /// Updates a vector record in the collection.
-    /// * `id`: Vector ID to update.
-    /// * `record`: New vector record.
-    pub fn update(
-        &mut self,
-        id: &VectorID,
-        record: &Record,
-    ) -> Result<(), Error> {
-        if !self.contains(id) {
-            return Err(Error::record_not_found());
-        }
-
-        // Remove the old vector from the index layers.
-        self.delete_from_layers(id);
-
-        // Insert the updated vector and data.
-        self.vectors.insert(*id, record.vector.clone());
-        self.data.insert(*id, record.data.clone());
-        self.insert_to_layers(id);
-
-        Ok(())
-    }
-
-    /// Returns the vector record associated with the ID.
-    /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Result<Record, Error> {
-        if !self.contains(id) {
-            return Err(Error::record_not_found());
-        }
-
-        let vector = self.vectors[id].clone();
-        let data = self.data[id].clone();
-        Ok(Record::new(&vector, &data))
     }
 
     /// Searches the collection for the nearest neighbors.

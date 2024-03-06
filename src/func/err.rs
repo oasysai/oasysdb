@@ -2,6 +2,7 @@ use super::*;
 
 // Other error types.
 use bincode::ErrorKind as BincodeError;
+use pyo3::exceptions::PyValueError;
 use sled::Error as SledError;
 use std::error::Error as StandardError;
 use std::io::Error as IOError;
@@ -25,22 +26,33 @@ impl Error {
 
     /// Creates error: The collection is not found.
     pub fn collection_not_found() -> Self {
-        let m = "The collection is not found.";
-        m.into()
+        let message = "The collection is not found.";
+        message.into()
     }
 
-    /// Creates error: The collection limit is reached.
+    /// Creates error when the collection record limit is reached.
     pub fn collection_limit() -> Self {
-        let m = "The collection limit is reached.";
-        m.into()
+        let max = u32::MAX;
+        let brief = "The collection limit is reached.";
+        let detail = format!("The max number of records is {max}.");
+        let message = format!("{brief} {detail}");
+        message.into()
     }
 
     // Common record errors.
 
-    /// Creates error: The record is not found.
+    /// Creates error when vector record is not found.
     pub fn record_not_found() -> Self {
-        let m = "The record is not found.";
-        m.into()
+        let message = "The vector record is not found.";
+        message.into()
+    }
+
+    /// Creates error when getting vector with invalid dimension.
+    pub fn invalid_dimension(found: usize, expected: usize) -> Self {
+        let brief = "Invalid vector dimension.";
+        let detail = format!("Expected {expected}, found {found}.");
+        let message = format!("{brief} {detail}");
+        message.into()
     }
 }
 
@@ -86,6 +98,6 @@ impl From<Box<BincodeError>> for Error {
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {
-        PyErr::new::<PyAny, String>(err.0)
+        PyErr::new::<PyValueError, String>(err.0)
     }
 }
