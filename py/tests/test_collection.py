@@ -1,5 +1,4 @@
 from oasysdb.collection import Config, Record, Collection
-from oasysdb.vector import VectorID
 
 DIMENSION = 128
 LEN = 100
@@ -55,7 +54,7 @@ def test_create_collection():
 
 def test_create_collection_from_records():
     collection = create_test_collection()
-    assert collection.contains(VectorID(0))
+    assert collection.contains(0)
     assert not collection.is_empty()
 
 
@@ -65,7 +64,7 @@ def test_insert_record():
     collection.insert(record)
 
     assert collection.len() == LEN + 1
-    assert collection.contains(VectorID(LEN))
+    assert collection.contains(LEN)
 
 
 def test_insert_record_invalid_dimension():
@@ -86,7 +85,7 @@ def test_insert_record_invalid_dimension():
 def test_delete_record():
     collection = create_test_collection()
 
-    id = VectorID(0)
+    id = 0
     collection.delete(id)
 
     assert not collection.contains(id)
@@ -96,7 +95,7 @@ def test_delete_record():
 def test_get_record():
     collection = create_test_collection()
 
-    id = VectorID(0)
+    id = 0
     record = collection.get(id)
 
     assert record is not None
@@ -106,7 +105,7 @@ def test_get_record():
 def test_update_record():
     collection = create_test_collection()
 
-    id = VectorID(0)
+    id = 0
     record = Record.random(dimension=128)
     collection.update(id, record)
 

@@ -216,14 +216,14 @@ impl Collection {
 
         // This operation is last because it depends on
         // the updated vectors data.
-        self.insert_to_layers(&id);
+        self.insert_to_layers(id.0 as usize);
 
         Ok(())
     }
 
     /// Deletes a vector record from the collection.
     /// * `id`: Vector ID to delete.
-    pub fn delete(&mut self, id: &VectorID) -> Result<(), Error> {
+    pub fn delete(&mut self, id: usize) -> Result<(), Error> {
         // Ensure the vector ID exists in the collection.
         if !self.contains(id) {
             return Err(Error::record_not_found());
@@ -232,9 +232,12 @@ impl Collection {
         self.delete_from_layers(id);
 
         // Update the collection data.
-        self.vectors.remove(id);
-        self.data.remove(id);
-        self.slots[id.0 as usize] = INVALID;
+        let vector_id = VectorID(id as u32);
+        self.vectors.remove(&vector_id);
+        self.data.remove(&vector_id);
+
+        // Make the slot invalid so it won't be used again.
+        self.slots[id] = INVALID;
 
         // Update the collection count.
         self.count -= 1;
@@ -244,24 +247,21 @@ impl Collection {
 
     /// Returns the vector record associated with the ID.
     /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Result<Record, Error> {
+    pub fn get(&self, id: usize) -> Result<Record, Error> {
         if !self.contains(id) {
             return Err(Error::record_not_found());
         }
 
-        let vector = self.vectors[id].clone();
-        let data = self.data[id].clone();
+        let vector_id = VectorID(id as u32);
+        let vector = self.vectors[&vector_id].clone();
+        let data = self.data[&vector_id].clone();
         Ok(Record::new(&vector, &data))
     }
 
     /// Updates a vector record in the collection.
     /// * `id`: Vector ID to update.
     /// * `record`: New vector record.
-    pub fn update(
-        &mut self,
-        id: &VectorID,
-        record: &Record,
-    ) -> Result<(), Error> {
+    pub fn update(&mut self, id: usize, record: &Record) -> Result<(), Error> {
         if !self.contains(id) {
             return Err(Error::record_not_found());
         }
@@ -277,8 +277,9 @@ impl Collection {
         self.delete_from_layers(id);
 
         // Insert the updated vector and data.
-        self.vectors.insert(*id, record.vector.clone());
-        self.data.insert(*id, record.data.clone());
+        let vector_id = VectorID(id as u32);
+        self.vectors.insert(vector_id, record.vector.clone());
+        self.data.insert(vector_id, record.data.clone());
         self.insert_to_layers(id);
 
         Ok(())
@@ -296,8 +297,8 @@ impl Collection {
 
     /// Checks if the collection contains a vector ID.
     /// * `id`: Vector ID to check.
-    pub fn contains(&self, id: &VectorID) -> bool {
-        self.vectors.contains_key(id)
+    pub fn contains(&self, id: usize) -> bool {
+        self.vectors.contains_key(&id.into())
     }
 
     fn __len__(&self) -> usize {
@@ -537,7 +538,7 @@ impl Collection {
     }
 
     /// Inserts a vector ID into the index layers.
-    fn insert_to_layers(&mut self, id: &VectorID) {
+    fn insert_to_layers(&mut self, id: usize) {
         self.base_layer.push(BaseNode::default());
 
         let base_layer = self
@@ -560,7 +561,7 @@ impl Collection {
         };
 
         // Insert new vector into the contructor.
-        state.insert(id, &top_layer, &self.upper_layers);
+        state.insert(&id.into(), &top_layer, &self.upper_layers);
 
         // Update the base layer with the new state.
         let iter = state.base_layer.into_par_iter();
@@ -568,10 +569,12 @@ impl Collection {
     }
 
     /// Removes a vector ID from all index layers.
-    fn delete_from_layers(&mut self, id: &VectorID) {
+    fn delete_from_layers(&mut self, id: usize) {
+        let vector_id = VectorID(id as u32);
+
         // Remove the vector from the base layer.
-        let base_node = &mut self.base_layer[id.0 as usize];
-        let index = base_node.par_iter().position_first(|x| *x == *id);
+        let base_node = &mut self.base_layer[id];
+        let index = base_node.par_iter().position_first(|x| *x == vector_id);
         if let Some(index) = index {
             base_node.set(index, &INVALID);
         }
@@ -583,8 +586,8 @@ impl Collection {
                 false => break,
             };
 
-            let node = &mut upper_layer[id.0 as usize];
-            let index = node.0.par_iter().position_first(|x| *x == *id);
+            let node = &mut upper_layer[id];
+            let index = node.0.par_iter().position_first(|x| *x == vector_id);
 
             if let Some(index) = index {
                 node.set(index, &INVALID);

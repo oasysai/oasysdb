@@ -20,11 +20,9 @@ fn insert() {
     let new_record = Record::random(DIMENSION);
     collection.insert(&new_record).unwrap();
 
+    // Assert the new record is in the collection.
     assert_eq!(collection.len(), LEN + 1);
-
-    // Assert the new data is in the collection.
-    let id: VectorID = LEN.into();
-    assert_eq!(collection.get(&id).unwrap().data, new_record.data);
+    assert_eq!(collection.get(LEN).unwrap().data, new_record.data);
 }
 
 #[test]
@@ -35,9 +33,8 @@ fn insert_invalid_dimension() {
     // Create a new record with an invalid dimension.
     let new_record = Record::random(DIMENSION + 1);
 
-    assert_eq!(collection.dimension(), DIMENSION);
-
     // Assert the new record is not inserted.
+    assert_eq!(collection.dimension(), DIMENSION);
     assert_eq!(collection.insert(&new_record).is_err(), true);
 }
 
@@ -53,11 +50,9 @@ fn insert_data_type_object() {
 
     collection.insert(&new_record).unwrap();
 
-    assert_eq!(collection.len(), LEN + 1);
-
     // Assert the new data is in the collection.
-    let id: VectorID = LEN.into();
-    assert_eq!(collection.get(&id).unwrap().data, data.into());
+    assert_eq!(collection.len(), LEN + 1);
+    assert_eq!(collection.get(LEN).unwrap().data, data.into());
 }
 
 #[test]
@@ -66,9 +61,7 @@ fn delete() {
     let mut collection = create_collection(&records);
 
     // Delete a record from the collection.
-    let id = VectorID(1);
-    collection.delete(&id).unwrap();
-
+    collection.delete(0).unwrap();
     assert_eq!(collection.len(), LEN - 1);
 }
 
@@ -78,12 +71,12 @@ fn update() {
     let mut collection = create_collection(&records);
 
     // New record to update.
-    let id = VectorID(5);
+    let id = 5;
     let record = Record::random(DIMENSION);
-    collection.update(&id, &record).unwrap();
+    collection.update(id, &record).unwrap();
 
     assert_eq!(collection.len(), LEN);
-    assert_eq!(collection.get(&id).unwrap().data, record.data);
+    assert_eq!(collection.get(id).unwrap().data, record.data);
 }
 
 #[test]
@@ -115,9 +108,9 @@ fn get() {
     let collection = create_collection(&records);
 
     // Get a record from the collection.
-    let id = VectorID(5);
-    let record = collection.get(&id).unwrap();
+    let id = 5;
+    let record = collection.get(id).unwrap();
 
-    assert_eq!(record.data, records[5].data);
-    assert_eq!(record.vector, records[5].vector);
+    assert_eq!(record.data, records[id].data);
+    assert_eq!(record.vector, records[id].vector);
 }

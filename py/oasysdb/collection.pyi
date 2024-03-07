@@ -106,25 +106,25 @@ class Collection:
         - record (Record): Record to insert.
         """
 
-    def delete(self, id: VectorID) -> None:
+    def delete(self, id: int) -> None:
         """Deletes a record from the collection.
 
         Args:
-        - id (VectorID): Vector ID to delete.
+        - id (int): Vector ID to delete.
         """
 
-    def get(self, id: VectorID) -> Record:
+    def get(self, id: int) -> Record:
         """Returns a record from the collection.
 
         Args:
-        - id (VectorID): Vector ID to fetch.
+        - id (int): Vector ID to fetch.
         """
 
-    def update(self, id: VectorID, record: Record) -> None:
+    def update(self, id: int, record: Record) -> None:
         """Updates a record in the collection.
 
         Args:
-        - id (VectorID): Vector ID to update.
+        - id (int): Vector ID to update.
         - record (Record): New record.
         """
 
@@ -134,5 +134,5 @@ class Collection:
     def is_empty(self) -> bool:
         """Returns True if the collection is empty."""
 
-    def contains(self, id: VectorID) -> bool:
+    def contains(self, id: int) -> bool:
         """Returns True if the vector ID is in the collection."""
