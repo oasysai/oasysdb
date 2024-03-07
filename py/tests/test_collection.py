@@ -129,3 +129,21 @@ def test_search_collection():
     # Make sure the first result of the approximate search
     # is somewhere in the true results.
     assert results[0].id in [true.id for true in true_results]
+
+
+def test_set_collection_dimension():
+    config = Config.create_default()
+    collection = Collection(config=config)
+
+    # Set the collection dimension to 100.
+    collection.set_dimension(100)
+    assert collection.dimension() == 100
+
+    # When inserting a record with a different dimension,
+    # the collection should raise an exception.
+    try:
+        record = Record.random(dimension=128)
+        collection.insert(record)
+        assert False
+    except Exception as e:
+        assert "invalid vector dimension" in str(e).lower()

@@ -365,6 +365,23 @@ impl Collection {
         Ok(nearest)
     }
 
+    /// Returns the configured vector dimension of the collection.
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Sets the vector dimension of the collection.
+    /// * `dimension`: New vector dimension.
+    pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
+        // This can only be set if the collection is empty.
+        if !self.vectors.is_empty() {
+            return Err("The collection must be empty.".into());
+        }
+
+        self.dimension = dimension;
+        Ok(())
+    }
+
     /// Returns the number of vector records in the collection.
     pub fn len(&self) -> usize {
         self.count
@@ -523,23 +540,6 @@ impl Collection {
             config: *config,
             count: records.len(),
         })
-    }
-
-    /// Returns the configured vector dimension of the collection.
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    /// Sets the vector dimension of the collection.
-    /// * `dimension`: New vector dimension.
-    pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
-        // This can only be set if the collection is empty.
-        if !self.vectors.is_empty() {
-            return Err("The collection must be empty.".into());
-        }
-
-        self.dimension = dimension;
-        Ok(())
     }
 
     /// Validates a vector dimension against the collection's.

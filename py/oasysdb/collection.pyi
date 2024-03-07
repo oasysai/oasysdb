@@ -145,6 +145,17 @@ class Collection:
         - n (int): Number of neighbors to return.
         """
 
+    def dimension(self) -> int:
+        """Returns the configured vector dimension in the collection."""
+
+    def set_dimension(self, dimension: int) -> None:
+        """Sets the vector dimension of the collection.
+        The collection must be empty to do this.
+
+        Args:
+        - dimension (int): Vector dimension.
+        """
+
     def len(self) -> int:
         """Returns the number of records in the collection."""
 
