@@ -86,11 +86,11 @@ fn search() {
     let collection = create_collection(&records);
 
     // Generate a random query vector.
-    let query = Vector::random(DIMENSION);
+    let query = Vector::random(DIMENSION).0;
 
     // Get the approximate and true nearest neighbors.
-    let result = collection.search(&query, 5).unwrap();
-    let truth = collection.true_search(&query, 10).unwrap();
+    let result = collection.search(query.clone(), 5).unwrap();
+    let truth = collection.true_search(query, 10).unwrap();
 
     // Collect the distances from the true nearest neighbors.
     let distances: Vec<f32> = truth.par_iter().map(|i| i.distance).collect();

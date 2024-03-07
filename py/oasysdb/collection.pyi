@@ -1,7 +1,7 @@
 # flake8: noqa F821
 
 from typing import Any, List
-from oasysdb.vector import VectorID
+from oasysdb.vector import Vector
 
 
 class Config:
@@ -128,6 +128,23 @@ class Collection:
         - record (Record): New record.
         """
 
+    def search(self, vector: List[float], n: int) -> List[SearchResult]:
+        """Searches for the nearest neighbors to
+        the given vector using HNSW indexing algorithm
+
+        Args:
+        - vector (List[float]): Vector to search.
+        - n (int): Number of neighbors to return.
+        """
+
+    def true_search(self, vector: List[float], n: int) -> List[SearchResult]:
+        """Searches for the nearest neighbors using brute force.
+
+        Args:
+        - vector (List[float]): Vector to search.
+        - n (int): Number of neighbors to return.
+        """
+
     def len(self) -> int:
         """Returns the number of records in the collection."""
 
@@ -136,3 +153,11 @@ class Collection:
 
     def contains(self, id: int) -> bool:
         """Returns True if the vector ID is in the collection."""
+
+
+class SearchResult:
+    """The result of a search operation on the collection."""
+
+    id: int
+    distance: float
+    data: Any

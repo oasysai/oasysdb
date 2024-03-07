@@ -50,7 +50,7 @@ fn main() {
         db.create_collection("vectors", None, Some(&records)).unwrap();
 
     // Search for the nearest neighbors.
-    let result = collection.search(&query, 5).unwrap();
+    let result = collection.search(query.into(), 5).unwrap();
     println!("Nearest ID: {}", result[0].id);
 }
 ```

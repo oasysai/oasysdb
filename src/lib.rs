@@ -49,6 +49,7 @@ fn collection_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<collection::Config>()?;
     m.add_class::<collection::Record>()?;
     m.add_class::<collection::Collection>()?;
+    m.add_class::<collection::SearchResult>()?;
     Ok(())
 }
 

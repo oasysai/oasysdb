@@ -1,4 +1,5 @@
 from oasysdb.collection import Config, Record, Collection
+from oasysdb.vector import Vector
 
 DIMENSION = 128
 LEN = 100
@@ -111,3 +112,20 @@ def test_update_record():
 
     assert collection.contains(id)
     assert collection.get(id).data == record.data
+
+
+def test_search_collection():
+    collection = create_test_collection()
+    vector = Vector.random(dimension=DIMENSION).to_list()
+    n = 10
+
+    # Search for approximate neighbors and true neighbors.
+    results = collection.search(vector, n=n)
+    true_results = collection.true_search(vector, n=n)
+
+    assert len(results) == n
+    assert len(true_results) == n
+
+    # Make sure the first result of the approximate search
+    # is somewhere in the true results.
+    assert results[0].id in [true.id for true in true_results]

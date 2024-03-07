@@ -111,3 +111,9 @@ impl From<&Vec<f32>> for Vector {
         Vector(vec.clone())
     }
 }
+
+impl From<Vector> for Vec<f32> {
+    fn from(vector: Vector) -> Self {
+        vector.0
+    }
+}
