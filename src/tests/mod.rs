@@ -22,5 +22,5 @@ fn create_test_database(path: &str) -> Database {
 
 fn create_collection(records: Vec<Record>) -> Collection {
     let config = Config::default();
-    Collection::build(&config, records).unwrap()
+    Collection::build(config, records).unwrap()
 }

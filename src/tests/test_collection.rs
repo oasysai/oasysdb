@@ -15,7 +15,7 @@ fn insert() {
 
     // Create a new record to insert.
     let new_record = Record::random(DIMENSION);
-    collection.insert(&new_record).unwrap();
+    collection.insert(new_record.clone()).unwrap();
 
     // Assert the new record is in the collection.
     assert_eq!(collection.len(), LEN + 1);
@@ -32,7 +32,7 @@ fn insert_invalid_dimension() {
 
     // Assert the new record is not inserted.
     assert_eq!(collection.dimension(), DIMENSION);
-    assert_eq!(collection.insert(&new_record).is_err(), true);
+    assert_eq!(collection.insert(new_record).is_err(), true);
 }
 
 #[test]
@@ -43,9 +43,9 @@ fn insert_data_type_object() {
     // Create a new record with a data of type HashMap.
     let vector = Vector::random(DIMENSION);
     let data = HashMap::from([("key", "value")]);
-    let new_record = Record::new(&vector, &data.clone().into());
+    let new_record = Record::new(vector, data.clone().into());
 
-    collection.insert(&new_record).unwrap();
+    collection.insert(new_record).unwrap();
 
     // Assert the new data is in the collection.
     assert_eq!(collection.len(), LEN + 1);
@@ -70,7 +70,7 @@ fn update() {
     // New record to update.
     let id = 5;
     let record = Record::random(DIMENSION);
-    collection.update(id, &record).unwrap();
+    collection.update(id, record.clone()).unwrap();
 
     assert_eq!(collection.len(), LEN);
     assert_eq!(collection.get(id).unwrap().data, record.data);

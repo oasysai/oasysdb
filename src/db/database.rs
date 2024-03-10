@@ -43,7 +43,7 @@ impl Database {
     pub fn create_collection(
         &mut self,
         name: &str,
-        config: Option<&Config>,
+        config: Option<Config>,
         records: Option<Vec<Record>>,
     ) -> Result<Collection, Error> {
         // This prevents the variable from being dropped.
@@ -51,7 +51,7 @@ impl Database {
 
         let config = match config {
             Some(config) => config,
-            None => &default_config,
+            None => default_config,
         };
 
         // Create new or build a collection.

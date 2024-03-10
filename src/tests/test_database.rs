@@ -30,8 +30,8 @@ fn save_collection_new() {
 
     // Create a collection from scratch.
     let config = Config::default();
-    let mut collection = Collection::new(&config);
-    collection.insert(&Record::random(DIMENSION)).unwrap();
+    let mut collection = Collection::new(config);
+    collection.insert(Record::random(DIMENSION)).unwrap();
 
     db.save_collection("new", &collection).unwrap();
     assert_eq!(collection.len(), 1);
@@ -44,7 +44,7 @@ fn save_collection_update() {
 
     // Update the collection.
     let mut collection = db.get_collection(NAME).unwrap();
-    collection.insert(&Record::random(DIMENSION)).unwrap();
+    collection.insert(Record::random(DIMENSION)).unwrap();
 
     db.save_collection(NAME, &collection).unwrap();
     assert_eq!(collection.len(), LEN + 1);

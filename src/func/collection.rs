@@ -164,9 +164,9 @@ impl Index<&VectorID> for Collection {
 impl Collection {
     /// Creates an empty collection with the given configuration.
     #[new]
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
-            config: *config,
+            config,
             count: 0,
             dimension: 0,
             data: HashMap::new(),
@@ -181,7 +181,7 @@ impl Collection {
     /// Builds the collection index from vector records.
     /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
-    pub fn build(config: &Config, records: Vec<Record>) -> Result<Self, Error> {
+    pub fn build(config: Config, records: Vec<Record>) -> Result<Self, Error> {
         if records.is_empty() {
             return Ok(Self::new(config));
         }
@@ -270,7 +270,7 @@ impl Collection {
             search_pool,
             top_layer,
             vectors: &vectors,
-            config,
+            config: &config,
         };
 
         // Initialize data for layers.
@@ -311,14 +311,14 @@ impl Collection {
             upper_layers,
             slots,
             dimension,
-            config: *config,
+            config,
             count: records.len(),
         })
     }
 
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
-    pub fn insert(&mut self, record: &Record) -> Result<(), Error> {
+    pub fn insert(&mut self, record: Record) -> Result<(), Error> {
         // Ensure the number of records is within the limit.
         if self.slots.len() == u32::MAX as usize {
             return Err(Error::collection_limit());
@@ -388,13 +388,13 @@ impl Collection {
         let vector_id = VectorID(id as u32);
         let vector = self.vectors[&vector_id].clone();
         let data = self.data[&vector_id].clone();
-        Ok(Record::new(&vector, &data))
+        Ok(Record::new(vector, data))
     }
 
     /// Updates a vector record in the collection.
     /// * `id`: Vector ID to update.
     /// * `record`: New vector record.
-    pub fn update(&mut self, id: usize, record: &Record) -> Result<(), Error> {
+    pub fn update(&mut self, id: usize, record: Record) -> Result<(), Error> {
         if !self.contains(id) {
             return Err(Error::record_not_found());
         }
@@ -629,7 +629,7 @@ impl Record {
     fn py_new(vector: Vec<f32>, data: &PyAny) -> Self {
         let vector = Vector::from(vector);
         let data = Metadata::from(data);
-        Self::new(&vector, &data)
+        Self::new(vector, data)
     }
 
     /// Generates a random record for testing.
@@ -638,7 +638,7 @@ impl Record {
     pub fn random(dimension: usize) -> Self {
         let vector = Vector::random(dimension);
         let data = random::<usize>().into();
-        Self::new(&vector, &data)
+        Self::new(vector, data)
     }
 
     /// Generates many random records for testing.
@@ -656,8 +656,8 @@ impl Record {
 
 impl Record {
     /// Creates a new record with a vector and data.
-    pub fn new(vector: &Vector, data: &Metadata) -> Self {
-        Self { vector: vector.clone(), data: data.clone() }
+    pub fn new(vector: Vector, data: Metadata) -> Self {
+        Self { vector, data }
     }
 }
 

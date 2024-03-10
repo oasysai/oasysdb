@@ -13,7 +13,7 @@ fn main() {
     // Build the vector collection.
     let records = Record::many_random(dimension, len);
     let config = Config::default();
-    Collection::build(&config, records).unwrap();
+    Collection::build(config, records).unwrap();
 
     // Measure the memory usage.
     let memory = allocated::read().unwrap();
