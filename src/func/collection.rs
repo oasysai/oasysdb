@@ -178,9 +178,142 @@ impl Collection {
     }
 
     #[staticmethod]
-    fn from_records(config: &Config, records: Vec<Record>) -> PyResult<Self> {
-        let collection = Collection::build(config, &records)?;
-        Ok(collection)
+    /// Builds the collection index from vector records.
+    /// * `config`: Collection configuration.
+    /// * `records`: List of vectors to build the index from.
+    pub fn build(config: &Config, records: Vec<Record>) -> Result<Self, Error> {
+        if records.is_empty() {
+            return Ok(Self::new(config));
+        }
+
+        // Ensure the number of records is within the limit.
+        if records.len() >= u32::MAX as usize {
+            let message = format!(
+                "The collection record limit is {}. Given: {}",
+                u32::MAX,
+                records.len()
+            );
+
+            return Err(message.into());
+        }
+
+        // Ensure that the vector dimension is consistent.
+        let dimension = records[0].vector.len();
+        if records.par_iter().any(|i| i.vector.len() != dimension) {
+            let message = format!(
+                "The vector dimension is inconsistent. Expected: {}.",
+                dimension
+            );
+
+            return Err(message.into());
+        }
+
+        // Find the number of layers.
+
+        let mut len = records.len();
+        let mut layers = Vec::new();
+
+        loop {
+            let next = (len as f32 * config.ml) as usize;
+
+            if next < M {
+                break;
+            }
+
+            layers.push((len - next, len));
+            len = next;
+        }
+
+        layers.push((len, len));
+        layers.reverse();
+
+        let num_layers = layers.len();
+        let top_layer = LayerID(num_layers - 1);
+
+        // Give all vectors a random layer and sort the list of nodes
+        // by descending order for construction.
+
+        // This allows us to copy higher layers to lower layers as
+        // construction progresses, while preserving randomness in
+        // each point's layer and insertion order.
+
+        let vectors = records
+            .par_iter()
+            .enumerate()
+            .map(|(i, item)| (i.into(), item.vector.clone()))
+            .collect::<HashMap<VectorID, Vector>>();
+
+        // Figure out how many nodes will go on each layer.
+        // This helps us allocate memory capacity for each
+        // layer in advance, and also helps enable batch
+        // insertion of points.
+
+        let mut ranges = Vec::with_capacity(top_layer.0);
+        for (i, (size, cumulative)) in layers.into_iter().enumerate() {
+            let start = cumulative - size;
+            let layer_id = LayerID(num_layers - i - 1);
+            let value = max(start, 1)..cumulative;
+            ranges.push((layer_id, value));
+        }
+
+        // Create index constructor.
+
+        let search_pool = SearchPool::new(vectors.len());
+        let mut upper_layers = vec![vec![]; top_layer.0];
+        let base_layer = vectors
+            .par_iter()
+            .map(|_| RwLock::new(BaseNode::default()))
+            .collect::<Vec<_>>();
+
+        let state = IndexConstruction {
+            base_layer: &base_layer,
+            search_pool,
+            top_layer,
+            vectors: &vectors,
+            config,
+        };
+
+        // Initialize data for layers.
+
+        for (layer, range) in ranges {
+            let end = range.end;
+
+            range.into_par_iter().for_each(|i: usize| {
+                state.insert(&i.into(), &layer, &upper_layers)
+            });
+
+            // Copy the base layer state to the upper layer.
+            if !layer.is_zero() {
+                (&state.base_layer[..end])
+                    .into_par_iter()
+                    .map(|zero| UpperNode::from_zero(&zero.read()))
+                    .collect_into_vec(&mut upper_layers[layer.0 - 1]);
+            }
+        }
+
+        let data = records
+            .iter()
+            .enumerate()
+            .map(|(i, item)| (i.into(), item.data.clone()))
+            .collect();
+
+        // Unwrap the base nodes for the base layer.
+        let base_iter = base_layer.into_par_iter();
+        let base_layer = base_iter.map(|node| node.into_inner()).collect();
+
+        // Add IDs to the slots.
+        let slots = (0..vectors.len()).map(|i| i.into()).collect();
+
+        Ok(Self {
+            data,
+            vectors,
+            base_layer,
+            upper_layers,
+            slots,
+            dimension,
+            config: *config,
+            count: records.len(),
+        })
     }
 
     /// Inserts a vector record into the collection.
@@ -404,144 +537,6 @@ impl Collection {
 }
 
 impl Collection {
-    /// Builds the collection index from vector records.
-    /// * `config`: Collection configuration.
-    /// * `records`: List of vectors to build the index from.
-    pub fn build(config: &Config, records: &[Record]) -> Result<Self, Error> {
-        if records.is_empty() {
-            return Ok(Self::new(config));
-        }
-
-        // Ensure the number of records is within the limit.
-        if records.len() >= u32::MAX as usize {
-            let message = format!(
-                "The collection record limit is {}. Given: {}",
-                u32::MAX,
-                records.len()
-            );
-
-            return Err(message.into());
-        }
-
-        // Ensure that the vector dimension is consistent.
-        let dimension = records[0].vector.len();
-        if records.par_iter().any(|i| i.vector.len() != dimension) {
-            let message = format!(
-                "The vector dimension is inconsistent. Expected: {}.",
-                dimension
-            );
-
-            return Err(message.into());
-        }
-
-        // Find the number of layers.
-
-        let mut len = records.len();
-        let mut layers = Vec::new();
-
-        loop {
-            let next = (len as f32 * config.ml) as usize;
-
-            if next < M {
-                break;
-            }
-
-            layers.push((len - next, len));
-            len = next;
-        }
-
-        layers.push((len, len));
-        layers.reverse();
-
-        let num_layers = layers.len();
-        let top_layer = LayerID(num_layers - 1);
-
-        // Give all vectors a random layer and sort the list of nodes
-        // by descending order for construction.
-
-        // This allows us to copy higher layers to lower layers as
-        // construction progresses, while preserving randomness in
-        // each point's layer and insertion order.
-
-        let vectors = records
-            .par_iter()
-            .enumerate()
-            .map(|(i, item)| (i.into(), item.vector.clone()))
-            .collect::<HashMap<VectorID, Vector>>();
-
-        // Figure out how many nodes will go on each layer.
-        // This helps us allocate memory capacity for each
-        // layer in advance, and also helps enable batch
-        // insertion of points.
-
-        let mut ranges = Vec::with_capacity(top_layer.0);
-        for (i, (size, cumulative)) in layers.into_iter().enumerate() {
-            let start = cumulative - size;
-            let layer_id = LayerID(num_layers - i - 1);
-            let value = max(start, 1)..cumulative;
-            ranges.push((layer_id, value));
-        }
-
-        // Create index constructor.
-
-        let search_pool = SearchPool::new(vectors.len());
-        let mut upper_layers = vec![vec![]; top_layer.0];
-        let base_layer = vectors
-            .par_iter()
-            .map(|_| RwLock::new(BaseNode::default()))
-            .collect::<Vec<_>>();
-
-        let state = IndexConstruction {
-            base_layer: &base_layer,
-            search_pool,
-            top_layer,
-            vectors: &vectors,
-            config,
-        };
-
-        // Initialize data for layers.
-
-        for (layer, range) in ranges {
-            let end = range.end;
-
-            range.into_par_iter().for_each(|i: usize| {
-                state.insert(&i.into(), &layer, &upper_layers)
-            });
-
-            // Copy the base layer state to the upper layer.
-            if !layer.is_zero() {
-                (&state.base_layer[..end])
-                    .into_par_iter()
-                    .map(|zero| UpperNode::from_zero(&zero.read()))
-                    .collect_into_vec(&mut upper_layers[layer.0 - 1]);
-            }
-        }
-
-        let data = records
-            .iter()
-            .enumerate()
-            .map(|(i, item)| (i.into(), item.data.clone()))
-            .collect();
-
-        // Unwrap the base nodes for the base layer.
-        let base_iter = base_layer.into_par_iter();
-        let base_layer = base_iter.map(|node| node.into_inner()).collect();
-
-        // Add IDs to the slots.
-        let slots = (0..vectors.len()).map(|i| i.into()).collect();
-
-        Ok(Self {
-            data,
-            vectors,
-            base_layer,
-            upper_layers,
-            slots,
-            dimension,
-            config: *config,
-            count: records.len(),
-        })
-    }
-
     /// Validates a vector dimension against the collection's.
     fn validate_dimension(&self, vector: &Vector) -> Result<(), Error> {
         let found = vector.len();

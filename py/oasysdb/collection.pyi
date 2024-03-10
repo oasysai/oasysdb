@@ -81,11 +81,11 @@ class Collection:
     def __init__(self, config: Config) -> None: ...
 
     @staticmethod
-    def from_records(
+    def build(
         config: Config,
         records: List[Record],
     ) -> Collection:
-        """Creates a collection from the given records.
+        """Build a collection from the given records.
 
         Args:
         - config (Config): Collection configuration.

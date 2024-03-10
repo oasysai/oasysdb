@@ -56,7 +56,7 @@ impl Database {
 
         // Create new or build a collection.
         let collection = match records {
-            Some(records) => Collection::build(config, &records)?,
+            Some(records) => Collection::build(config, records)?,
             None => Collection::new(config),
         };
 

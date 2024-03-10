@@ -9,7 +9,7 @@ def create_test_collection() -> Collection:
     """Creates a collection with random records for testing."""
     records = Record.many_random(dimension=DIMENSION, len=LEN)
     config = Config.create_default()
-    collection = Collection.from_records(config=config, records=records)
+    collection = Collection.build(config=config, records=records)
 
     assert collection.len() == len(records)
     return collection
@@ -53,7 +53,7 @@ def test_create_collection():
     assert collection.is_empty()
 
 
-def test_create_collection_from_records():
+def test_build_collection():
     collection = create_test_collection()
     assert collection.contains(0)
     assert not collection.is_empty()

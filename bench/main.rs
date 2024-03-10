@@ -7,7 +7,7 @@ use utils::*;
 fn build_collection(path: &str) -> Collection {
     let records = get_records(path).unwrap();
     let config = Config::default();
-    Collection::build(&config, &records).unwrap()
+    Collection::build(&config, records).unwrap()
 }
 
 fn bench_search_collection(criterion: &mut Criterion) {

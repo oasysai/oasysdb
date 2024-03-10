@@ -4,14 +4,14 @@ use super::*;
 fn build_large() {
     let len = 10000;
     let records = Record::many_random(DIMENSION, len);
-    let collection = create_collection(&records);
+    let collection = create_collection(records);
     assert_eq!(collection.len(), len);
 }
 
 #[test]
 fn insert() {
     let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(&records);
+    let mut collection = create_collection(records);
 
     // Create a new record to insert.
     let new_record = Record::random(DIMENSION);
@@ -25,7 +25,7 @@ fn insert() {
 #[test]
 fn insert_invalid_dimension() {
     let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(&records);
+    let mut collection = create_collection(records);
 
     // Create a new record with an invalid dimension.
     let new_record = Record::random(DIMENSION + 1);
@@ -38,7 +38,7 @@ fn insert_invalid_dimension() {
 #[test]
 fn insert_data_type_object() {
     let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(&records);
+    let mut collection = create_collection(records);
 
     // Create a new record with a data of type HashMap.
     let vector = Vector::random(DIMENSION);
@@ -55,7 +55,7 @@ fn insert_data_type_object() {
 #[test]
 fn delete() {
     let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(&records);
+    let mut collection = create_collection(records);
 
     // Delete a record from the collection.
     collection.delete(0).unwrap();
@@ -65,7 +65,7 @@ fn delete() {
 #[test]
 fn update() {
     let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(&records);
+    let mut collection = create_collection(records);
 
     // New record to update.
     let id = 5;
@@ -80,7 +80,7 @@ fn update() {
 fn search() {
     let len = 1000;
     let records = Record::many_random(DIMENSION, len);
-    let collection = create_collection(&records);
+    let collection = create_collection(records);
 
     // Generate a random query vector.
     let query = Vector::random(DIMENSION).0;
@@ -102,7 +102,7 @@ fn search() {
 #[test]
 fn get() {
     let records = Record::many_random(DIMENSION, LEN);
-    let collection = create_collection(&records);
+    let collection = create_collection(records.clone());
 
     // Get a record from the collection.
     let id = 5;

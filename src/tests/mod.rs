@@ -20,7 +20,7 @@ fn create_test_database(path: &str) -> Database {
     db
 }
 
-fn create_collection(records: &[Record]) -> Collection {
+fn create_collection(records: Vec<Record>) -> Collection {
     let config = Config::default();
-    Collection::build(&config, &records).unwrap()
+    Collection::build(&config, records).unwrap()
 }
