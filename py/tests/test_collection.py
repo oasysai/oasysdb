@@ -40,8 +40,7 @@ def test_generate_random_record():
 
 
 def test_generate_many_random_records():
-    dimension = 128
-    records = Record.many_random(dimension=dimension, len=LEN)
+    records = Record.many_random(dimension=DIMENSION, len=LEN)
     assert len(records) == LEN
 
 
@@ -114,7 +113,7 @@ def test_update_record():
     assert collection.get(id).data == record.data
 
 
-def test_search_collection():
+def test_search_record():
     collection = create_test_collection()
     vector = Vector.random(dimension=DIMENSION).to_list()
     n = 10
@@ -131,7 +130,7 @@ def test_search_collection():
     assert results[0].id in [true.id for true in true_results]
 
 
-def test_set_collection_dimension():
+def test_set_dimension():
     config = Config.create_default()
     collection = Collection(config=config)
 

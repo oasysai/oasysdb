@@ -21,12 +21,12 @@ def create_test_database(path: str) -> Database:
     return db
 
 
-def test_open_database():
+def test_open():
     db = Database(path="data/101")
     assert db.is_empty()
 
 
-def test_new_database():
+def test_new():
     db = create_test_database(path="data/102")
     assert not db.is_empty()
     assert db.len() == 1
