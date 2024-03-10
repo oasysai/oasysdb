@@ -10,6 +10,7 @@ pub mod vector;
 // Internal modules.
 mod utils;
 
+use err::*;
 use metadata::*;
 use utils::*;
 use vector::*;
@@ -17,13 +18,13 @@ use vector::*;
 // External dependencies.
 use ordered_float::OrderedFloat;
 use parking_lot::*;
+use pyo3::prelude::*;
 use rand::random;
 use rayon::iter::*;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use std::cmp::*;
 use std::collections::{BinaryHeap, HashMap};
-use std::error::Error;
 use std::ops::{Deref, Index};
 
 // This code is inspired by the HNSW implementation in the

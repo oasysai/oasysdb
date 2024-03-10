@@ -1,16 +1,19 @@
 use super::*;
 
 /// The database storing vector collections.
+#[pyclass(module = "oasysdb.database")]
 pub struct Database {
     collections: Db,
     count: usize,
 }
 
+#[pymethods]
 impl Database {
     /// Re-creates and opens the database at the given path.
     /// This method will delete the database if it exists.
     /// * `path` - Directory to store the database.
-    pub fn new(path: &str) -> Result<Self, Box<dyn Error>> {
+    #[staticmethod]
+    pub fn new(path: &str) -> Result<Self, Error> {
         // Remove the database dir if it exists.
         if Path::new(path).exists() {
             remove_dir_all(path)?;
@@ -26,7 +29,8 @@ impl Database {
     /// Opens existing or creates new database.
     /// If the database doesn't exist, it will be created.
     /// * `path` - Directory to store the database.
-    pub fn open(path: &str) -> Result<Self, Box<dyn Error>> {
+    #[new]
+    pub fn open(path: &str) -> Result<Self, Error> {
         let collections = sled::open(path)?;
         let count = collections.len();
         Ok(Self { collections, count })
@@ -39,15 +43,15 @@ impl Database {
     pub fn create_collection(
         &mut self,
         name: &str,
-        config: Option<&Config>,
-        records: Option<&[Record]>,
-    ) -> Result<Collection, Box<dyn Error>> {
+        config: Option<Config>,
+        records: Option<Vec<Record>>,
+    ) -> Result<Collection, Error> {
         // This prevents the variable from being dropped.
         let default_config = Config::default();
 
         let config = match config {
             Some(config) => config,
-            None => &default_config,
+            None => default_config,
         };
 
         // Create new or build a collection.
@@ -62,14 +66,11 @@ impl Database {
 
     /// Gets a collection from the database.
     /// * `name` - Name of the collection.
-    pub fn get_collection(
-        &self,
-        name: &str,
-    ) -> Result<Collection, Box<dyn Error>> {
+    pub fn get_collection(&self, name: &str) -> Result<Collection, Error> {
         let value = self.collections.get(name)?;
         match value {
             Some(value) => Ok(bincode::deserialize(&value)?),
-            None => Err(err::COLLECTION_NOT_FOUND.into()),
+            None => Err(Error::collection_not_found()),
         }
     }
 
@@ -80,7 +81,7 @@ impl Database {
         &mut self,
         name: &str,
         collection: &Collection,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut new = false;
 
         // Check if it's a new collection.
@@ -101,10 +102,7 @@ impl Database {
 
     /// Deletes a collection from the database.
     /// * `name` - Collection name to delete.
-    pub fn delete_collection(
-        &mut self,
-        name: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn delete_collection(&mut self, name: &str) -> Result<(), Error> {
         self.collections.remove(name)?;
         self.count -= 1;
         Ok(())
@@ -118,5 +116,9 @@ impl Database {
     /// Returns true if the database is empty.
     pub fn is_empty(&self) -> bool {
         self.count == 0
+    }
+
+    fn __len__(&self) -> usize {
+        self.len()
     }
 }

@@ -9,6 +9,8 @@ target
 __pycache__
 .pytest_cache
 .venv
+*.so
+*.py[cod]
 
 # Benchmarking.
 *.ivecs

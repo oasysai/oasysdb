@@ -41,16 +41,15 @@ fn main() {
     let dimension = 128;
 
     // Replace with your own data.
-    let records = Record::many_random(dimension, 100);
+    let records = Some(Record::many_random(dimension, 100));
     let query = Vector::random(dimension);
 
     // Open the database and create a collection.
-    let mut db = Database::open("data/readme").unwrap();
-    let collection =
-        db.create_collection("vectors", None, Some(&records)).unwrap();
+    let mut db = Database::open("data/test").unwrap();
+    let collection = db.create_collection("vectors", None, records).unwrap();
 
     // Search for the nearest neighbors.
-    let result = collection.search(&query, 5).unwrap();
+    let result = collection.search(query.into(), 5).unwrap();
     println!("Nearest ID: {}", result[0].id);
 }
 ```
@@ -66,7 +65,7 @@ fn main() {
     // Inserting a metadata value into a record.
     let data: &str = "This is an example.";
     let vector = Vector::random(128);
-    let record = Record::new(&vector, &data.into());
+    let record = Record::new(vector, data.into());
 
     // Extracting the metadata value.
     let metadata = record.data.clone();

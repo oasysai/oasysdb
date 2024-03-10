@@ -1,14 +1,39 @@
 use super::*;
 
 /// The collection HNSW index configuration.
+#[pyclass(module = "oasysdb.collection")]
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Config {
     /// Nodes to consider during construction.
+    #[pyo3(get, set)]
     pub ef_construction: usize,
     /// Nodes to consider during search.
+    #[pyo3(get, set)]
     pub ef_search: usize,
     /// Layer multiplier. The optimal value is `1/ln(M)`.
+    #[pyo3(get, set)]
     pub ml: f32,
+}
+
+// Any modifications to this methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
+#[pymethods]
+impl Config {
+    /// Creates a new collection config with the given parameters.
+    #[new]
+    pub fn new(ef_construction: usize, ef_search: usize, ml: f32) -> Self {
+        Self { ef_construction, ef_search, ml }
+    }
+
+    #[staticmethod]
+    fn create_default() -> Self {
+        Self::default()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl Default for Config {
@@ -107,9 +132,11 @@ impl<'a> IndexConstruction<'a> {
 }
 
 /// The collection of vector records with HNSW indexing.
-#[derive(Debug, Serialize, Deserialize)]
+#[pyclass(module = "oasysdb.collection")]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Collection {
     /// The collection configuration object.
+    #[pyo3(get)]
     pub config: Config,
     // Private fields below.
     data: HashMap<VectorID, Metadata>,
@@ -129,11 +156,17 @@ impl Index<&VectorID> for Collection {
     }
 }
 
+// This exposes Collection methods to Python.
+// Any modifications to these methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
+#[pymethods]
 impl Collection {
     /// Creates an empty collection with the given configuration.
-    pub fn new(config: &Config) -> Self {
+    #[new]
+    pub fn new(config: Config) -> Self {
         Self {
-            config: *config,
+            config,
             count: 0,
             dimension: 0,
             data: HashMap::new(),
@@ -144,13 +177,11 @@ impl Collection {
         }
     }
 
+    #[staticmethod]
     /// Builds the collection index from vector records.
     /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
-    pub fn build(
-        config: &Config,
-        records: &[Record],
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn build(config: Config, records: Vec<Record>) -> Result<Self, Error> {
         if records.is_empty() {
             return Ok(Self::new(config));
         }
@@ -239,7 +270,7 @@ impl Collection {
             search_pool,
             top_layer,
             vectors: &vectors,
-            config,
+            config: &config,
         };
 
         // Initialize data for layers.
@@ -280,17 +311,17 @@ impl Collection {
             upper_layers,
             slots,
             dimension,
-            config: *config,
+            config,
             count: records.len(),
         })
     }
 
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
-    pub fn insert(&mut self, record: &Record) -> Result<(), Box<dyn Error>> {
+    pub fn insert(&mut self, record: Record) -> Result<(), Error> {
         // Ensure the number of records is within the limit.
         if self.slots.len() == u32::MAX as usize {
-            return Err(err::COLLECTION_LIMIT.into());
+            return Err(Error::collection_limit());
         }
 
         // Ensure the vector dimension matches the collection config.
@@ -298,12 +329,9 @@ impl Collection {
         if self.vectors.is_empty() && self.dimension == 0 {
             self.dimension = record.vector.len();
         } else if record.vector.len() != self.dimension {
-            let message = format!(
-                "Invalid vector dimension. Expected dimension of {}.",
-                self.dimension
-            );
-
-            return Err(message.into());
+            let len = record.vector.len();
+            let err = Error::invalid_dimension(len, self.dimension);
+            return Err(err);
         }
 
         // Create a new vector ID using the next available slot.
@@ -321,25 +349,28 @@ impl Collection {
 
         // This operation is last because it depends on
         // the updated vectors data.
-        self.insert_to_layers(&id);
+        self.insert_to_layers(id.0 as usize);
 
         Ok(())
     }
 
     /// Deletes a vector record from the collection.
     /// * `id`: Vector ID to delete.
-    pub fn delete(&mut self, id: &VectorID) -> Result<(), Box<dyn Error>> {
+    pub fn delete(&mut self, id: usize) -> Result<(), Error> {
         // Ensure the vector ID exists in the collection.
         if !self.contains(id) {
-            return Err(err::RECORD_NOT_FOUND.into());
+            return Err(Error::record_not_found());
         }
 
         self.delete_from_layers(id);
 
         // Update the collection data.
-        self.vectors.remove(id);
-        self.data.remove(id);
-        self.slots[id.0 as usize] = INVALID;
+        let vector_id = VectorID(id as u32);
+        self.vectors.remove(&vector_id);
+        self.data.remove(&vector_id);
+
+        // Make the slot invalid so it won't be used again.
+        self.slots[id] = INVALID;
 
         // Update the collection count.
         self.count -= 1;
@@ -347,39 +378,40 @@ impl Collection {
         Ok(())
     }
 
+    /// Returns the vector record associated with the ID.
+    /// * `id`: Vector ID to retrieve.
+    pub fn get(&self, id: usize) -> Result<Record, Error> {
+        if !self.contains(id) {
+            return Err(Error::record_not_found());
+        }
+
+        let vector_id = VectorID(id as u32);
+        let vector = self.vectors[&vector_id].clone();
+        let data = self.data[&vector_id].clone();
+        Ok(Record::new(vector, data))
+    }
+
     /// Updates a vector record in the collection.
     /// * `id`: Vector ID to update.
     /// * `record`: New vector record.
-    pub fn update(
-        &mut self,
-        id: &VectorID,
-        record: &Record,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn update(&mut self, id: usize, record: Record) -> Result<(), Error> {
         if !self.contains(id) {
-            return Err(err::RECORD_NOT_FOUND.into());
+            return Err(Error::record_not_found());
         }
+
+        // Validate the new vector dimension.
+        self.validate_dimension(&record.vector)?;
 
         // Remove the old vector from the index layers.
         self.delete_from_layers(id);
 
         // Insert the updated vector and data.
-        self.vectors.insert(*id, record.vector.clone());
-        self.data.insert(*id, record.data.clone());
+        let vector_id = VectorID(id as u32);
+        self.vectors.insert(vector_id, record.vector.clone());
+        self.data.insert(vector_id, record.data.clone());
         self.insert_to_layers(id);
 
         Ok(())
-    }
-
-    /// Returns the vector record associated with the ID.
-    /// * `id`: Vector ID to retrieve.
-    pub fn get(&self, id: &VectorID) -> Result<Record, Box<dyn Error>> {
-        if !self.contains(id) {
-            return Err(err::RECORD_NOT_FOUND.into());
-        }
-
-        let vector = self.vectors[id].clone();
-        let data = self.data[id].clone();
-        Ok(Record::new(&vector, &data))
     }
 
     /// Searches the collection for the nearest neighbors.
@@ -387,14 +419,19 @@ impl Collection {
     /// * `n`: Number of neighbors to return.
     pub fn search(
         &self,
-        vector: &Vector,
+        vector: Vec<f32>,
         n: usize,
-    ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    ) -> Result<Vec<SearchResult>, Error> {
+        let vector = Vector(vector);
         let mut search = Search::default();
 
+        // Early return if the collection is empty.
         if self.vectors.is_empty() {
             return Ok(vec![]);
         }
+
+        // Ensure the vector dimension matches the collection dimension.
+        self.validate_dimension(&vector)?;
 
         // Find the first valid vector ID from the slots.
         let slots_iter = self.slots.as_slice().into_par_iter();
@@ -404,17 +441,17 @@ impl Collection {
         };
 
         search.visited.resize_capacity(self.vectors.len());
-        search.push(vector_id, vector, &self.vectors);
+        search.push(vector_id, &vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
             search.ef = if layer.is_zero() { self.config.ef_search } else { 5 };
 
             if layer.0 == 0 {
                 let layer = self.base_layer.as_slice();
-                search.search(layer, vector, &self.vectors, M * 2);
+                search.search(layer, &vector, &self.vectors, M * 2);
             } else {
                 let layer = self.upper_layers[layer.0 - 1].as_slice();
-                search.search(layer, vector, &self.vectors, M);
+                search.search(layer, &vector, &self.vectors, M);
             }
 
             if !layer.is_zero() {
@@ -437,10 +474,14 @@ impl Collection {
     /// * `n`: Number of neighbors to return.
     pub fn true_search(
         &self,
-        vector: &Vector,
+        vector: Vec<f32>,
         n: usize,
-    ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    ) -> Result<Vec<SearchResult>, Error> {
+        let vector = Vector(vector);
         let mut nearest = Vec::with_capacity(self.vectors.len());
+
+        // Ensure the vector dimension matches the collection dimension.
+        self.validate_dimension(&vector)?;
 
         // Calculate the distance between the query and each record.
         // Then, create a search result for each record.
@@ -464,10 +505,7 @@ impl Collection {
 
     /// Sets the vector dimension of the collection.
     /// * `dimension`: New vector dimension.
-    pub fn set_dimension(
-        &mut self,
-        dimension: usize,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
         // This can only be set if the collection is empty.
         if !self.vectors.is_empty() {
             return Err("The collection must be empty.".into());
@@ -489,12 +527,30 @@ impl Collection {
 
     /// Checks if the collection contains a vector ID.
     /// * `id`: Vector ID to check.
-    pub fn contains(&self, id: &VectorID) -> bool {
-        self.vectors.contains_key(id)
+    pub fn contains(&self, id: usize) -> bool {
+        self.vectors.contains_key(&id.into())
+    }
+
+    fn __len__(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Collection {
+    /// Validates a vector dimension against the collection's.
+    fn validate_dimension(&self, vector: &Vector) -> Result<(), Error> {
+        let found = vector.len();
+        let expected = self.dimension;
+
+        if found != expected {
+            Err(Error::invalid_dimension(found, expected))
+        } else {
+            Ok(())
+        }
     }
 
     /// Inserts a vector ID into the index layers.
-    fn insert_to_layers(&mut self, id: &VectorID) {
+    fn insert_to_layers(&mut self, id: usize) {
         self.base_layer.push(BaseNode::default());
 
         let base_layer = self
@@ -517,7 +573,7 @@ impl Collection {
         };
 
         // Insert new vector into the contructor.
-        state.insert(id, &top_layer, &self.upper_layers);
+        state.insert(&id.into(), &top_layer, &self.upper_layers);
 
         // Update the base layer with the new state.
         let iter = state.base_layer.into_par_iter();
@@ -525,10 +581,12 @@ impl Collection {
     }
 
     /// Removes a vector ID from all index layers.
-    fn delete_from_layers(&mut self, id: &VectorID) {
+    fn delete_from_layers(&mut self, id: usize) {
+        let vector_id = VectorID(id as u32);
+
         // Remove the vector from the base layer.
-        let base_node = &mut self.base_layer[id.0 as usize];
-        let index = base_node.par_iter().position_first(|x| *x == *id);
+        let base_node = &mut self.base_layer[id];
+        let index = base_node.par_iter().position_first(|x| *x == vector_id);
         if let Some(index) = index {
             base_node.set(index, &INVALID);
         }
@@ -540,8 +598,8 @@ impl Collection {
                 false => break,
             };
 
-            let node = &mut upper_layer[id.0 as usize];
-            let index = node.0.par_iter().position_first(|x| *x == *id);
+            let node = &mut upper_layer[id];
+            let index = node.0.par_iter().position_first(|x| *x == vector_id);
 
             if let Some(index) = index {
                 node.set(index, &INVALID);
@@ -551,43 +609,76 @@ impl Collection {
 }
 
 /// A record containing a vector and its associated data.
+#[pyclass(module = "oasysdb.collection")]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Record {
     /// The vector embedding.
+    #[pyo3(get, set)]
     pub vector: Vector,
     /// Data associated with the vector.
+    #[pyo3(get)]
     pub data: Metadata,
 }
 
+// Any modifications to the Python methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
+#[pymethods]
 impl Record {
-    /// Creates a new record with a vector and data.
-    pub fn new(vector: &Vector, data: &Metadata) -> Self {
-        Self { vector: vector.clone(), data: data.clone() }
+    #[new]
+    fn py_new(vector: Vec<f32>, data: &PyAny) -> Self {
+        let vector = Vector::from(vector);
+        let data = Metadata::from(data);
+        Self::new(vector, data)
     }
 
     /// Generates a random record for testing.
     /// * `dimension`: Vector dimension.
+    #[staticmethod]
     pub fn random(dimension: usize) -> Self {
         let vector = Vector::random(dimension);
         let data = random::<usize>().into();
-        Self::new(&vector, &data)
+        Self::new(vector, data)
     }
 
     /// Generates many random records for testing.
     /// * `dimension`: Vector dimension.
     /// * `len`: Number of records to generate.
+    #[staticmethod]
     pub fn many_random(dimension: usize, len: usize) -> Vec<Self> {
         (0..len).map(|_| Self::random(dimension)).collect()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl Record {
+    /// Creates a new record with a vector and data.
+    pub fn new(vector: Vector, data: Metadata) -> Self {
+        Self { vector, data }
     }
 }
 
 /// The collection nearest neighbor search result.
+#[pyclass(module = "oasysdb.collection")]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResult {
     /// Vector ID.
+    #[pyo3(get)]
     pub id: u32,
     /// Distance between the query to the collection vector.
+    #[pyo3(get)]
     pub distance: f32,
     /// Data associated with the vector.
+    #[pyo3(get)]
     pub data: Metadata,
+}
+
+#[pymethods]
+impl SearchResult {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
