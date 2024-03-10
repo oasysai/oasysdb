@@ -52,11 +52,7 @@ class Record:
     vector: List[float]
     data: Any
 
-    def __init__(
-        self,
-        vector: List[float],
-        data: Any,
-    ) -> None: ...
+    def __init__(self, vector: List[float], data: Any) -> None: ...
 
     @staticmethod
     def random(dimension: int) -> Record:
@@ -82,10 +78,7 @@ class Collection:
 
     config: Config
 
-    def __init__(
-        self,
-        config: Config,
-    ) -> None: ...
+    def __init__(self, config: Config) -> None: ...
 
     @staticmethod
     def from_records(

@@ -41,13 +41,12 @@ fn main() {
     let dimension = 128;
 
     // Replace with your own data.
-    let records = Record::many_random(dimension, 100);
+    let records = Some(Record::many_random(dimension, 100));
     let query = Vector::random(dimension);
 
     // Open the database and create a collection.
-    let mut db = Database::open("data/readme").unwrap();
-    let collection =
-        db.create_collection("vectors", None, Some(&records)).unwrap();
+    let mut db = Database::open("data/test").unwrap();
+    let collection = db.create_collection("vectors", None, records).unwrap();
 
     // Search for the nearest neighbors.
     let result = collection.search(query.into(), 5).unwrap();

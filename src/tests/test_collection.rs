@@ -1,8 +1,5 @@
 use super::*;
 
-const DIMENSION: usize = 128;
-const LEN: usize = 100;
-
 #[test]
 fn build_large() {
     let len = 10000;

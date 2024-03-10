@@ -7,11 +7,16 @@ use crate::vector::*;
 use rayon::iter::*;
 use std::collections::HashMap;
 
+const DIMENSION: usize = 128;
+const LEN: usize = 100;
+
+/// The test database initial collection name.
+const NAME: &str = "vectors";
+
 fn create_test_database(path: &str) -> Database {
     let mut db = Database::new(path).unwrap();
-    let records = Record::many_random(128, 100);
-    let records = Some(records.as_slice());
-    db.create_collection("vectors", None, records).unwrap();
+    let records = Record::many_random(DIMENSION, LEN);
+    db.create_collection("vectors", None, Some(records)).unwrap();
     db
 }
 

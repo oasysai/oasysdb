@@ -1,15 +1,18 @@
 use super::*;
 
 /// The database storing vector collections.
+#[pyclass(module = "oasysdb.database")]
 pub struct Database {
     collections: Db,
     count: usize,
 }
 
+#[pymethods]
 impl Database {
     /// Re-creates and opens the database at the given path.
     /// This method will delete the database if it exists.
     /// * `path` - Directory to store the database.
+    #[staticmethod]
     pub fn new(path: &str) -> Result<Self, Error> {
         // Remove the database dir if it exists.
         if Path::new(path).exists() {
@@ -26,6 +29,7 @@ impl Database {
     /// Opens existing or creates new database.
     /// If the database doesn't exist, it will be created.
     /// * `path` - Directory to store the database.
+    #[new]
     pub fn open(path: &str) -> Result<Self, Error> {
         let collections = sled::open(path)?;
         let count = collections.len();
@@ -40,7 +44,7 @@ impl Database {
         &mut self,
         name: &str,
         config: Option<&Config>,
-        records: Option<&[Record]>,
+        records: Option<Vec<Record>>,
     ) -> Result<Collection, Error> {
         // This prevents the variable from being dropped.
         let default_config = Config::default();
@@ -52,7 +56,7 @@ impl Database {
 
         // Create new or build a collection.
         let collection = match records {
-            Some(records) => Collection::build(config, records)?,
+            Some(records) => Collection::build(config, &records)?,
             None => Collection::new(config),
         };
 
@@ -112,5 +116,9 @@ impl Database {
     /// Returns true if the database is empty.
     pub fn is_empty(&self) -> bool {
         self.count == 0
+    }
+
+    fn __len__(&self) -> usize {
+        self.len()
     }
 }

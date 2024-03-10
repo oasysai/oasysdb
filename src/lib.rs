@@ -62,5 +62,6 @@ fn vector_modules(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pymodule]
 fn database_modules(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<database::Database>()?;
     Ok(())
 }
