@@ -16,7 +16,7 @@ const NAME: &str = "vectors";
 fn create_test_database(path: &str) -> Database {
     let mut db = Database::new(path).unwrap();
     let records = Record::many_random(DIMENSION, LEN);
-    db.create_collection("vectors", None, Some(records)).unwrap();
+    db.create_collection(NAME, None, Some(records)).unwrap();
     db
 }
 
