@@ -71,4 +71,4 @@ jobs:
           sccache: "true"
 
       - name: Run tests
-        run: pytest
+        run: python -m pytest
