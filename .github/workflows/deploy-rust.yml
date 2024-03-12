@@ -1,4 +1,4 @@
-name: Publish package
+name: Publish as Rust crate
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish-crate:
-    name: Publish to crates.io
+    name: Publish to Crates.io
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
@@ -17,6 +17,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - run: cargo publish --token ${CRATES_TOKEN}
+      - name: Publish to Crates.io
+        run: cargo publish --token ${CRATES_TOKEN}
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
