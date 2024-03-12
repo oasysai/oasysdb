@@ -61,8 +61,6 @@ jobs:
         run: |
           pip install --upgrade pip
           python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
 
       - name: Build development wheels
         uses: PyO3/maturin-action@v1
@@ -71,4 +69,7 @@ jobs:
           sccache: "true"
 
       - name: Run tests
-        run: python -m pytest
+        run: |
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          python -m pytest
