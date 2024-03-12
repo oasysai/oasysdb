@@ -3,7 +3,8 @@ name: Quality check and testing
 # Summary of the workflow
 # For every push to the main branch or any pull request:
 # 1. Run cargo clippy: Check linting to improve code quality.
-# 2. Run cargo test: Run all tests.
+# 2. Run cargo test: Run all Rust-based tests.
+# 3. Run pytest: Build wheels and run Python tests.
 
 on:
   pull_request:
@@ -28,8 +29,8 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy -- -D warnings
 
-  run-tests:
-    name: Run all tests
+  run-rust-tests:
+    name: Run Rust tests
     needs: clippy-lint
     runs-on: ubuntu-latest
     steps:
@@ -41,3 +42,34 @@ jobs:
 
       - name: Run cargo test
         run: cargo test
+
+  run-python-tests:
+    name: Run Python tests
+    needs: run-rust-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install requirements
+        run: |
+          pip install --upgrade pip
+          python -m venv .venv
+
+      - name: Build development wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          sccache: "true"
+
+      - name: Run tests
+        run: |
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          python -m pytest
