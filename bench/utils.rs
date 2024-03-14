@@ -103,7 +103,7 @@ pub fn get_records(path: &str) -> Result<Vec<Record>, Box<dyn Error>> {
     let records = read_vectors(path)?
         .par_iter()
         .enumerate()
-        .map(|(id, vec)| Record::new(vec.into(), id.into()))
+        .map(|(id, vector)| Record::new(&vector.into(), &id.into()))
         .collect();
 
     Ok(records)
