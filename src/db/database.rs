@@ -36,34 +36,6 @@ impl Database {
         Ok(Self { collections, count })
     }
 
-    /// Creates a new collection in the database.
-    /// * `name` - Name of the collection.
-    /// * `config` - Collection configuration. Uses default if none.
-    /// * `records` - Vector records to insert into the collection.
-    pub fn create_collection(
-        &mut self,
-        name: &str,
-        config: Option<Config>,
-        records: Option<Vec<Record>>,
-    ) -> Result<Collection, Error> {
-        // This prevents the variable from being dropped.
-        let default_config = Config::default();
-
-        let config = match config {
-            Some(config) => config,
-            None => default_config,
-        };
-
-        // Create new or build a collection.
-        let collection = match records {
-            Some(records) => Collection::build(config, records)?,
-            None => Collection::new(config),
-        };
-
-        self.save_collection(name, &collection)?;
-        Ok(collection)
-    }
-
     /// Gets a collection from the database.
     /// * `name` - Name of the collection.
     pub fn get_collection(&self, name: &str) -> Result<Collection, Error> {
