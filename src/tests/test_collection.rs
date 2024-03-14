@@ -111,3 +111,14 @@ fn get() {
     assert_eq!(record.data, records[id].data);
     assert_eq!(record.vector, records[id].vector);
 }
+
+#[test]
+fn list() {
+    let records = Record::many_random(DIMENSION, LEN);
+    let collection = create_collection(records.clone());
+
+    // Get all records from the collection.
+    let list = collection.list().unwrap();
+    assert_eq!(list.len(), LEN);
+    assert_eq!(list.len(), collection.len());
+}

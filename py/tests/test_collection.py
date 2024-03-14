@@ -146,3 +146,12 @@ def test_set_dimension():
         assert False
     except Exception as e:
         assert "invalid vector dimension" in str(e).lower()
+
+
+def test_list_records():
+    collection = create_test_collection()
+    records = collection.list()
+
+    assert len(records) == collection.len()
+    assert all(isinstance(k, int) for k in records.keys())
+    assert all(isinstance(v, Record) for v in records.values())

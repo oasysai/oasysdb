@@ -378,6 +378,25 @@ impl Collection {
         Ok(())
     }
 
+    /// Returns vector records in the collection as a HashMap.
+    pub fn list(&self) -> Result<HashMap<usize, Record>, Error> {
+        // Early return if the collection is empty.
+        if self.vectors.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        // Map the vectors to a hashmap of records.
+        let mapper = |(id, vector): (&VectorID, &Vector)| {
+            let data = self.data[id].clone();
+            let record = Record::new(vector.clone(), data);
+            let id = id.0 as usize;
+            (id, record)
+        };
+
+        let records = self.vectors.par_iter().map(mapper).collect();
+        Ok(records)
+    }
+
     /// Returns the vector record associated with the ID.
     /// * `id`: Vector ID to retrieve.
     pub fn get(&self, id: usize) -> Result<Record, Error> {
