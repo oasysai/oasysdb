@@ -7,7 +7,7 @@ class Database:
     """The persistent storage of vector collections.
 
     Args:
-    - path (str): Path to the database file.
+    - path: Path to the database file.
     """
 
     def __init__(self, path: str,) -> None: ...
@@ -17,43 +17,29 @@ class Database:
         This will reset the database if it exists.
 
         Args:
-        - path (str): Path to the database file.
-        """
-
-    def create_collection(
-        self,
-        name: str,
-        config: Config = None,
-        records: List[Record] = None
-    ) -> None:
-        """Creates a new collection in the database.
-
-        Args:
-        - name (str): Collection name.
-        - config (Config): Collection configuration.
-        - records (List[Record]): Records to build the collection.
+        - path: Path to the database file.
         """
 
     def get_collection(self, name: str) -> Collection:
         """Returns the collection with the given name.
 
         Args:
-        - name (str): Collection name.
+        - name: Collection name.
         """
 
     def save_collection(self, name: str, collection: Collection) -> None:
         """Saves new or update existing collection to the database.
 
         Args:
-        - name (str): Collection name.
-        - collection (Collection): Vector collection.
+        - name: Collection name.
+        - collection: Vector collection.
         """
 
     def delete_collection(self, name: str) -> None:
         """Deletes the collection from the database.
 
         Args:
-        - name (str): Collection name.
+        - name: Collection name.
         """
 
     def len(self) -> int:

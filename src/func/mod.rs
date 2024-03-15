@@ -10,6 +10,7 @@ pub mod vector;
 // Internal modules.
 mod utils;
 
+use collection::*;
 use err::*;
 use metadata::*;
 use utils::*;

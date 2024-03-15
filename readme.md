@@ -41,15 +41,19 @@ fn main() {
     let dimension = 128;
 
     // Replace with your own data.
-    let records = Some(Record::many_random(dimension, 100));
-    let query = Vector::random(dimension);
+    let records = Record::many_random(dimension, 100);
 
-    // Open the database and create a collection.
-    let mut db = Database::open("data/test").unwrap();
-    let collection = db.create_collection("vectors", None, records).unwrap();
+    // Create a vector collection.
+    let config = Config::default();
+    let collection = Collection::build(&config, &records).unwrap();
+
+    // Optionally save the collection to persist it.
+    let mut db = Database::new("data/test").unwrap();
+    db.save_collection("vectors", &collection).unwrap();
 
     // Search for the nearest neighbors.
-    let result = collection.search(query.into(), 5).unwrap();
+    let query = Vector::random(dimension);
+    let result = collection.search(&query, 5).unwrap();
     println!("Nearest ID: {}", result[0].id);
 }
 ```
@@ -65,7 +69,7 @@ fn main() {
     // Inserting a metadata value into a record.
     let data: &str = "This is an example.";
     let vector = Vector::random(128);
-    let record = Record::new(vector, data.into());
+    let record = Record::new(&vector, &data.into());
 
     // Extracting the metadata value.
     let metadata = record.data.clone();
@@ -89,34 +93,28 @@ pip install oasysdb
 This command will install the latest version of OasysDB to your Python environment. After you're all set with the installation, you can use the code snippet below as a reference to get started with OasysDB in Python.
 
 ```python
-from oasysdb.collection import Collection, Config, Record
-from oasysdb.database import Database
-from oasysdb.vector import Vector
+from oasysdb.prelude import *
 
 
-def main():
+if __name__ == "__main__":
     # Open the database.
     db = Database("data/example")
 
     # Create a vector collection.
     config = Config.create_default()
     records = Record.many_random(dimension=128, len=100)
-    collection = Collection.build(config, records)
+    collection = Collection.from_records(config, records)
 
     # Optionally, persist the collection to the database.
     db.save_collection("my_collection", collection)
 
     # Search for the nearest neighbors.
     # Replace with your own query.
-    query = Vector.random(128).to_list()
+    query = Vector.random(128)
     result = collection.search(query, n=5)
 
     # Print the result.
     print("Nearest neighbors ID: {}".format(result[0].id))
-
-
-if __name__ == "__main__":
-    main()
 ```
 
 # 🎯 Benchmarks

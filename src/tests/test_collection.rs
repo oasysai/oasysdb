@@ -4,90 +4,90 @@ use super::*;
 fn build_large() {
     let len = 10000;
     let records = Record::many_random(DIMENSION, len);
-    let collection = create_collection(records);
+    let config = Config::default();
+    let collection = Collection::build(&config, &records).unwrap();
     assert_eq!(collection.len(), len);
 }
 
 #[test]
 fn insert() {
-    let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(records);
+    let mut collection = create_collection();
 
     // Create a new record to insert.
     let new_record = Record::random(DIMENSION);
-    collection.insert(new_record.clone()).unwrap();
+    collection.insert(&new_record).unwrap();
 
     // Assert the new record is in the collection.
+    let id = VectorID::from(LEN);
     assert_eq!(collection.len(), LEN + 1);
-    assert_eq!(collection.get(LEN).unwrap().data, new_record.data);
+    assert_eq!(collection.get(&id).unwrap().data, new_record.data);
 }
 
 #[test]
 fn insert_invalid_dimension() {
-    let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(records);
+    let mut collection = create_collection();
 
     // Create a new record with an invalid dimension.
     let new_record = Record::random(DIMENSION + 1);
 
     // Assert the new record is not inserted.
     assert_eq!(collection.dimension(), DIMENSION);
-    assert_eq!(collection.insert(new_record).is_err(), true);
+    assert_eq!(collection.insert(&new_record).is_err(), true);
 }
 
 #[test]
 fn insert_data_type_object() {
-    let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(records);
+    let mut collection = create_collection();
 
     // Create a new record with a data of type HashMap.
     let vector = Vector::random(DIMENSION);
     let data = HashMap::from([("key", "value")]);
-    let new_record = Record::new(vector, data.clone().into());
+    let new_record = Record::new(&vector, &data.clone().into());
 
-    collection.insert(new_record).unwrap();
+    collection.insert(&new_record).unwrap();
 
     // Assert the new data is in the collection.
+    let id = VectorID::from(LEN);
     assert_eq!(collection.len(), LEN + 1);
-    assert_eq!(collection.get(LEN).unwrap().data, data.into());
+    assert_eq!(collection.get(&id).unwrap().data, data.into());
 }
 
 #[test]
 fn delete() {
-    let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(records);
+    let mut collection = create_collection();
 
     // Delete a record from the collection.
-    collection.delete(0).unwrap();
+    let id = VectorID(0);
+    collection.delete(&id).unwrap();
     assert_eq!(collection.len(), LEN - 1);
 }
 
 #[test]
 fn update() {
-    let records = Record::many_random(DIMENSION, LEN);
-    let mut collection = create_collection(records);
+    let mut collection = create_collection();
 
     // New record to update.
-    let id = 5;
+    let id = VectorID(5);
     let record = Record::random(DIMENSION);
-    collection.update(id, record.clone()).unwrap();
+    collection.update(&id, &record).unwrap();
 
     assert_eq!(collection.len(), LEN);
-    assert_eq!(collection.get(id).unwrap().data, record.data);
+    assert_eq!(collection.get(&id).unwrap().data, record.data);
 }
 
 #[test]
 fn search() {
     let len = 1000;
+    let config = Config::default();
     let records = Record::many_random(DIMENSION, len);
-    let collection = create_collection(records);
+    let collection = Collection::build(&config, &records).unwrap();
 
     // Generate a random query vector.
-    let query = Vector::random(DIMENSION).0;
+    let query = Vector::random(DIMENSION);
 
     // Get the approximate and true nearest neighbors.
-    let result = collection.search(query.clone(), 5).unwrap();
-    let truth = collection.true_search(query, 10).unwrap();
+    let result = collection.search(&query, 5).unwrap();
+    let truth = collection.true_search(&query, 10).unwrap();
 
     // Collect the distances from the true nearest neighbors.
     let distances: Vec<f32> = truth.par_iter().map(|i| i.distance).collect();
@@ -102,22 +102,21 @@ fn search() {
 #[test]
 fn get() {
     let records = Record::many_random(DIMENSION, LEN);
-    let collection = create_collection(records.clone());
+    let config = Config::default();
+    let collection = Collection::build(&config, &records).unwrap();
 
     // Get a record from the collection.
-    let id = 5;
-    let record = collection.get(id).unwrap();
+    let index: usize = 5;
+    let id = VectorID::from(index);
+    let record = collection.get(&id).unwrap();
 
-    assert_eq!(record.data, records[id].data);
-    assert_eq!(record.vector, records[id].vector);
+    assert_eq!(record.data, records[index].data);
+    assert_eq!(record.vector, records[index].vector);
 }
 
 #[test]
 fn list() {
-    let records = Record::many_random(DIMENSION, LEN);
-    let collection = create_collection(records.clone());
-
-    // Get all records from the collection.
+    let collection = create_collection();
     let list = collection.list().unwrap();
     assert_eq!(list.len(), LEN);
     assert_eq!(list.len(), collection.len());

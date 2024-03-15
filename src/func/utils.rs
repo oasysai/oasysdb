@@ -367,3 +367,88 @@ impl SearchPool {
         self.pool.lock().push(item.clone());
     }
 }
+
+pub struct IndexConstruction<'a> {
+    pub search_pool: SearchPool,
+    pub top_layer: LayerID,
+    pub base_layer: &'a [RwLock<BaseNode>],
+    pub vectors: &'a HashMap<VectorID, Vector>,
+    pub config: &'a Config,
+}
+
+impl<'a> IndexConstruction<'a> {
+    /// Inserts a vector ID into a layer.
+    /// * `vector_id`: Vector ID to insert.
+    /// * `layer`: Layer to insert into.
+    /// * `layers`: Upper layers.
+    pub fn insert(
+        &self,
+        vector_id: &VectorID,
+        layer: &LayerID,
+        layers: &[Vec<UpperNode>],
+    ) {
+        let vector = &self.vectors[vector_id];
+
+        let (mut search, mut insertion) = self.search_pool.pop();
+        insertion.ef = self.config.ef_construction;
+
+        // Find the first valid vector ID to push.
+        let validator = |i: usize| self.vectors.get(&i.into()).is_some();
+        let valid_id = (0..self.vectors.len())
+            .into_par_iter()
+            .find_first(|i| validator(*i))
+            .unwrap();
+
+        search.reset();
+        search.push(&valid_id.into(), vector, self.vectors);
+
+        for current_layer in self.top_layer.descend() {
+            if current_layer <= *layer {
+                search.ef = self.config.ef_construction;
+            }
+
+            // Find the nearest neighbor candidates.
+            if current_layer > *layer {
+                let layer = layers[current_layer.0 - 1].as_slice();
+                search.search(layer, vector, self.vectors, M);
+                search.cull();
+            } else {
+                search.search(self.base_layer, vector, self.vectors, M * 2);
+                break;
+            }
+        }
+
+        // Select the neighbors.
+        let candidates = {
+            let candidates = search.select_simple();
+            &candidates[..Ord::min(candidates.len(), M)]
+        };
+
+        for (i, candidate) in candidates.iter().enumerate() {
+            let vid = candidate.vector_id;
+            let old = &self.vectors[&vid];
+            let distance = candidate.distance;
+
+            // Function to sort the vectors by distance.
+            let ordering = |id: &VectorID| {
+                if !id.is_valid() {
+                    Ordering::Greater
+                } else {
+                    let other = &self.vectors[id];
+                    distance.cmp(&old.distance(other).into())
+                }
+            };
+
+            // Find the correct index to insert at to keep the order.
+            let index = self.base_layer[&vid]
+                .read()
+                .binary_search_by(ordering)
+                .unwrap_or_else(|error| error);
+
+            self.base_layer[&vid].write().insert(index, vector_id);
+            self.base_layer[vector_id].write().set(i, vector_id);
+        }
+
+        self.search_pool.push(&(search, insertion));
+    }
+}

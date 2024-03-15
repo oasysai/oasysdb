@@ -1,13 +1,13 @@
 mod utils;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use oasysdb::collection::{Collection, Config};
+use criterion::*;
+use oasysdb::prelude::*;
 use utils::*;
 
 fn build_collection(path: &str) -> Collection {
     let records = get_records(path).unwrap();
     let config = Config::default();
-    Collection::build(config, records).unwrap()
+    Collection::build(&config, &records).unwrap()
 }
 
 fn bench_search_collection(criterion: &mut Criterion) {
@@ -19,6 +19,7 @@ fn bench_search_collection(criterion: &mut Criterion) {
     // Load the query data.
     let query_path = "data/siftsmall/siftsmall_query.fvecs";
     let query_data = read_vectors(query_path).unwrap();
+    let vector: Vector = query_data[0].clone().into();
 
     // Create the collection.
     let base_path = "data/siftsmall/siftsmall_base.fvecs";
@@ -26,8 +27,7 @@ fn bench_search_collection(criterion: &mut Criterion) {
 
     // Benchmark the search speed.
     let routine = || {
-        let vector = query_data[0].clone();
-        black_box(collection.search(vector, 10).unwrap());
+        black_box(collection.search(&vector, 10).unwrap());
     };
 
     criterion.bench_function(id, |bencher| bencher.iter(routine));

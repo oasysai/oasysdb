@@ -7,31 +7,23 @@ fn new() {
 }
 
 #[test]
-fn create_collection() {
-    let mut db = Database::new("data/002").unwrap();
-
-    let records = Some(Record::many_random(DIMENSION, LEN));
-    let collection = db.create_collection("test", None, records).unwrap();
-
-    assert_eq!(collection.len(), LEN);
-    assert_eq!(db.len(), 1);
-}
-
-#[test]
 fn get_collection() {
-    let db = create_test_database("data/003");
+    let db = create_test_database("data/002");
     let collection = db.get_collection(NAME).unwrap();
     assert_eq!(collection.len(), LEN);
 }
 
 #[test]
 fn save_collection_new() {
-    let mut db = Database::new("data/004").unwrap();
+    let mut db = Database::new("data/003").unwrap();
 
     // Create a collection from scratch.
     let config = Config::default();
-    let mut collection = Collection::new(config);
-    collection.insert(Record::random(DIMENSION)).unwrap();
+    let mut collection = Collection::new(&config);
+
+    // Insert a random record.
+    let record = Record::random(DIMENSION);
+    collection.insert(&record).unwrap();
 
     db.save_collection("new", &collection).unwrap();
     assert_eq!(collection.len(), 1);
@@ -40,11 +32,11 @@ fn save_collection_new() {
 
 #[test]
 fn save_collection_update() {
-    let mut db = create_test_database("data/005");
+    let mut db = create_test_database("data/004");
 
     // Update the collection.
     let mut collection = db.get_collection(NAME).unwrap();
-    collection.insert(Record::random(DIMENSION)).unwrap();
+    collection.insert(&Record::random(DIMENSION)).unwrap();
 
     db.save_collection(NAME, &collection).unwrap();
     assert_eq!(collection.len(), LEN + 1);
@@ -53,7 +45,7 @@ fn save_collection_update() {
 
 #[test]
 fn delete_collection() {
-    let mut db = create_test_database("data/006");
+    let mut db = create_test_database("data/005");
     db.delete_collection(NAME).unwrap();
     assert_eq!(db.len(), 0);
 }

@@ -1,5 +1,4 @@
-from oasysdb.collection import Config, Record, Collection
-from oasysdb.vector import Vector
+from oasysdb.prelude import Config, Record, Collection, Vector, VectorID
 
 DIMENSION = 128
 LEN = 100
@@ -9,7 +8,7 @@ def create_test_collection() -> Collection:
     """Creates a collection with random records for testing."""
     records = Record.many_random(dimension=DIMENSION, len=LEN)
     config = Config.create_default()
-    collection = Collection.build(config=config, records=records)
+    collection = Collection.from_records(config=config, records=records)
 
     assert collection.len() == len(records)
     return collection
@@ -54,7 +53,7 @@ def test_create_collection():
 
 def test_build_collection():
     collection = create_test_collection()
-    assert collection.contains(0)
+    assert collection.contains(VectorID(0))
     assert not collection.is_empty()
 
 
@@ -64,7 +63,7 @@ def test_insert_record():
     collection.insert(record)
 
     assert collection.len() == LEN + 1
-    assert collection.contains(LEN)
+    assert collection.contains(VectorID(LEN))
 
 
 def test_insert_record_invalid_dimension():
@@ -85,7 +84,7 @@ def test_insert_record_invalid_dimension():
 def test_delete_record():
     collection = create_test_collection()
 
-    id = 0
+    id = VectorID(0)
     collection.delete(id)
 
     assert not collection.contains(id)
@@ -95,7 +94,7 @@ def test_delete_record():
 def test_get_record():
     collection = create_test_collection()
 
-    id = 0
+    id = VectorID(0)
     record = collection.get(id)
 
     assert record is not None
@@ -105,7 +104,7 @@ def test_get_record():
 def test_update_record():
     collection = create_test_collection()
 
-    id = 0
+    id = VectorID(0)
     record = Record.random(dimension=128)
     collection.update(id, record)
 
@@ -115,7 +114,7 @@ def test_update_record():
 
 def test_search_record():
     collection = create_test_collection()
-    vector = Vector.random(dimension=DIMENSION).to_list()
+    vector = Vector.random(dimension=DIMENSION)
     n = 10
 
     # Search for approximate neighbors and true neighbors.
@@ -153,5 +152,5 @@ def test_list_records():
     records = collection.list()
 
     assert len(records) == collection.len()
-    assert all(isinstance(k, int) for k in records.keys())
+    assert all(isinstance(k, VectorID) for k in records.keys())
     assert all(isinstance(v, Record) for v in records.values())

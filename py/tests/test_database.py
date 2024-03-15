@@ -1,5 +1,4 @@
-from oasysdb.database import Database
-from oasysdb.collection import Record, Collection, Config
+from oasysdb.prelude import Record, Collection, Config, Database
 
 
 NAME = "vectors"  # Initial collection name.
@@ -15,7 +14,11 @@ def create_test_database(path: str) -> Database:
 
     # Create a test collection with random records.
     records = Record.many_random(dimension=DIMENSION, len=LEN)
-    db.create_collection(name=NAME, records=records)
+    config = Config.create_default()
+    collection = Collection.from_records(config, records)
+
+    # Save the collection to the database.
+    db.save_collection(name=NAME, collection=collection)
     assert not db.is_empty()
 
     return db
