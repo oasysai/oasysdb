@@ -97,7 +97,7 @@ impl Collection {
         config: &Config,
         records: Vec<Record>,
     ) -> Result<Self, Error> {
-        Ok(Self::build(config, &records)?)
+        Self::build(config, &records)
     }
 
     /// Inserts a vector record into the collection.
@@ -233,7 +233,7 @@ impl Collection {
         }
 
         // Ensure the vector dimension matches the collection dimension.
-        self.validate_dimension(&vector)?;
+        self.validate_dimension(vector)?;
 
         // Find the first valid vector ID from the slots.
         let slots_iter = self.slots.as_slice().into_par_iter();
@@ -243,17 +243,17 @@ impl Collection {
         };
 
         search.visited.resize_capacity(self.vectors.len());
-        search.push(vector_id, &vector, &self.vectors);
+        search.push(vector_id, vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
             search.ef = if layer.is_zero() { self.config.ef_search } else { 5 };
 
             if layer.0 == 0 {
                 let layer = self.base_layer.as_slice();
-                search.search(layer, &vector, &self.vectors, M * 2);
+                search.search(layer, vector, &self.vectors, M * 2);
             } else {
                 let layer = self.upper_layers[layer.0 - 1].as_slice();
-                search.search(layer, &vector, &self.vectors, M);
+                search.search(layer, vector, &self.vectors, M);
             }
 
             if !layer.is_zero() {
@@ -282,7 +282,7 @@ impl Collection {
         let mut nearest = Vec::with_capacity(self.vectors.len());
 
         // Ensure the vector dimension matches the collection dimension.
-        self.validate_dimension(&vector)?;
+        self.validate_dimension(vector)?;
 
         // Calculate the distance between the query and each record.
         // Then, create a search result for each record.
@@ -430,7 +430,7 @@ impl Collection {
             search_pool,
             top_layer,
             vectors: &vectors,
-            config: &config,
+            config,
         };
 
         // Initialize data for layers.
