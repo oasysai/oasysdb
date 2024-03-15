@@ -1,8 +1,10 @@
+use self::distance::Distance;
+
 use super::*;
 
 /// The collection HNSW index configuration.
 #[pyclass(module = "oasysdb.collection")]
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     /// Nodes to consider during construction.
     #[pyo3(get, set)]
@@ -13,6 +15,9 @@ pub struct Config {
     /// Layer multiplier. The optimal value is `1/ln(M)`.
     #[pyo3(get, set)]
     pub ml: f32,
+    /// Distance Calculation. Supported formula `euclidean`,`cosine`,`dot`
+    #[pyo3(get, set)]
+    pub distance: String,
 }
 
 // Any modifications to this methods should be reflected in:
@@ -22,8 +27,15 @@ pub struct Config {
 impl Config {
     /// Creates a new collection config with the given parameters.
     #[new]
-    pub fn new(ef_construction: usize, ef_search: usize, ml: f32) -> Self {
-        Self { ef_construction, ef_search, ml }
+    pub fn new(
+        ef_construction: usize,
+        ef_search: usize,
+        ml: f32,
+        distance: &str,
+    ) -> Result<Self, Error> {
+        Distance::from(distance)?;
+
+        Ok(Self { ef_construction, ef_search, ml, distance: distance.into() })
     }
 
     #[staticmethod]
@@ -42,7 +54,12 @@ impl Default for Config {
     /// * `ef_search`: 15
     /// * `ml`: 0.3
     fn default() -> Self {
-        Self { ef_construction: 40, ef_search: 15, ml: 0.3 }
+        Self {
+            ef_construction: 40,
+            ef_search: 15,
+            ml: 0.3,
+            distance: "euclidean".into(),
+        }
     }
 }
 
@@ -81,7 +98,7 @@ impl Collection {
     #[new]
     pub fn new(config: &Config) -> Self {
         Self {
-            config: *config,
+            config: config.clone(),
             count: 0,
             dimension: 0,
             data: HashMap::new(),
@@ -287,7 +304,8 @@ impl Collection {
         // Calculate the distance between the query and each record.
         // Then, create a search result for each record.
         for (id, vec) in self.vectors.iter() {
-            let distance = vector.distance(vec);
+            let distance =
+                Distance::from(&self.config.distance)?.calculate(vector, vec);
             let data = self.data[id].clone();
             let res = SearchResult { id: id.0, distance, data };
             nearest.push(res);
@@ -471,7 +489,7 @@ impl Collection {
             upper_layers,
             slots,
             dimension,
-            config: *config,
+            config: config.clone(),
             count: records.len(),
         })
     }

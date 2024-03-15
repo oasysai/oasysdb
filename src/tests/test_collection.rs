@@ -121,3 +121,18 @@ fn list() {
     assert_eq!(list.len(), LEN);
     assert_eq!(list.len(), collection.len());
 }
+
+#[test]
+fn config_with_distance() {
+    for dist in vec!["cosine", "dot", "euclidean"] {
+        let conf = Config::new(10, 10, 3.0, dist).unwrap();
+    }
+}
+
+#[test]
+#[should_panic(expected = "Distance not supported")]
+fn config_with_distance_panic() {
+    for dist in vec!["l2", "test"] {
+        let conf = Config::new(10, 10, 3.0, dist).unwrap();
+    }
+}

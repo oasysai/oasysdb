@@ -7,6 +7,8 @@ pub mod metadata;
 /// Types for the vectors.
 pub mod vector;
 
+pub mod distance;
+
 // Internal modules.
 mod utils;
 

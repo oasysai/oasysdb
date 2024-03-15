@@ -5,6 +5,13 @@ fn new() {
     let db = Database::new("data/001").unwrap();
     assert_eq!(db.len(), 0);
 }
+#[test]
+fn new_with_distance() {
+    let mut config = Config::default();
+    config.distance = "cosine".into();
+    let mut collection = Collection::new(&config);
+    collection.insert(&Record::random(DIMENSION)).unwrap();
+}
 
 #[test]
 fn get_collection() {
