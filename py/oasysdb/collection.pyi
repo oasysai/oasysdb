@@ -52,7 +52,7 @@ class Record:
     vector: Vector
     data: Any
 
-    def __init__(self, vector: Vector, data: Any) -> None: ...
+    def __init__(self, vector: List[float], data: Any) -> None: ...
 
     @staticmethod
     def random(dimension: int) -> Record:
