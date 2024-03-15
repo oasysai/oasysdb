@@ -1,16 +1,16 @@
 # flake8: noqa F821
 
 from typing import Any, List, Dict
-from oasysdb.vector import Vector
+from oasysdb.vector import Vector, VectorID
 
 
 class Config:
     """The configuration for the vector collection.
 
     Args:
-    - ef_construction (int): Nodes to consider during index construction.
-    - ef_search (int): Nodes to consider during the search.
-    - ml (float): Layer multiplier of the HNSW index.
+    - ef_construction: Nodes to consider during index construction.
+    - ef_search: Nodes to consider during the search.
+    - ml: Layer multiplier of the HNSW index.
     """
 
     ef_construction: int
@@ -39,8 +39,8 @@ class Record:
     """The vector record to store in the collection.
 
     Args:
-    - vector (List[float]): Vector embedding of float values.
-    - data (Metadata): Metadata of the vector.
+    - vector: Vector embedding of float values.
+    - data: Metadata of the vector.
 
     Metadata types:
     - String
@@ -49,10 +49,10 @@ class Record:
     - Dictionary of metadata types
     """
 
-    vector: List[float]
+    vector: Vector
     data: Any
 
-    def __init__(self, vector: List[float], data: Any) -> None: ...
+    def __init__(self, vector: Vector, data: Any) -> None: ...
 
     @staticmethod
     def random(dimension: int) -> Record:
@@ -60,7 +60,7 @@ class Record:
         with a random integer metadata.
 
         Args:
-        - dimension (int): Vector dimension.
+        - dimension: Vector dimension.
         """
 
     @staticmethod
@@ -68,8 +68,8 @@ class Record:
         """Generates a list of random records.
 
         Args:
-        - dimension (int): Vector dimension.
-        - len (int): Number of records.
+        - dimension: Vector dimension.
+        - len: Number of records.
         """
 
 
@@ -81,66 +81,66 @@ class Collection:
     def __init__(self, config: Config) -> None: ...
 
     @staticmethod
-    def build(
+    def from_records(
         config: Config,
         records: List[Record],
     ) -> Collection:
         """Build a collection from the given records.
 
         Args:
-        - config (Config): Collection configuration.
-        - records (List[Record]): Records used to build the collection.
+        - config: Collection configuration.
+        - records: Records used to build the collection.
         """
 
     def insert(self, record: Record) -> None:
         """Inserts a record into the collection.
 
         Args:
-        - record (Record): Record to insert.
+        - record: Record to insert.
         """
 
-    def delete(self, id: int) -> None:
+    def delete(self, id: VectorID) -> None:
         """Deletes a record from the collection.
 
         Args:
-        - id (int): Vector ID to delete.
+        - id: Vector ID to delete.
         """
 
-    def get(self, id: int) -> Record:
+    def get(self, id: VectorID) -> Record:
         """Returns a record from the collection.
 
         Args:
-        - id (int): Vector ID to fetch.
+        - id: Vector ID to fetch.
         """
 
-    def list(self) -> Dict[int, Record]:
+    def list(self) -> Dict[VectorID, Record]:
         """Returns a dictionary of records in the collection
-        in the format of { ID: Record }.
+        in the format of { VectorID: Record }.
         """
 
-    def update(self, id: int, record: Record) -> None:
+    def update(self, id: VectorID, record: Record) -> None:
         """Updates a record in the collection.
 
         Args:
-        - id (int): Vector ID to update.
-        - record (Record): New record.
+        - id: Vector ID to update.
+        - record: New record.
         """
 
-    def search(self, vector: List[float], n: int) -> List[SearchResult]:
+    def search(self, vector: Vector, n: int) -> List[SearchResult]:
         """Searches for the nearest neighbors to
         the given vector using HNSW indexing algorithm
 
         Args:
-        - vector (List[float]): Vector to search.
-        - n (int): Number of neighbors to return.
+        - vector: Vector to search.
+        - n: Number of neighbors to return.
         """
 
-    def true_search(self, vector: List[float], n: int) -> List[SearchResult]:
+    def true_search(self, vector: Vector, n: int) -> List[SearchResult]:
         """Searches for the nearest neighbors using brute force.
 
         Args:
-        - vector (List[float]): Vector to search.
-        - n (int): Number of neighbors to return.
+        - vector: Vector to search.
+        - n: Number of neighbors to return.
         """
 
     def dimension(self) -> int:
@@ -151,7 +151,7 @@ class Collection:
         The collection must be empty to do this.
 
         Args:
-        - dimension (int): Vector dimension.
+        - dimension: Vector dimension.
         """
 
     def len(self) -> int:
@@ -160,7 +160,7 @@ class Collection:
     def is_empty(self) -> bool:
         """Returns True if the collection is empty."""
 
-    def contains(self, id: int) -> bool:
+    def contains(self, id: VectorID) -> bool:
         """Returns True if the vector ID is in the collection."""
 
 
