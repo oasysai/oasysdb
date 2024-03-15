@@ -1,5 +1,4 @@
-from oasysdb.database import Database
-from oasysdb.collection import Record, Collection, Config
+from oasysdb.prelude import Record, Collection, Config, Database
 
 
 NAME = "vectors"  # Initial collection name.

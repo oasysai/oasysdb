@@ -31,6 +31,7 @@ fn oasysdb(py: Python, m: &PyModule) -> PyResult<()> {
         ("collection", collection_modules),
         ("vector", vector_modules),
         ("database", database_modules),
+        ("prelude", prelude_modules),
     ];
 
     for (name, module) in mods {
@@ -62,6 +63,18 @@ fn vector_modules(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pymodule]
 fn database_modules(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<database::Database>()?;
+    Ok(())
+}
+
+#[pymodule]
+fn prelude_modules(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<collection::Config>()?;
+    m.add_class::<collection::Record>()?;
+    m.add_class::<collection::Collection>()?;
+    m.add_class::<collection::SearchResult>()?;
+    m.add_class::<vector::Vector>()?;
+    m.add_class::<vector::VectorID>()?;
     m.add_class::<database::Database>()?;
     Ok(())
 }

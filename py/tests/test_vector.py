@@ -1,4 +1,4 @@
-from oasysdb.vector import Vector, VectorID
+from oasysdb.prelude import Vector, VectorID
 
 
 def test_create_vector():

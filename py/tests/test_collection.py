@@ -1,5 +1,4 @@
-from oasysdb.collection import Config, Record, Collection
-from oasysdb.vector import Vector, VectorID
+from oasysdb.prelude import Config, Record, Collection, Vector, VectorID
 
 DIMENSION = 128
 LEN = 100

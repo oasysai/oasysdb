@@ -1,9 +1,9 @@
-from oasysdb.collection import Collection, Config, Record
-from oasysdb.database import Database
-from oasysdb.vector import Vector
+# flake8: noqa F403
+
+from oasysdb.prelude import *
 
 
-def main():
+if __name__ == "__main__":
     # Open the database.
     db = Database("data/example")
 
@@ -22,7 +22,3 @@ def main():
 
     # Print the result.
     print("Nearest neighbors ID: {}".format(result[0].id))
-
-
-if __name__ == "__main__":
-    main()

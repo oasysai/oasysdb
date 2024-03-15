@@ -93,14 +93,12 @@ pip install oasysdb
 This command will install the latest version of OasysDB to your Python environment. After you're all set with the installation, you can use the code snippet below as a reference to get started with OasysDB in Python.
 
 ```python
-from oasysdb.collection import Collection, Config, Record
-from oasysdb.database import Database
-from oasysdb.vector import Vector
+from oasysdb.prelude import *
 
 
-def main():
+if __name__ == "__main__":
     # Open the database.
-    db = Database("data/test")
+    db = Database("data/example")
 
     # Create a vector collection.
     config = Config.create_default()
@@ -117,10 +115,6 @@ def main():
 
     # Print the result.
     print("Nearest neighbors ID: {}".format(result[0].id))
-
-
-if __name__ == "__main__":
-    main()
 ```
 
 # 🎯 Benchmarks
