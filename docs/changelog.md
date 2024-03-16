@@ -6,15 +6,15 @@ This release introduces a BREAKING CHANGE to one of the method from the `Databas
 
 - **BREAKING CHANGE**: Removed the `Database::create_collection` method from the library. To replace this, you can use the code snippet below:
 
-```rs
-// Before: this creates a new empty collection.
-db.create_collection("vectors", None, Some(records))?;
+  ```rs
+  // Before: this creates a new empty collection.
+  db.create_collection("vectors", None, Some(records))?;
 
-// After: create new or build a collection then save it.
-// let collection = Collection::new(&config)?;
-let collection = Collection::build(&config, &records)?;
-db.save_collection("vectors", &collection)?;
-```
+  // After: create new or build a collection then save it.
+  // let collection = Collection::new(&config)?;
+  let collection = Collection::build(&config, &records)?;
+  db.save_collection("vectors", &collection)?;
+  ```
 
 - Added the `Collection::list` method to list all the vector records in the collection.
 - Created a full Python binding for OasysDB which is available on PyPI. This allows you to use OasysDB directly from Python. The Python binding is available at https://pypi.org/project/oasysdb.
