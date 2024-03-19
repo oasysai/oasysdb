@@ -8,7 +8,7 @@ fn new() {
 #[test]
 fn new_with_distance() {
     let mut config = Config::default();
-    config.distance = "cosine".into();
+    config.distance = Distance::Cosine;
     let mut collection = Collection::new(&config);
     collection.insert(&Record::random(DIMENSION)).unwrap();
 }

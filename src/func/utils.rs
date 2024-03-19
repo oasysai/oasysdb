@@ -393,8 +393,8 @@ impl<'a> IndexConstruction<'a> {
         layers: &[Vec<UpperNode>],
     ) {
         let vector = &self.vectors[vector_id];
-        let dist_func = Distance::from(&self.config.distance).unwrap(); // config has been validated, so we just unwrap it.
-        
+        let dist_func = self.config.distance;
+
         let (mut search, mut insertion) = self.search_pool.pop();
         insertion.ef = self.config.ef_construction;
 

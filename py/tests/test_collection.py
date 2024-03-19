@@ -15,8 +15,15 @@ def create_test_collection() -> Collection:
 
 
 def test_create_config():
-    config = Config(ef_construction=40, ef_search=15, ml=0.3, distance='euclidean')
     default = Config.create_default()
+
+    # Create config based on the default.
+    config = Config(
+        ef_construction=40,
+        ef_search=15,
+        ml=0.3,
+        distance="euclidean"
+    )
 
     assert config.ef_construction == default.ef_construction
     assert config.ef_search == default.ef_search
@@ -135,8 +142,7 @@ def test_set_dimension():
     collection = Collection(config=config)
 
     # Set the collection dimension to 100.
-    collection.set_dimension(100)
-    assert collection.dimension() == 100
+    collection.dimension = 100
 
     # When inserting a record with a different dimension,
     # the collection should raise an exception.

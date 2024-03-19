@@ -11,6 +11,7 @@ class Config:
     - ef_construction: Nodes to consider during index construction.
     - ef_search: Nodes to consider during the search.
     - ml: Layer multiplier of the HNSW index.
+    - distance: Distance metric function.
     """
 
     ef_construction: int
@@ -34,7 +35,7 @@ class Config:
         - ef_construction: 40
         - ef_search: 15
         - ml: 0.3
-        - distance: 'euclidean'
+        - distance: euclidean
         """
 
 
@@ -80,6 +81,7 @@ class Collection:
     """The collection of vectors and their metadata."""
 
     config: Config
+    dimension: int
 
     def __init__(self, config: Config) -> None: ...
 
@@ -144,17 +146,6 @@ class Collection:
         Args:
         - vector: Vector to search.
         - n: Number of neighbors to return.
-        """
-
-    def dimension(self) -> int:
-        """Returns the configured vector dimension in the collection."""
-
-    def set_dimension(self, dimension: int) -> None:
-        """Sets the vector dimension of the collection.
-        The collection must be empty to do this.
-
-        Args:
-        - dimension: Vector dimension.
         """
 
     def len(self) -> int:

@@ -1,5 +1,7 @@
 /// The collection of vectors and their data.
 pub mod collection;
+/// Enum for the collection distance functions.
+pub mod distance;
 /// Error types for the database.
 pub mod err;
 /// Types for the metadata.
@@ -7,12 +9,11 @@ pub mod metadata;
 /// Types for the vectors.
 pub mod vector;
 
-pub mod distance;
-
 // Internal modules.
 mod utils;
 
 use collection::*;
+use distance::*;
 use err::*;
 use metadata::*;
 use utils::*;
