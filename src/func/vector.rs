@@ -84,15 +84,6 @@ impl Vector {
     }
 }
 
-impl Vector {
-    /// Returns the Euclidean distance between two vectors.
-    pub fn distance(&self, other: &Self) -> f32 {
-        assert_eq!(self.0.len(), other.0.len());
-        let iter = self.0.iter().zip(other.0.iter());
-        iter.map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
-    }
-}
-
 impl Index<&VectorID> for [Vector] {
     type Output = Vector;
     fn index(&self, index: &VectorID) -> &Self::Output {

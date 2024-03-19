@@ -16,12 +16,14 @@ class Config:
     ef_construction: int
     ef_search: int
     ml: float
+    distance: str
 
     def __init__(
         self,
         ef_construction: int,
         ef_search: int,
         ml: float,
+        distance: str
     ) -> None: ...
 
     @staticmethod
@@ -32,6 +34,7 @@ class Config:
         - ef_construction: 40
         - ef_search: 15
         - ml: 0.3
+        - distance: 'euclidean'
         """
 
 

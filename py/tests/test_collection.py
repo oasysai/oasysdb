@@ -15,12 +15,13 @@ def create_test_collection() -> Collection:
 
 
 def test_create_config():
-    config = Config(ef_construction=40, ef_search=15, ml=0.3)
+    config = Config(ef_construction=40, ef_search=15, ml=0.3, distance='euclidean')
     default = Config.create_default()
 
     assert config.ef_construction == default.ef_construction
     assert config.ef_search == default.ef_search
     assert config.ml == default.ml
+    assert config.distance == default.distance
 
 
 def test_create_record():

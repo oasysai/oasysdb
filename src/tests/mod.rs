@@ -3,6 +3,7 @@ mod test_database;
 
 use crate::collection::*;
 use crate::database::*;
+use crate::func::distance::Distance;
 use crate::vector::*;
 use rayon::iter::*;
 use std::collections::HashMap;
