@@ -124,15 +124,19 @@ fn list() {
 
 #[test]
 fn config_with_distance() {
+    let ef = 10;
+    let ml = 1.0;
     for dist in vec!["cosine", "dot", "euclidean"] {
-        Config::new(10, 10, 1.0, dist).unwrap();
+        Config::new(ef, ef, ml, dist).unwrap();
     }
 }
 
 #[test]
 #[should_panic(expected = "Distance function not supported.")]
 fn config_with_distance_panic() {
+    let ef = 10;
+    let ml = 1.0;
     for dist in vec!["l2", "test"] {
-        Config::new(10, 10, 1.0, dist).unwrap();
+        Config::new(ef, ef, ml, dist).unwrap();
     }
 }
