@@ -594,6 +594,12 @@ impl Record {
         Self::new(&vector, &data)
     }
 
+    #[setter]
+    fn set_data(&mut self, data: &PyAny) -> Result<(), Error> {
+        self.data = Metadata::from(data);
+        Ok(())
+    }
+
     /// Generates a random record for testing.
     /// * `dimension`: Vector dimension.
     #[staticmethod]
