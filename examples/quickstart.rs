@@ -7,8 +7,12 @@ fn main() {
     // Replace with your own data.
     let records = Record::many_random(dimension, 100);
 
+    let mut config = Config::default();
+
+    // Optionally set the distance function. Default to Euclidean.
+    config.distance = Distance::Cosine;
+
     // Create a vector collection.
-    let config = Config::default();
     let collection = Collection::build(&config, &records).unwrap();
 
     // Optionally save the collection to persist it.

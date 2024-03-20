@@ -43,8 +43,12 @@ fn main() {
     // Replace with your own data.
     let records = Record::many_random(dimension, 100);
 
+    let mut config = Config::default();
+
+    // Optionally set the distance function. Default to Euclidean.
+    config.distance = Distance::Cosine;
+
     // Create a vector collection.
-    let config = Config::default();
     let collection = Collection::build(&config, &records).unwrap();
 
     // Optionally save the collection to persist it.
@@ -100,17 +104,20 @@ if __name__ == "__main__":
     # Open the database.
     db = Database("data/example")
 
+    # Replace with your own records.
+    records = Record.many_random(dimension=128, len=100)
+
     # Create a vector collection.
     config = Config.create_default()
-    records = Record.many_random(dimension=128, len=100)
     collection = Collection.from_records(config, records)
 
     # Optionally, persist the collection to the database.
     db.save_collection("my_collection", collection)
 
-    # Search for the nearest neighbors.
     # Replace with your own query.
     query = Vector.random(128)
+
+    # Search for the nearest neighbors.
     result = collection.search(query, n=5)
 
     # Print the result.
