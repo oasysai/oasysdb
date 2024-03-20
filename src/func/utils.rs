@@ -240,7 +240,7 @@ pub struct Search {
     nearest: Vec<Candidate>,
     working: Vec<Candidate>,
     discarded: Vec<Candidate>,
-    dist_func: Distance,
+    distance: Distance,
 }
 
 impl Search {
@@ -287,8 +287,8 @@ impl Search {
 
         // Create a new candidate.
         let other = &vectors[vector_id];
-        let distance =
-            OrderedFloat::from(self.dist_func.calculate(vector, other));
+        let distance = self.distance.calculate(vector, other);
+        let distance = OrderedFloat::from(distance);
         let new = Candidate { distance, vector_id: *vector_id };
 
         // Make sure the index to insert to is within the EF scope.
@@ -343,7 +343,7 @@ impl Default for Search {
             working: Vec::new(),
             discarded: Vec::new(),
             ef: 5,
-            dist_func: Distance::Euclidean,
+            distance: Distance::Euclidean,
         }
     }
 }
@@ -393,7 +393,7 @@ impl<'a> IndexConstruction<'a> {
         layers: &[Vec<UpperNode>],
     ) {
         let vector = &self.vectors[vector_id];
-        let dist_func = self.config.distance;
+        let dist = self.config.distance;
 
         let (mut search, mut insertion) = self.search_pool.pop();
         insertion.ef = self.config.ef_construction;
@@ -441,7 +441,7 @@ impl<'a> IndexConstruction<'a> {
                     Ordering::Greater
                 } else {
                     let other = &self.vectors[id];
-                    distance.cmp(&dist_func.calculate(old, other).into())
+                    distance.cmp(&dist.calculate(old, other).into())
                 }
             };
 
