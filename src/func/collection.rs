@@ -1,5 +1,3 @@
-use self::distance::Distance;
-
 use super::*;
 
 /// The collection HNSW index configuration.
@@ -15,9 +13,9 @@ pub struct Config {
     /// Layer multiplier. The optimal value is `1/ln(M)`.
     #[pyo3(get, set)]
     pub ml: f32,
-    /// Distance Calculation. Supported formula `euclidean`,`cosine`,`dot`
-    #[pyo3(get, set)]
-    pub distance: String,
+    /// Distance calculation function.
+    #[pyo3(get)]
+    pub distance: Distance,
 }
 
 // Any modifications to this methods should be reflected in:
@@ -33,9 +31,16 @@ impl Config {
         ml: f32,
         distance: &str,
     ) -> Result<Self, Error> {
-        Distance::from(distance)?;
+        let distance = Distance::from(distance)?;
+        Ok(Self { ef_construction, ef_search, ml, distance })
+    }
 
-        Ok(Self { ef_construction, ef_search, ml, distance: distance.into() })
+    /// Sets the distance calculation function.
+    /// * `distance`: Distance function, e.g. euclidean or dot.
+    #[setter]
+    pub fn set_distance(&mut self, distance: &str) -> Result<(), Error> {
+        self.distance = Distance::from(distance)?;
+        Ok(())
     }
 
     #[staticmethod]
@@ -53,12 +58,13 @@ impl Default for Config {
     /// * `ef_construction`: 40
     /// * `ef_search`: 15
     /// * `ml`: 0.3
+    /// * `distance`: euclidean
     fn default() -> Self {
         Self {
             ef_construction: 40,
             ef_search: 15,
             ml: 0.3,
-            distance: "euclidean".into(),
+            distance: Distance::Euclidean,
         }
     }
 }
@@ -304,8 +310,7 @@ impl Collection {
         // Calculate the distance between the query and each record.
         // Then, create a search result for each record.
         for (id, vec) in self.vectors.iter() {
-            let distance =
-                Distance::from(&self.config.distance)?.calculate(vector, vec);
+            let distance = self.config.distance.calculate(vector, vec);
             let data = self.data[id].clone();
             let res = SearchResult { id: id.0, distance, data };
             nearest.push(res);
@@ -318,12 +323,14 @@ impl Collection {
     }
 
     /// Returns the configured vector dimension of the collection.
+    #[getter]
     pub fn dimension(&self) -> usize {
         self.dimension
     }
 
     /// Sets the vector dimension of the collection.
     /// * `dimension`: New vector dimension.
+    #[setter]
     pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
         // This can only be set if the collection is empty.
         if !self.vectors.is_empty() {
@@ -585,6 +592,12 @@ impl Record {
         let vector = Vector::from(vector);
         let data = Metadata::from(data);
         Self::new(&vector, &data)
+    }
+
+    #[setter]
+    fn set_data(&mut self, data: &PyAny) -> Result<(), Error> {
+        self.data = Metadata::from(data);
+        Ok(())
     }
 
     /// Generates a random record for testing.
