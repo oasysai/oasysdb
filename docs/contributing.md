@@ -37,13 +37,25 @@ Getting started with OasysDB development is easy.
 
 You will need to have Rust installed. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor.
 
-Once you have Rust installed, you can clone the repository and run the following commands in the root directory of the repository:
+After that, you need to install Maturin, which is a Python library used by OasysDB for building and publishing its Python packages. You can install Maturin using the following command:
 
 ```bash
-cargo test
+pip install maturin
 ```
 
-This command will run the tests to make sure that everything is working as expected before you start working on your changes.
+After setting up Maturin, fork the repository and clone it to your local machine. Then, in the root directory of the project, you need to set up and activate Python virtual environment for the project with `requirements.txt` as the dependency.
+
+Once everything is set, you can run the following commands in the root directory of the repository:
+
+```bash
+# Run Rust tests.
+cargo test
+
+# Run Python tests.
+pytest
+```
+
+These commands will run the tests to make sure that everything is working as expected before you start working on your changes.
 
 ```bash
 cargo bench
