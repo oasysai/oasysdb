@@ -76,6 +76,9 @@ pub struct Collection {
     /// The collection configuration object.
     #[pyo3(get)]
     pub config: Config,
+    /// The min/max distance to consider a neighbor.
+    #[pyo3(get)]
+    pub relevancy: f32,
     // Private fields below.
     data: HashMap<VectorID, Metadata>,
     vectors: HashMap<VectorID, Vector>,
@@ -104,9 +107,10 @@ impl Collection {
     #[new]
     pub fn new(config: &Config) -> Self {
         Self {
-            config: config.clone(),
             count: 0,
             dimension: 0,
+            relevancy: -1.0,
+            config: config.clone(),
             data: HashMap::new(),
             vectors: HashMap::new(),
             slots: vec![],
@@ -291,7 +295,11 @@ impl Collection {
             SearchResult { id, distance, data }
         };
 
-        Ok(search.iter().map(map_result).take(n).collect())
+        // Get relevant results and truncate the list.
+        let res = search.iter().map(map_result).collect();
+        let mut relevant = self.truncate_irrelevant_result(res);
+        relevant.truncate(n);
+        Ok(relevant)
     }
 
     /// Searches the collection for the true nearest neighbors.
@@ -318,8 +326,11 @@ impl Collection {
 
         // Sort the nearest neighbors by distance.
         nearest.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
-        nearest.truncate(n);
-        Ok(nearest)
+
+        // Remove irrelevant results and truncate the list.
+        let mut res = self.truncate_irrelevant_result(nearest);
+        res.truncate(n);
+        Ok(res)
     }
 
     /// Returns the configured vector dimension of the collection.
@@ -339,6 +350,13 @@ impl Collection {
 
         self.dimension = dimension;
         Ok(())
+    }
+
+    /// Sets the min/max relevancy for the search results.
+    /// * `relevancy`: Relevancy score.
+    #[setter]
+    pub fn set_relevancy(&mut self, relevancy: f32) {
+        self.relevancy = relevancy;
     }
 
     /// Returns the number of vector records in the collection.
@@ -498,6 +516,7 @@ impl Collection {
             dimension,
             config: config.clone(),
             count: records.len(),
+            relevancy: -1.0,
         })
     }
 
@@ -567,6 +586,34 @@ impl Collection {
                 node.set(index, &INVALID);
             }
         }
+    }
+
+    /// Truncates the search result based on the relevancy score.
+    fn truncate_irrelevant_result(
+        &self,
+        result: Vec<SearchResult>,
+    ) -> Vec<SearchResult> {
+        // Early return if the relevancy score is not set.
+        if self.relevancy == -1.0 {
+            return result;
+        }
+
+        // For Euclidean distance, relevant results are those
+        // smaller than the relevancy score with best distance of 0.0.
+        if self.config.distance == Distance::Euclidean {
+            return result
+                .into_par_iter()
+                .filter(|r| r.distance <= self.relevancy)
+                .collect();
+        }
+
+        // For other distance metrics, like cosine similarity
+        // and dot product, the relevant results are above
+        // the relevancy score.
+        result
+            .into_par_iter()
+            .filter(|r| r.distance >= self.relevancy)
+            .collect()
     }
 }
 
