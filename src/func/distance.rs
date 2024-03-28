@@ -2,6 +2,7 @@ use super::*;
 
 /// The distance function used for similarity calculations.
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Distance {
     /// Dot product function.
     Dot,

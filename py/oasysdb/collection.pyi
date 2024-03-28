@@ -82,6 +82,7 @@ class Collection:
 
     config: Config
     dimension: int
+    relevancy: float
 
     def __init__(self, config: Config) -> None: ...
 

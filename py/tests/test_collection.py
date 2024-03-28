@@ -122,6 +122,8 @@ def test_update_record():
 
 def test_search_record():
     collection = create_test_collection()
+    collection.relevancy = 4.5
+
     vector = Vector.random(dimension=DIMENSION)
     n = 10
 
@@ -135,6 +137,10 @@ def test_search_record():
     # Make sure the first result of the approximate search
     # is somewhere in the true results.
     assert results[0].id in [true.id for true in true_results]
+
+    # Check if the result distances are within the relevancy.
+    assert results[-1].distance <= collection.relevancy
+    assert true_results[-1].distance <= collection.relevancy
 
 
 def test_set_dimension():
