@@ -87,11 +87,19 @@ class Collection:
     def __init__(self, config: Config) -> None: ...
 
     @staticmethod
-    def from_records(
-        config: Config,
-        records: List[Record],
-    ) -> Collection:
+    def from_records(config: Config, records: List[Record]) -> Collection:
         """Build a collection from the given records.
+
+        Args:
+        - config: Collection configuration.
+        - records: Records used to build the collection.
+        """
+
+    @staticmethod
+    def build(config: Config, records: List[Record]) -> Collection:
+        """Build a collection from the records.
+        This is an alias of from_records method and shared
+        the same implementation.
 
         Args:
         - config: Collection configuration.
@@ -103,6 +111,13 @@ class Collection:
 
         Args:
         - record: Record to insert.
+        """
+
+    def insert_many(self, records: List[Record]) -> List[VectorID]:
+        """Inserts multiple records into the collection.
+
+        Args:
+        - records: Records to insert.
         """
 
     def delete(self, id: VectorID) -> None:

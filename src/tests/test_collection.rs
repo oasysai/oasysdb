@@ -53,6 +53,20 @@ fn insert_data_type_object() {
 }
 
 #[test]
+fn insert_many() {
+    let mut collection = create_collection();
+
+    // Create records to insert.
+    let new_records = Record::many_random(DIMENSION, LEN);
+    let ids = collection.insert_many(&new_records).unwrap();
+
+    // Assert the new records are in the collection.
+    assert_eq!(collection.len(), 2 * LEN);
+    assert_eq!(ids.len(), LEN);
+    assert_eq!(ids[0], VectorID(LEN as u32));
+}
+
+#[test]
 fn delete() {
     let mut collection = create_collection();
 
