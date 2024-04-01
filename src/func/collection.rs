@@ -123,6 +123,15 @@ impl Collection {
         Self::build(config, &records)
     }
 
+    #[staticmethod]
+    #[pyo3(name = "build")]
+    fn py_build(
+        config: &Config,
+        records: Vec<Record>,
+    ) -> Result<Collection, Error> {
+        Self::build(config, &records)
+    }
+
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
     pub fn insert(&mut self, record: &Record) -> Result<(), Error> {
@@ -159,6 +168,15 @@ impl Collection {
         self.insert_to_layers(&id);
 
         Ok(())
+    }
+
+    #[pyo3(name = "insert_many")]
+    fn py_insert_many(
+        &mut self,
+        records: Vec<Record>,
+    ) -> Result<Vec<VectorID>, Error> {
+        let ids = self.insert_many(&records)?;
+        Ok(ids)
     }
 
     /// Deletes a vector record from the collection.
@@ -501,6 +519,55 @@ impl Collection {
         })
     }
 
+    /// Inserts multiple vector records into the collection.
+    /// * `records`: List of vector records to insert.
+    pub fn insert_many(
+        &mut self,
+        records: &[Record],
+    ) -> Result<Vec<VectorID>, Error> {
+        // Make sure the collection is not full after inserting.
+        if self.slots.len() + records.len() >= u32::MAX as usize {
+            return Err(Error::collection_limit());
+        }
+
+        // Sets the collection dimension if it's the first record.
+        if self.vectors.is_empty() && self.dimension == 0 {
+            self.dimension = records[0].vector.len();
+        }
+
+        // Validate the vector dimension against the collection.
+        if records.par_iter().any(|i| i.vector.len() != self.dimension) {
+            let message = format!(
+                "The vector dimension is inconsistent. Expected: {}.",
+                self.dimension
+            );
+
+            return Err(message.into());
+        }
+
+        // Create new vector IDs for the records.
+        let ids: Vec<VectorID> = {
+            let first_id = self.slots.len();
+            let final_id = self.slots.len() + records.len();
+            (first_id..final_id).map(|i| i.into()).collect()
+        };
+
+        // Store the new records vector and data.
+        for (id, record) in ids.iter().zip(records.iter()) {
+            self.vectors.insert(*id, record.vector.clone());
+            self.data.insert(*id, record.data.clone());
+        }
+
+        // Add new vector IDs to the slots.
+        self.slots.extend(ids.clone());
+
+        // Update the collection count.
+        self.count += records.len();
+
+        self.insert_many_to_layers(&ids);
+        Ok(ids)
+    }
+
     /// Validates a vector dimension against the collection's.
     fn validate_dimension(&self, vector: &Vector) -> Result<(), Error> {
         let found = vector.len();
@@ -513,20 +580,34 @@ impl Collection {
         }
     }
 
-    /// Inserts a vector ID into the index layers.
-    fn insert_to_layers(&mut self, id: &VectorID) {
-        self.base_layer.push(BaseNode::default());
+    // Private index graph methods below.
 
-        let base_layer = self
-            .base_layer
+    fn create_state_base_layer(
+        &mut self,
+        add_nodes: usize,
+    ) -> Vec<RwLock<BaseNode>> {
+        // Add new nodes to the base layer.
+        for _ in 0..add_nodes {
+            self.base_layer.push(BaseNode::default());
+        }
+
+        self.base_layer
             .par_iter()
             .map(|node| RwLock::new(*node))
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+    }
 
-        let top_layer = match self.upper_layers.is_empty() {
+    fn create_state_top_layer(&mut self) -> LayerID {
+        match self.upper_layers.is_empty() {
             true => LayerID(0),
             false => LayerID(self.upper_layers.len()),
-        };
+        }
+    }
+
+    /// Inserts a vector ID into the index layers.
+    fn insert_to_layers(&mut self, id: &VectorID) {
+        let base_layer = self.create_state_base_layer(1);
+        let top_layer = self.create_state_top_layer();
 
         let state = IndexConstruction {
             base_layer: base_layer.as_slice(),
@@ -540,6 +621,30 @@ impl Collection {
         state.insert(id, &top_layer, &self.upper_layers);
 
         // Update the base layer with the new state.
+        let iter = state.base_layer.into_par_iter();
+        self.base_layer = iter.map(|node| *node.read()).collect();
+    }
+
+    /// Inserts multiple vector IDs into the index layers.
+    fn insert_many_to_layers(&mut self, ids: &[VectorID]) {
+        let base_layer = self.create_state_base_layer(ids.len());
+        let top_layer = self.create_state_top_layer();
+
+        // Create a new index construction state.
+        let state = IndexConstruction {
+            base_layer: base_layer.as_slice(),
+            search_pool: SearchPool::new(self.vectors.len()),
+            top_layer,
+            vectors: &self.vectors,
+            config: &self.config,
+        };
+
+        // Insert all vectors into the state.
+        for id in ids {
+            state.insert(id, &top_layer, &self.upper_layers);
+        }
+
+        // Update base layer using the new state.
         let iter = state.base_layer.into_par_iter();
         self.base_layer = iter.map(|node| *node.read()).collect();
     }

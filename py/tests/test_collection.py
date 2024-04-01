@@ -89,6 +89,15 @@ def test_insert_record_invalid_dimension():
     assert collection.len() == LEN
 
 
+def test_insert_many_records():
+    collection = create_test_collection()
+    records = Record.many_random(dimension=DIMENSION, len=LEN)
+    collection.insert_many(records)
+
+    assert collection.len() == 2 * LEN
+    assert all(collection.contains(VectorID(i)) for i in range(LEN, 2 * LEN))
+
+
 def test_delete_record():
     collection = create_test_collection()
 
