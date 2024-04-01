@@ -169,7 +169,7 @@ impl Collection {
 
         // This operation is last because it depends on
         // the updated vectors data.
-        self.insert_to_layers(&id);
+        self.insert_to_layers(&[id]);
 
         Ok(())
     }
@@ -191,7 +191,7 @@ impl Collection {
             return Err(Error::record_not_found());
         }
 
-        self.delete_from_layers(id);
+        self.delete_from_layers(&[*id]);
 
         // Update the collection data.
         self.vectors.remove(id);
@@ -252,12 +252,12 @@ impl Collection {
         self.validate_dimension(&record.vector)?;
 
         // Remove the old vector from the index layers.
-        self.delete_from_layers(id);
+        self.delete_from_layers(&[*id]);
 
         // Insert the updated vector and data.
         self.vectors.insert(*id, record.vector.clone());
         self.data.insert(*id, record.data.clone());
-        self.insert_to_layers(id);
+        self.insert_to_layers(&[*id]);
 
         Ok(())
     }
@@ -583,7 +583,7 @@ impl Collection {
         // Update the collection count.
         self.count += records.len();
 
-        self.insert_many_to_layers(&ids);
+        self.insert_to_layers(&ids);
         Ok(ids)
     }
 
@@ -599,55 +599,23 @@ impl Collection {
         }
     }
 
-    // Private index graph methods below.
-
-    fn create_state_base_layer(
-        &mut self,
-        add_nodes: usize,
-    ) -> Vec<RwLock<BaseNode>> {
+    /// Inserts vector IDs into the index layers.
+    fn insert_to_layers(&mut self, ids: &[VectorID]) {
         // Add new nodes to the base layer.
-        for _ in 0..add_nodes {
+        for _ in 0..ids.len() {
             self.base_layer.push(BaseNode::default());
         }
 
-        self.base_layer
+        let base_layer = self
+            .base_layer
             .par_iter()
             .map(|node| RwLock::new(*node))
-            .collect::<Vec<_>>()
-    }
+            .collect::<Vec<_>>();
 
-    fn create_state_top_layer(&mut self) -> LayerID {
-        match self.upper_layers.is_empty() {
+        let top_layer = match self.upper_layers.is_empty() {
             true => LayerID(0),
             false => LayerID(self.upper_layers.len()),
-        }
-    }
-
-    /// Inserts a vector ID into the index layers.
-    fn insert_to_layers(&mut self, id: &VectorID) {
-        let base_layer = self.create_state_base_layer(1);
-        let top_layer = self.create_state_top_layer();
-
-        let state = IndexConstruction {
-            base_layer: base_layer.as_slice(),
-            search_pool: SearchPool::new(self.vectors.len()),
-            top_layer,
-            vectors: &self.vectors,
-            config: &self.config,
         };
-
-        // Insert new vector into the contructor.
-        state.insert(id, &top_layer, &self.upper_layers);
-
-        // Update the base layer with the new state.
-        let iter = state.base_layer.into_par_iter();
-        self.base_layer = iter.map(|node| *node.read()).collect();
-    }
-
-    /// Inserts multiple vector IDs into the index layers.
-    fn insert_many_to_layers(&mut self, ids: &[VectorID]) {
-        let base_layer = self.create_state_base_layer(ids.len());
-        let top_layer = self.create_state_top_layer();
 
         // Create a new index construction state.
         let state = IndexConstruction {
@@ -668,13 +636,15 @@ impl Collection {
         self.base_layer = iter.map(|node| *node.read()).collect();
     }
 
-    /// Removes a vector ID from all index layers.
-    fn delete_from_layers(&mut self, id: &VectorID) {
-        // Remove the vector from the base layer.
-        let base_node = &mut self.base_layer[id.0 as usize];
-        let index = base_node.par_iter().position_first(|x| *x == *id);
-        if let Some(index) = index {
-            base_node.set(index, &INVALID);
+    /// Removes vector IDs from all index layers.
+    fn delete_from_layers(&mut self, ids: &[VectorID]) {
+        // Remove the vectors from the base layer.
+        for id in ids {
+            let base_node = &mut self.base_layer[id.0 as usize];
+            let index = base_node.par_iter().position_first(|x| *x == *id);
+            if let Some(index) = index {
+                base_node.set(index, &INVALID);
+            }
         }
 
         // Remove the vector from the upper layers.
@@ -684,11 +654,12 @@ impl Collection {
                 false => break,
             };
 
-            let node = &mut upper_layer[id.0 as usize];
-            let index = node.0.par_iter().position_first(|x| *x == *id);
-
-            if let Some(index) = index {
-                node.set(index, &INVALID);
+            for id in ids {
+                let node = &mut upper_layer[id.0 as usize];
+                let index = node.0.par_iter().position_first(|x| *x == *id);
+                if let Some(index) = index {
+                    node.set(index, &INVALID);
+                }
             }
         }
     }
