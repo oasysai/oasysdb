@@ -20,7 +20,18 @@ fn create_test_database(path: &str) -> Database {
 }
 
 fn create_collection() -> Collection {
-    let records = Record::many_random(DIMENSION, LEN);
+    let all_records = Record::many_random(DIMENSION, LEN);
+
+    // Split the records into two halves.
+    // The first half is used to build the collection.
+    // The second half is used to insert.
+    let mid = LEN / 2;
+    let first_half = &all_records[0..mid];
+    let second_half = &all_records[mid..LEN];
+
     let config = Config::default();
-    Collection::build(&config, &records).unwrap()
+    let mut collection = Collection::build(&config, first_half).unwrap();
+
+    collection.insert_many(second_half).unwrap();
+    collection
 }

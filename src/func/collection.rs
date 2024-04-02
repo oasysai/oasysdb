@@ -127,6 +127,15 @@ impl Collection {
         Self::build(config, &records)
     }
 
+    #[staticmethod]
+    #[pyo3(name = "build")]
+    fn py_build(
+        config: &Config,
+        records: Vec<Record>,
+    ) -> Result<Collection, Error> {
+        Self::build(config, &records)
+    }
+
     /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
     pub fn insert(&mut self, record: &Record) -> Result<(), Error> {
@@ -160,9 +169,18 @@ impl Collection {
 
         // This operation is last because it depends on
         // the updated vectors data.
-        self.insert_to_layers(&id);
+        self.insert_to_layers(&[id]);
 
         Ok(())
+    }
+
+    #[pyo3(name = "insert_many")]
+    fn py_insert_many(
+        &mut self,
+        records: Vec<Record>,
+    ) -> Result<Vec<VectorID>, Error> {
+        let ids = self.insert_many(&records)?;
+        Ok(ids)
     }
 
     /// Deletes a vector record from the collection.
@@ -173,7 +191,7 @@ impl Collection {
             return Err(Error::record_not_found());
         }
 
-        self.delete_from_layers(id);
+        self.delete_from_layers(&[*id]);
 
         // Update the collection data.
         self.vectors.remove(id);
@@ -234,12 +252,12 @@ impl Collection {
         self.validate_dimension(&record.vector)?;
 
         // Remove the old vector from the index layers.
-        self.delete_from_layers(id);
+        self.delete_from_layers(&[*id]);
 
         // Insert the updated vector and data.
         self.vectors.insert(*id, record.vector.clone());
         self.data.insert(*id, record.data.clone());
-        self.insert_to_layers(id);
+        self.insert_to_layers(&[*id]);
 
         Ok(())
     }
@@ -520,6 +538,55 @@ impl Collection {
         })
     }
 
+    /// Inserts multiple vector records into the collection.
+    /// * `records`: List of vector records to insert.
+    pub fn insert_many(
+        &mut self,
+        records: &[Record],
+    ) -> Result<Vec<VectorID>, Error> {
+        // Make sure the collection is not full after inserting.
+        if self.slots.len() + records.len() >= u32::MAX as usize {
+            return Err(Error::collection_limit());
+        }
+
+        // Sets the collection dimension if it's the first record.
+        if self.vectors.is_empty() && self.dimension == 0 {
+            self.dimension = records[0].vector.len();
+        }
+
+        // Validate the vector dimension against the collection.
+        if records.par_iter().any(|i| i.vector.len() != self.dimension) {
+            let message = format!(
+                "The vector dimension is inconsistent. Expected: {}.",
+                self.dimension
+            );
+
+            return Err(message.into());
+        }
+
+        // Create new vector IDs for the records.
+        let ids: Vec<VectorID> = {
+            let first_id = self.slots.len();
+            let final_id = self.slots.len() + records.len();
+            (first_id..final_id).map(|i| i.into()).collect()
+        };
+
+        // Store the new records vector and data.
+        for (id, record) in ids.iter().zip(records.iter()) {
+            self.vectors.insert(*id, record.vector.clone());
+            self.data.insert(*id, record.data.clone());
+        }
+
+        // Add new vector IDs to the slots.
+        self.slots.extend(ids.clone());
+
+        // Update the collection count.
+        self.count += records.len();
+
+        self.insert_to_layers(&ids);
+        Ok(ids)
+    }
+
     /// Validates a vector dimension against the collection's.
     fn validate_dimension(&self, vector: &Vector) -> Result<(), Error> {
         let found = vector.len();
@@ -532,9 +599,12 @@ impl Collection {
         }
     }
 
-    /// Inserts a vector ID into the index layers.
-    fn insert_to_layers(&mut self, id: &VectorID) {
-        self.base_layer.push(BaseNode::default());
+    /// Inserts vector IDs into the index layers.
+    fn insert_to_layers(&mut self, ids: &[VectorID]) {
+        // Add new nodes to the base layer.
+        for _ in 0..ids.len() {
+            self.base_layer.push(BaseNode::default());
+        }
 
         let base_layer = self
             .base_layer
@@ -547,6 +617,7 @@ impl Collection {
             false => LayerID(self.upper_layers.len()),
         };
 
+        // Create a new index construction state.
         let state = IndexConstruction {
             base_layer: base_layer.as_slice(),
             search_pool: SearchPool::new(self.vectors.len()),
@@ -555,21 +626,25 @@ impl Collection {
             config: &self.config,
         };
 
-        // Insert new vector into the contructor.
-        state.insert(id, &top_layer, &self.upper_layers);
+        // Insert all vectors into the state.
+        for id in ids {
+            state.insert(id, &top_layer, &self.upper_layers);
+        }
 
-        // Update the base layer with the new state.
+        // Update base layer using the new state.
         let iter = state.base_layer.into_par_iter();
         self.base_layer = iter.map(|node| *node.read()).collect();
     }
 
-    /// Removes a vector ID from all index layers.
-    fn delete_from_layers(&mut self, id: &VectorID) {
-        // Remove the vector from the base layer.
-        let base_node = &mut self.base_layer[id.0 as usize];
-        let index = base_node.par_iter().position_first(|x| *x == *id);
-        if let Some(index) = index {
-            base_node.set(index, &INVALID);
+    /// Removes vector IDs from all index layers.
+    fn delete_from_layers(&mut self, ids: &[VectorID]) {
+        // Remove the vectors from the base layer.
+        for id in ids {
+            let base_node = &mut self.base_layer[id.0 as usize];
+            let index = base_node.par_iter().position_first(|x| *x == *id);
+            if let Some(index) = index {
+                base_node.set(index, &INVALID);
+            }
         }
 
         // Remove the vector from the upper layers.
@@ -579,11 +654,12 @@ impl Collection {
                 false => break,
             };
 
-            let node = &mut upper_layer[id.0 as usize];
-            let index = node.0.par_iter().position_first(|x| *x == *id);
-
-            if let Some(index) = index {
-                node.set(index, &INVALID);
+            for id in ids {
+                let node = &mut upper_layer[id.0 as usize];
+                let index = node.0.par_iter().position_first(|x| *x == *id);
+                if let Some(index) = index {
+                    node.set(index, &INVALID);
+                }
             }
         }
     }
