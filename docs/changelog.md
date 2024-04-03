@@ -1,3 +1,35 @@
+# v0.4.0
+
+### What's Changed
+
+- **CONDITIONAL BREAKING CHANGE**: Add an option to configure distance for the vector collection via `Config` struct. The new field `distance` can be set using the `Distance` enum. This includes Euclidean, Cosine, and Dot distance metrics. The default distance metric is Euclidean. This change is backward compatible if you are creating a config using the `Config::default()` method. Otherwise, you need to update the config to include the distance metric.
+
+  ```rs
+  let config = Config {
+      ...
+      distance: Distance::Cosine,
+  };
+  ```
+
+- With the new distance metric feature, now, you can set a `relevancy` threshold for the search results. This will filter out the results that are below or above the threshold depending on the distance metric used. This feature is disabled by default which is set to -1.0. To enable this feature, you can set the `relevancy` field in the `Collection` struct.
+
+  ```rs
+  ...
+  let mut collection = Collection::new(&config)?;
+  collection.relevancy = 3.0;
+  ```
+
+- Add a new method `Collection::insert_many` to insert multiple vector records into the collection at once. This method is more optimized than using the `Collection::insert` method in a loop.
+
+### Contributors
+
+- @noneback
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.3.0...v0.4.0
+
 # v0.3.0
 
 This release introduces a BREAKING CHANGE to one of the method from the `Database` struct. The `Database::create_collection` method has been removed from the library due to redundancy. The `Database::save_collection` method can be used to create a new collection or update an existing one. This change is made to simplify the API and to make it more consistent with the other methods in the `Database` struct.
