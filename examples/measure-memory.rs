@@ -6,7 +6,7 @@ use oasysdb::collection::*;
 static ALLOC: Jemalloc = Jemalloc;
 
 fn main() {
-    // Matches the configuration in `bench/main.rs`
+    // Matches the configuration in bench/main.rs.
     let len = 1_000_000;
     let dimension = 128;
 
@@ -17,8 +17,8 @@ fn main() {
 
     // Measure the memory usage.
     let memory = allocated::read().unwrap();
-    let size_in_mb: f64 = memory as f64 / (1024.0 * 1024.0);
+    let size_mb = memory as f32 / (1024.0 * 1024.0);
 
     println!("For {} vector records of dimension {}", len, dimension);
-    println!("Memory usage: {:.0}MB", size_in_mb);
+    println!("Memory usage: {:.0}MB", size_mb);
 }
