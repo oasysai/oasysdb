@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use curl::easy::Easy;
 use flate2::read::GzDecoder;
-use oasysdb::collection::Record;
+use oasysdb::collection::{Collection, Config, Record};
 use rayon::iter::*;
 use std::error::Error;
 use std::fs::{create_dir_all, File};
@@ -10,6 +10,7 @@ use std::path::Path;
 use tar::Archive;
 use tokio::runtime::Runtime;
 
+#[allow(dead_code)]
 async fn download_file(url: &str, to: &str) -> Result<(), Box<dyn Error>> {
     let mut file = File::create(to)?;
 
@@ -26,6 +27,7 @@ async fn download_file(url: &str, to: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn extract_tar_gz(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
     let file = File::open(path)?;
     let decoder = GzDecoder::new(file);
@@ -35,6 +37,7 @@ fn extract_tar_gz(path: &str, to: &str) -> Result<(), Box<dyn Error>> {
 }
 
 /// Downloads and extracts the dataset to `/data/siftsmall`.
+#[allow(dead_code)]
 pub fn download_siftsmall() -> Result<(), Box<dyn Error>> {
     // Check if the dataset exists.
     let source = "data/siftsmall/siftsmall_base.fvecs";
@@ -59,6 +62,7 @@ pub fn download_siftsmall() -> Result<(), Box<dyn Error>> {
 
 /// Reads the vectors from the dataset.
 /// * `path`: Path to the dataset file.
+#[allow(dead_code)]
 pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
     let ext = path.split(".").last().unwrap();
     if ext != "fvecs" {
@@ -98,6 +102,7 @@ pub fn read_vectors(path: &str) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
 
 /// Reads and converts the vectors from the dataset into records.
 /// * `path`: Path to the dataset file.
+#[allow(dead_code)]
 pub fn get_records(path: &str) -> Result<Vec<Record>, Box<dyn Error>> {
     // Create records where the ID is the index.
     let records = read_vectors(path)?
@@ -107,4 +112,14 @@ pub fn get_records(path: &str) -> Result<Vec<Record>, Box<dyn Error>> {
         .collect();
 
     Ok(records)
+}
+
+/// Create a randomized collection of vectors to use as our database
+/// * `dimension`: Dimensionality of the vector embeddings
+/// * `len`: Number of records in the database
+pub fn build_randomized_records(dimension: usize, len: usize) -> Collection {
+    let records = Record::many_random(dimension, len);
+
+    let config = Config::default();
+    Collection::build(&config, &records).unwrap()
 }
