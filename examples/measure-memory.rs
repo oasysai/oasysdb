@@ -15,8 +15,6 @@ fn main() {
     let config = Config::default();
     Collection::build(&config, &records).unwrap();
 
-    println!("Reading memory size...");
-
     // Measure the memory usage.
     let memory = allocated::read().unwrap();
     let size_in_mb: f64 = memory as f64 / (1024.0 * 1024.0);
