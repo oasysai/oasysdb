@@ -1,13 +1,14 @@
 use super::*;
 
 /// The ID of a vector record.
-#[pyclass(module = "oasysdb.vector")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.vector"))]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct VectorID(pub u32);
 
-#[pymethods]
+#[cfg_attr(feature = "py", pymethods)]
 impl VectorID {
+    #[cfg(feature = "py")]
     #[new]
     fn py_new(id: u32) -> Self {
         id.into()
@@ -32,7 +33,7 @@ impl From<usize> for VectorID {
 }
 
 /// The vector embedding of float numbers.
-#[pyclass(module = "oasysdb.vector")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.vector"))]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
 pub struct Vector(pub Vec<f32>);
@@ -41,15 +42,34 @@ pub struct Vector(pub Vec<f32>);
 // If this implementation is modified, make sure to modify:
 // - py/tests/test_vector.py
 // - py/oasysdb/vector.pyi
-#[pymethods]
+#[cfg_attr(feature = "py", pymethods)]
 impl Vector {
+    #[cfg(feature = "py")]
     #[new]
     fn py_new(vector: Vec<f32>) -> Self {
         vector.into()
     }
 
+    #[cfg(feature = "py")]
     fn to_list(&self) -> Vec<f32> {
         self.0.clone()
+    }
+
+    #[cfg(feature = "py")]
+    #[staticmethod]
+    #[pyo3(name = "random")]
+    fn py_random(dimension: usize) -> Self {
+        Vector::random(dimension)
+    }
+
+    #[cfg(feature = "py")]
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    #[cfg(feature = "py")]
+    fn __len__(&self) -> usize {
+        self.len()
     }
 
     /// Returns the dimension of the vector.
@@ -61,10 +81,11 @@ impl Vector {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+}
 
+impl Vector {
     /// Generates a random vector for testing.
     /// * `dimension`: Vector dimension.
-    #[staticmethod]
     pub fn random(dimension: usize) -> Self {
         let mut vec = vec![0.0; dimension];
 
@@ -73,14 +94,6 @@ impl Vector {
         }
 
         vec.into()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
-    }
-
-    fn __len__(&self) -> usize {
-        self.len()
     }
 }
 

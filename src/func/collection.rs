@@ -1,30 +1,67 @@
 use super::*;
 
 /// The collection HNSW index configuration.
-#[pyclass(module = "oasysdb.collection")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.collection", get_all))]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     /// Nodes to consider during construction.
-    #[pyo3(get, set)]
     pub ef_construction: usize,
     /// Nodes to consider during search.
-    #[pyo3(get, set)]
     pub ef_search: usize,
     /// Layer multiplier. The optimal value is `1/ln(M)`.
-    #[pyo3(get, set)]
     pub ml: f32,
     /// Distance calculation function.
-    #[pyo3(get)]
     pub distance: Distance,
 }
 
 // Any modifications to this methods should be reflected in:
 // - py/tests/test_collection.py
 // - py/oasysdb/collection.pyi
+#[cfg(feature = "py")]
 #[pymethods]
 impl Config {
-    /// Creates a new collection config with the given parameters.
     #[new]
+    fn py_new(
+        ef_construction: usize,
+        ef_search: usize,
+        ml: f32,
+        distance: &str,
+    ) -> Result<Self, Error> {
+        Self::new(ef_construction, ef_search, ml, distance)
+    }
+
+    #[setter(ef_construction)]
+    fn py_set_ef_construction(&mut self, ef_construction: usize) {
+        self.ef_construction = ef_construction;
+    }
+
+    #[setter(ef_search)]
+    fn py_set_ef_search(&mut self, ef_search: usize) {
+        self.ef_search = ef_search;
+    }
+
+    #[setter(ml)]
+    fn py_set_ml(&mut self, ml: f32) {
+        self.ml = ml;
+    }
+
+    #[setter(distance)]
+    fn py_set_distance(&mut self, distance: &str) -> Result<(), Error> {
+        self.set_distance(distance)
+    }
+
+    #[staticmethod]
+    fn create_default() -> Self {
+        Self::default()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl Config {
+    /// Creates a new collection config with the given parameters.
     pub fn new(
         ef_construction: usize,
         ef_search: usize,
@@ -37,19 +74,9 @@ impl Config {
 
     /// Sets the distance calculation function.
     /// * `distance`: Distance function, e.g. euclidean or dot.
-    #[setter]
     pub fn set_distance(&mut self, distance: &str) -> Result<(), Error> {
         self.distance = Distance::from(distance)?;
         Ok(())
-    }
-
-    #[staticmethod]
-    fn create_default() -> Self {
-        Self::default()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
     }
 }
 
@@ -70,14 +97,12 @@ impl Default for Config {
 }
 
 /// The collection of vector records with HNSW indexing.
-#[pyclass(module = "oasysdb.collection")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.collection"))]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Collection {
     /// The collection configuration object.
-    #[pyo3(get)]
     pub config: Config,
     /// The min/max distance to consider a neighbor.
-    #[pyo3(get)]
     pub relevancy: f32,
     // Private fields below.
     data: HashMap<VectorID, Metadata>,
@@ -101,24 +126,15 @@ impl Index<&VectorID> for Collection {
 // Any modifications to these methods should be reflected in:
 // - py/tests/test_collection.py
 // - py/oasysdb/collection.pyi
-#[pymethods]
+#[cfg_attr(feature = "py", pymethods)]
 impl Collection {
-    /// Creates an empty collection with the given configuration.
+    #[cfg(feature = "py")]
     #[new]
-    pub fn new(config: &Config) -> Self {
-        Self {
-            count: 0,
-            dimension: 0,
-            relevancy: -1.0,
-            config: config.clone(),
-            data: HashMap::new(),
-            vectors: HashMap::new(),
-            slots: vec![],
-            base_layer: vec![],
-            upper_layers: vec![],
-        }
+    fn py_new(config: &Config) -> Self {
+        Self::new(config)
     }
 
+    #[cfg(feature = "py")]
     #[staticmethod]
     fn from_records(
         config: &Config,
@@ -127,6 +143,7 @@ impl Collection {
         Self::build(config, &records)
     }
 
+    #[cfg(feature = "py")]
     #[staticmethod]
     #[pyo3(name = "build")]
     fn py_build(
@@ -174,6 +191,7 @@ impl Collection {
         Ok(())
     }
 
+    #[cfg(feature = "py")]
     #[pyo3(name = "insert_many")]
     fn py_insert_many(
         &mut self,
@@ -351,29 +369,33 @@ impl Collection {
         Ok(res)
     }
 
-    /// Returns the configured vector dimension of the collection.
-    #[getter]
-    pub fn dimension(&self) -> usize {
+    #[cfg(feature = "py")]
+    #[getter(config)]
+    fn py_config(&self) -> Config {
+        self.config.clone()
+    }
+
+    #[cfg(feature = "py")]
+    #[getter(dimension)]
+    fn py_dimension(&self) -> usize {
         self.dimension
     }
 
-    /// Sets the vector dimension of the collection.
-    /// * `dimension`: New vector dimension.
-    #[setter]
-    pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
-        // This can only be set if the collection is empty.
-        if !self.vectors.is_empty() {
-            return Err("The collection must be empty.".into());
-        }
-
-        self.dimension = dimension;
-        Ok(())
+    #[cfg(feature = "py")]
+    #[setter(dimension)]
+    fn py_set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
+        self.set_dimension(dimension)
     }
 
-    /// Sets the min/max relevancy for the search results.
-    /// * `relevancy`: Relevancy score.
-    #[setter]
-    pub fn set_relevancy(&mut self, relevancy: f32) {
+    #[cfg(feature = "py")]
+    #[getter(relevancy)]
+    fn py_relevancy(&self) -> f32 {
+        self.relevancy
+    }
+
+    #[cfg(feature = "py")]
+    #[setter(relevancy)]
+    fn py_set_relevancy(&mut self, relevancy: f32) {
         self.relevancy = relevancy;
     }
 
@@ -399,6 +421,21 @@ impl Collection {
 }
 
 impl Collection {
+    /// Creates an empty collection with the given configuration.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            count: 0,
+            dimension: 0,
+            relevancy: -1.0,
+            config: config.clone(),
+            data: HashMap::new(),
+            vectors: HashMap::new(),
+            slots: vec![],
+            base_layer: vec![],
+            upper_layers: vec![],
+        }
+    }
+
     /// Builds the collection index from vector records.
     /// * `config`: Collection configuration.
     /// * `records`: List of vectors to build the index from.
@@ -587,6 +624,29 @@ impl Collection {
         Ok(ids)
     }
 
+    /// Returns the configured vector dimension of the collection.
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Sets the vector dimension of the collection.
+    /// * `dimension`: New vector dimension.
+    pub fn set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
+        // This can only be set if the collection is empty.
+        if !self.vectors.is_empty() {
+            return Err("The collection must be empty.".into());
+        }
+
+        self.dimension = dimension;
+        Ok(())
+    }
+
+    /// Sets the min/max relevancy for the search results.
+    /// * `relevancy`: Relevancy score.
+    pub fn set_relevancy(&mut self, relevancy: f32) {
+        self.relevancy = relevancy;
+    }
+
     /// Validates a vector dimension against the collection's.
     fn validate_dimension(&self, vector: &Vector) -> Result<(), Error> {
         let found = vector.len();
@@ -694,20 +754,19 @@ impl Collection {
 }
 
 /// A record containing a vector and its associated data.
-#[pyclass(module = "oasysdb.collection")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.collection", get_all))]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Record {
     /// The vector embedding.
-    #[pyo3(get, set)]
     pub vector: Vector,
     /// Data associated with the vector.
-    #[pyo3(get)]
     pub data: Metadata,
 }
 
 // Any modifications to the Python methods should be reflected in:
 // - py/tests/test_collection.py
 // - py/oasysdb/collection.pyi
+#[cfg(feature = "py")]
 #[pymethods]
 impl Record {
     #[new]
@@ -717,27 +776,27 @@ impl Record {
         Self::new(&vector, &data)
     }
 
-    #[setter]
-    fn set_data(&mut self, data: &PyAny) -> Result<(), Error> {
+    #[setter(vector)]
+    fn py_set_vector(&mut self, vector: Vec<f32>) {
+        self.vector = Vector::from(vector);
+    }
+
+    #[setter(data)]
+    fn py_set_data(&mut self, data: &PyAny) -> Result<(), Error> {
         self.data = Metadata::from(data);
         Ok(())
     }
 
-    /// Generates a random record for testing.
-    /// * `dimension`: Vector dimension.
     #[staticmethod]
-    pub fn random(dimension: usize) -> Self {
-        let vector = Vector::random(dimension);
-        let data = random::<usize>().into();
-        Self::new(&vector, &data)
+    #[pyo3(name = "random")]
+    fn py_random(dimension: usize) -> Self {
+        Record::random(dimension)
     }
 
-    /// Generates many random records for testing.
-    /// * `dimension`: Vector dimension.
-    /// * `len`: Number of records to generate.
     #[staticmethod]
-    pub fn many_random(dimension: usize, len: usize) -> Vec<Self> {
-        (0..len).map(|_| Self::random(dimension)).collect()
+    #[pyo3(name = "many_random")]
+    fn py_many_random(dimension: usize, len: usize) -> Vec<Self> {
+        Record::many_random(dimension, len)
     }
 
     fn __repr__(&self) -> String {
@@ -750,24 +809,36 @@ impl Record {
     pub fn new(vector: &Vector, data: &Metadata) -> Self {
         Self { vector: vector.clone(), data: data.clone() }
     }
+
+    /// Generates a random record for testing.
+    /// * `dimension`: Vector dimension.
+    pub fn random(dimension: usize) -> Self {
+        let vector = Vector::random(dimension);
+        let data = random::<usize>().into();
+        Self::new(&vector, &data)
+    }
+
+    /// Generates many random records for testing.
+    /// * `dimension`: Vector dimension.
+    /// * `len`: Number of records to generate.
+    pub fn many_random(dimension: usize, len: usize) -> Vec<Self> {
+        (0..len).map(|_| Self::random(dimension)).collect()
+    }
 }
 
 /// The collection nearest neighbor search result.
-#[pyclass(module = "oasysdb.collection")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.collection", get_all))]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResult {
     /// Vector ID.
-    #[pyo3(get)]
     pub id: u32,
     /// Distance between the query to the collection vector.
-    #[pyo3(get)]
     pub distance: f32,
     /// Data associated with the vector.
-    #[pyo3(get)]
     pub data: Metadata,
 }
 
-#[pymethods]
+#[cfg(feature = "py")]
 impl SearchResult {
     fn __repr__(&self) -> String {
         format!("{:?}", self)

@@ -1,11 +1,14 @@
-use super::*;
-
 // Other error types.
 use bincode::ErrorKind as BincodeError;
-use pyo3::exceptions::PyValueError;
 use sled::Error as SledError;
 use std::error::Error as StandardError;
 use std::io::Error as IOError;
+
+#[cfg(feature = "py")]
+use super::*;
+
+#[cfg(feature = "py")]
+use pyo3::exceptions::PyValueError;
 
 /// A custom error type containing the error message.
 #[derive(Debug)]
@@ -96,6 +99,7 @@ impl From<Box<BincodeError>> for Error {
     }
 }
 
+#[cfg(feature = "py")]
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {
         PyErr::new::<PyValueError, String>(err.0)
