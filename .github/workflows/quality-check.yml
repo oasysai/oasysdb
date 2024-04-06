@@ -73,3 +73,9 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
           python -m pytest
+
+      - name: Lint code with Flake8
+        run: |
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          python -m flake8
