@@ -1,27 +1,27 @@
-//! Benchmark lookup times. See `measure-memory.rs` example for memory usage.
+// See measure-memory.rs example for memory usage.
+
 mod utils;
 
 use criterion::*;
 use oasysdb::prelude::*;
 use utils::*;
 
+/// The number of vector records in the collection.
+const COLLECTION_SIZE: usize = 1_000_000;
 
-pub mod config {
-    /// The number of records in the database.
-    pub static DATABASE_SIZE: usize = 1_000_000;
-
-    /// The dimensionality of the vector embeddings.
-    /// 768 performs well for most [MTEB](https://huggingface.co/spaces/mteb/leaderboard) models.
-    pub static DIMENSION: usize = 128;
-}
+/// The vector embedding dimension.
+/// A vector dimension of 768, 1024, or 4096 are very common options
+/// for models on [MTEB](https://huggingface.co/spaces/mteb/leaderboard).
+const DIMENSION: usize = 128;
 
 fn bench_search_collection(criterion: &mut Criterion) {
     let id = "Search collection";
 
-    let vector = Vector::random(config::DIMENSION);
-
     // Create the collection.
-    let collection = build_randomized_records(config::DIMENSION, config::DATABASE_SIZE);
+    let collection = build_test_collection(DIMENSION, COLLECTION_SIZE);
+
+    // Create a random vector to search for.
+    let vector = Vector::random(DIMENSION);
 
     // Benchmark the search speed.
     let routine = || {
