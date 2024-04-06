@@ -66,6 +66,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: develop
+          args: --features py
           sccache: "true"
 
       - name: Run tests
