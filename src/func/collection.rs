@@ -153,9 +153,9 @@ impl Collection {
         Self::build(config, &records)
     }
 
-    /// Inserts a vector record into the collection.
+    /// Inserts a vector record into the collection, and return `VectorID` if success.
     /// * `record`: Vector record to insert.
-    pub fn insert(&mut self, record: &Record) -> Result<(), Error> {
+    pub fn insert(&mut self, record: &Record) -> Result<VectorID, Error> {
         // Ensure the number of records is within the limit.
         if self.slots.len() == u32::MAX as usize {
             return Err(Error::collection_limit());
@@ -188,7 +188,7 @@ impl Collection {
         // the updated vectors data.
         self.insert_to_layers(&[id]);
 
-        Ok(())
+        Ok(id)
     }
 
     #[cfg(feature = "py")]
