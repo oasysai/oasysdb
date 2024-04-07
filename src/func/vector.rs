@@ -31,6 +31,18 @@ impl From<usize> for VectorID {
     }
 }
 
+impl From<VectorID> for u32 {
+    fn from(v: VectorID) -> Self {
+        v.0
+    }
+}
+
+impl From<VectorID> for usize {
+    fn from(v: VectorID) -> Self {
+        v.0 as usize
+    }
+}
+
 /// The vector embedding of float numbers.
 #[pyclass(module = "oasysdb.vector")]
 #[derive(Serialize, Deserialize, Clone, Debug)]
