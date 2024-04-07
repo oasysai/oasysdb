@@ -153,7 +153,7 @@ impl Collection {
         Self::build(config, &records)
     }
 
-    /// Inserts a vector record into the collection, and return `VectorID` if success.
+    /// Inserts a vector record into the collection.
     /// * `record`: Vector record to insert.
     pub fn insert(&mut self, record: &Record) -> Result<VectorID, Error> {
         // Ensure the number of records is within the limit.
