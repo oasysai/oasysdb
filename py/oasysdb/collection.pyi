@@ -106,7 +106,7 @@ class Collection:
         - records: Records used to build the collection.
         """
 
-    def insert(self, record: Record) -> None:
+    def insert(self, record: Record) -> VectorID:
         """Inserts a record into the collection.
 
         Args:
