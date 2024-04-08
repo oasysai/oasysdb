@@ -57,6 +57,7 @@ impl Distance {
     }
 }
 
+#[cfg(feature = "py")]
 impl From<&PyAny> for Distance {
     fn from(distance: &PyAny) -> Self {
         let distance = distance.str().unwrap().to_string();
@@ -64,6 +65,7 @@ impl From<&PyAny> for Distance {
     }
 }
 
+#[cfg(feature = "py")]
 impl IntoPy<Py<PyAny>> for Distance {
     fn into_py(self, py: Python) -> Py<PyAny> {
         match self {

@@ -66,6 +66,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: develop
+          args: --features py
           sccache: "true"
 
       - name: Run tests
@@ -73,3 +74,9 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
           python -m pytest
+
+      - name: Lint code with Flake8
+        run: |
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          python -m flake8

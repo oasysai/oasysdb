@@ -19,10 +19,13 @@ pub use func::err;
 pub use func::metadata;
 pub use func::vector;
 
+#[cfg(feature = "py")]
 use pyo3::prelude::*;
 
+#[cfg(feature = "py")]
 type Module = fn(Python<'_>, &PyModule) -> PyResult<()>;
 
+#[cfg(feature = "py")]
 #[pymodule]
 fn oasysdb(py: Python, m: &PyModule) -> PyResult<()> {
     let sys = py.import("sys")?;
@@ -46,6 +49,7 @@ fn oasysdb(py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "py")]
 #[pymodule]
 fn collection_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<collection::Config>()?;
@@ -55,6 +59,7 @@ fn collection_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "py")]
 #[pymodule]
 fn vector_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<vector::Vector>()?;
@@ -62,12 +67,14 @@ fn vector_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "py")]
 #[pymodule]
 fn database_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<database::Database>()?;
     Ok(())
 }
 
+#[cfg(feature = "py")]
 #[pymodule]
 fn prelude_modules(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<collection::Config>()?;

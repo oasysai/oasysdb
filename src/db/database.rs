@@ -1,39 +1,25 @@
 use super::*;
 
 /// The database storing vector collections.
-#[pyclass(module = "oasysdb.database")]
+#[cfg_attr(feature = "py", pyclass(module = "oasysdb.database"))]
 pub struct Database {
     collections: Db,
     count: usize,
 }
 
-#[pymethods]
+#[cfg_attr(feature = "py", pymethods)]
 impl Database {
-    /// Re-creates and opens the database at the given path.
-    /// This method will delete the database if it exists.
-    /// * `path` - Directory to store the database.
+    #[cfg(feature = "py")]
     #[staticmethod]
-    pub fn new(path: &str) -> Result<Self, Error> {
-        // Remove the database dir if it exists.
-        if Path::new(path).exists() {
-            remove_dir_all(path)?;
-        }
-
-        // Using sled::Config to prevent name collisions
-        // with collection's Config.
-        let config = sled::Config::new().path(path);
-        let collections = config.open()?;
-        Ok(Self { collections, count: 0 })
+    #[pyo3(name = "new")]
+    fn py_new(path: &str) -> PyResult<Self> {
+        Self::new(path).map_err(|e| e.into())
     }
 
-    /// Opens existing or creates new database.
-    /// If the database doesn't exist, it will be created.
-    /// * `path` - Directory to store the database.
+    #[cfg(feature = "py")]
     #[new]
-    pub fn open(path: &str) -> Result<Self, Error> {
-        let collections = sled::open(path)?;
-        let count = collections.len();
-        Ok(Self { collections, count })
+    fn py_open(path: &str) -> PyResult<Self> {
+        Self::open(path).map_err(|e| e.into())
     }
 
     /// Gets a collection from the database.
@@ -90,7 +76,35 @@ impl Database {
         self.count == 0
     }
 
+    #[cfg(feature = "py")]
     fn __len__(&self) -> usize {
         self.len()
+    }
+}
+
+impl Database {
+    /// Re-creates and opens the database at the given path.
+    /// This method will delete the database if it exists.
+    /// * `path` - Directory to store the database.
+    pub fn new(path: &str) -> Result<Self, Error> {
+        // Remove the database dir if it exists.
+        if Path::new(path).exists() {
+            remove_dir_all(path)?;
+        }
+
+        // Using sled::Config to prevent name collisions
+        // with collection's Config.
+        let config = sled::Config::new().path(path);
+        let collections = config.open()?;
+        Ok(Self { collections, count: 0 })
+    }
+
+    /// Opens existing or creates new database.
+    /// If the database doesn't exist, it will be created.
+    /// * `path` - Directory to store the database.
+    pub fn open(path: &str) -> Result<Self, Error> {
+        let collections = sled::open(path)?;
+        let count = collections.len();
+        Ok(Self { collections, count })
     }
 }

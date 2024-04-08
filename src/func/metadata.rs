@@ -73,6 +73,7 @@ where
 
 // This implementation attempts to convert the
 // Python object into the Metadata enum.
+#[cfg(feature = "py")]
 impl From<&PyAny> for Metadata {
     fn from(value: &PyAny) -> Self {
         // Extract string.
@@ -109,6 +110,7 @@ impl From<&PyAny> for Metadata {
 
 // This implementation converts the Metadata
 // enum back to the Python object.
+#[cfg(feature = "py")]
 impl IntoPy<Py<PyAny>> for Metadata {
     fn into_py(self, py: Python) -> Py<PyAny> {
         // Convert array of Metadata to Python list.
