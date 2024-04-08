@@ -1,3 +1,22 @@
+# v0.4.1
+
+### What's Changed
+
+- Added quality of life improvements to the `VectorID` type interoperability.
+- Improved the `README.md` file with additional data points on the database performance.
+- Changed to `Collection.insert` method to return the new `VectorID` after inserting a new vector record.
+- Pyo3 dependencies are now hidden behind the `py` feature. This allows users to build the library without the Python bindings if they don't need it, which is probably all of them.
+
+### Contributors
+
+- @dteare
+- @edwinkys
+- @noneback
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.4.0...v0.4.1
+
 # v0.4.0
 
 ### What's Changed
