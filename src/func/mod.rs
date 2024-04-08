@@ -22,7 +22,6 @@ use vector::*;
 // External dependencies.
 use ordered_float::OrderedFloat;
 use parking_lot::*;
-use pyo3::prelude::*;
 use rand::random;
 use rayon::iter::*;
 use serde::{Deserialize, Serialize};
@@ -30,6 +29,9 @@ use serde_big_array::BigArray;
 use std::cmp::*;
 use std::collections::{BinaryHeap, HashMap};
 use std::ops::{Deref, Index};
+
+#[cfg(feature = "py")]
+use pyo3::prelude::*;
 
 // This code is inspired by the HNSW implementation in the
 // Instant Distance library and modified to fit the needs

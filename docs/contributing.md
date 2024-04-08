@@ -51,6 +51,9 @@ Once everything is set, you can run the following commands in the root directory
 # Run Rust tests.
 cargo test
 
+# Build the Python package.
+maturin dev --features py
+
 # Run Python tests.
 pytest
 ```
