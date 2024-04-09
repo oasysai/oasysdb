@@ -21,4 +21,4 @@ changelog = "https://github.com/oasysai/oasysdb/blob/main/docs/changelog.md"
 
 [tool.maturin]
 python-source = "py"
-features = ["pyo3/extension-module"]
+features = ["pyo3/extension-module", "py"]
