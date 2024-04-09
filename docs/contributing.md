@@ -51,8 +51,8 @@ Once everything is set, you can run the following commands in the root directory
 # Run Rust tests.
 cargo test
 
-# Build the Python package.
-maturin dev --features py
+# Install OasysDB as a Python package.
+maturin dev
 
 # Run Python tests.
 pytest
