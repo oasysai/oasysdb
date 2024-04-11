@@ -427,6 +427,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde-big-array",
+ "simsimd",
  "sled",
 ]
 
@@ -787,6 +788,15 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "simsimd"
+version = "4.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9b7427cabeed25b18b43cc7d7ec466d8d1953a13ed56c46dc414c99ca4754e"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

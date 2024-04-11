@@ -40,8 +40,7 @@ impl Distance {
     // List additional distance functions below.
 
     fn dot(a: &Vector, b: &Vector) -> f32 {
-        let zip = a.0.iter().zip(b.0.iter());
-        zip.map(|(x, y)| x * y).sum()
+        f32::dot(&a.0, &b.0).unwrap() as f32
     }
 
     fn cosine(a: &Vector, b: &Vector) -> f32 {
@@ -52,8 +51,8 @@ impl Distance {
     }
 
     fn euclidean(a: &Vector, b: &Vector) -> f32 {
-        let zip = a.0.iter().zip(b.0.iter());
-        zip.map(|(a, b)| (a - b).powi(2)).sum::<f32>().sqrt()
+        let sq = f32::sqeuclidean(&a.0, &b.0).unwrap() as f32;
+        sq.sqrt()
     }
 }
 
