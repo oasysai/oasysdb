@@ -36,6 +36,7 @@ bincode = "1.3.3"
 
 # Interoperability.
 pyo3 = { version = "0.20.2", optional = true }
+simsimd = "4.3.1"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
