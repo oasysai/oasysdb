@@ -35,7 +35,7 @@ pub struct Error {
 impl Error {
     /// Create a new error with the given message.
     pub fn new(kind: &ErrorKind, message: &str) -> Self {
-        Self { kind: kind.clone(), message: message.to_string() }
+        Self { kind: *kind, message: message.to_string() }
     }
 
     /// Returns the error message.
@@ -82,9 +82,9 @@ impl Error {
 
     /// Error when the distance function is not supported.
     pub fn invalid_distance() -> Self {
-        let message = format!("Distance function not supported.");
+        let message = "Distance function not supported.";
         let kind = ErrorKind::DistanceError;
-        Error::new(&kind, &message)
+        Error::new(&kind, message)
     }
 }
 
