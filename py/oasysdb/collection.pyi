@@ -38,6 +38,13 @@ class Config:
         - distance: euclidean
         """
 
+    @staticmethod
+    def default() -> Config:
+        """Returns a default configuration object.
+        This is an alias of create_default method and
+        shared the same implementation.
+        """
+
 
 class Record:
     """The vector record to store in the collection.

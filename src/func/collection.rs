@@ -55,6 +55,12 @@ impl Config {
         Self::default()
     }
 
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn py_default() -> Self {
+        Self::default()
+    }
+
     fn __repr__(&self) -> String {
         format!("{:?}", self)
     }
