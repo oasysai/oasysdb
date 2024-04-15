@@ -21,7 +21,7 @@ def test_create_config():
     config = Config(
         ef_construction=40,
         ef_search=15,
-        ml=0.3,
+        ml=0.2885,
         distance="euclidean"
     )
 

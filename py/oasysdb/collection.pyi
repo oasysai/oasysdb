@@ -34,7 +34,7 @@ class Config:
         Default values:
         - ef_construction: 40
         - ef_search: 15
-        - ml: 0.3
+        - ml: 0.2885
         - distance: euclidean
         """
 

@@ -84,13 +84,13 @@ impl Default for Config {
     /// Default configuration for the collection index.
     /// * `ef_construction`: 40
     /// * `ef_search`: 15
-    /// * `ml`: 0.3
+    /// * `ml`: 0.2885
     /// * `distance`: euclidean
     fn default() -> Self {
         Self {
             ef_construction: 40,
             ef_search: 15,
-            ml: 0.3,
+            ml: 0.2885,
             distance: Distance::Euclidean,
         }
     }
