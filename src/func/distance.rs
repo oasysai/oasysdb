@@ -23,7 +23,7 @@ impl Distance {
             "dot" => Ok(Distance::Dot),
             "euclidean" => Ok(Distance::Euclidean),
             "cosine" => Ok(Distance::Cosine),
-            _ => Err("Distance function not supported.".into()),
+            _ => Err(Error::invalid_distance()),
         }
     }
 
