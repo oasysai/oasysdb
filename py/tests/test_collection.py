@@ -7,7 +7,7 @@ LEN = 100
 def create_test_collection() -> Collection:
     """Creates a collection with random records for testing."""
     records = Record.many_random(dimension=DIMENSION, len=LEN)
-    config = Config.create_default()
+    config = Config.default()
     collection = Collection.from_records(config=config, records=records)
 
     assert collection.len() == len(records)
@@ -21,7 +21,7 @@ def test_create_config():
     config = Config(
         ef_construction=40,
         ef_search=15,
-        ml=0.3,
+        ml=0.2885,
         distance="euclidean"
     )
 

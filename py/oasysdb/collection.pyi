@@ -34,8 +34,15 @@ class Config:
         Default values:
         - ef_construction: 40
         - ef_search: 15
-        - ml: 0.3
+        - ml: 0.2885
         - distance: euclidean
+        """
+
+    @staticmethod
+    def default() -> Config:
+        """Returns a default configuration object.
+        This is an alias of create_default method and
+        shared the same implementation.
         """
 
 
