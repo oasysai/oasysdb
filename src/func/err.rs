@@ -98,6 +98,8 @@ impl Display for Error {
 
 // Interoperability with other error types.
 
+impl StandardError for Error {}
+
 impl From<Box<dyn StandardError>> for Error {
     fn from(err: Box<dyn StandardError>) -> Self {
         let kind = ErrorKind::StandardError;
