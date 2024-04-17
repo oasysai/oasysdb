@@ -1,3 +1,31 @@
+# v0.4.3
+
+### What's Changed
+
+- Add SIMD acceleration to calculate the distance between vectors. This improves the performance of inserting and searching vectors in the collection.
+- Improve OasysDB native error type implementation to include the type/kind of error that occurred in addition to the error message. For example, `ErrorKind::CollectionError` is used to represent errors that occur during collection operations.
+- Fix the `Config.ml` default value from 0.3 to 0.2885 which is the optimal value for the HNSW with M of 32. The optimal value formula for ml is `1/ln(M)`.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.4.2...v0.4.3
+
+# v0.4.2
+
+### What's Changed
+
+Due to an issue (#62) with the Python release of v0.4.1, this patch version is released to fix the build wheels for Python users. The issue is caused due to the new optional PyO3 feature for the v0.4.1 Rust crate release which exclude PyO3 dependencies from the build process. To solve this, the Python package build and deploy script now includes `--features py` argument.
+
+For Rust users, this version doesn't offer any additional features or functionality compared to v0.4.1 release.
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.4.1...v0.4.2
+
 # v0.4.1
 
 ### What's Changed
