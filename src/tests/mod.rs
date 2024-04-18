@@ -1,6 +1,7 @@
 mod test_collection;
 mod test_database;
 mod test_distance;
+mod test_metadata;
 
 use crate::prelude::*;
 use rayon::iter::*;
