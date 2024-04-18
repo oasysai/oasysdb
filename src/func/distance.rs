@@ -10,6 +10,8 @@ pub enum Distance {
     Euclidean,
     /// Cosine similarity function.
     Cosine,
+    /// Cosine function for normalized vectors.
+    NormCosine,
 }
 
 impl Distance {
@@ -18,11 +20,13 @@ impl Distance {
     /// * `dot`: Dot product function.
     /// * `euclidean`: Euclidean distance function.
     /// * `cosine`: Cosine similarity function.
+    /// * `norm_cosine`: Cosine function for normalized vectors.
     pub fn from(distance: &str) -> Result<Self, Error> {
         match distance {
             "dot" => Ok(Distance::Dot),
             "euclidean" => Ok(Distance::Euclidean),
             "cosine" => Ok(Distance::Cosine),
+            "norm_cosine" => Ok(Distance::NormCosine),
             _ => Err(Error::invalid_distance()),
         }
     }
@@ -34,6 +38,7 @@ impl Distance {
             Distance::Dot => Distance::dot(a, b),
             Distance::Euclidean => Distance::euclidean(a, b),
             Distance::Cosine => Distance::cosine(a, b),
+            Distance::NormCosine => Distance::dot(a, b),
         }
     }
 
