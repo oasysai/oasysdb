@@ -8,8 +8,10 @@ fn distance_calculation() {
     let dot = Distance::Dot.calculate(&a, &b);
     let euclidean = Distance::Euclidean.calculate(&a, &b);
     let cosine = Distance::Cosine.calculate(&a, &b);
+    let norm_cosine = Distance::NormCosine.calculate(&a, &b);
 
     assert_eq!(dot, 44.0);
     assert_eq!(euclidean, 1.7320508);
     assert_eq!(cosine, 0.99385864);
+    assert_eq!(dot, norm_cosine);
 }

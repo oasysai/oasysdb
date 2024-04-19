@@ -12,6 +12,12 @@ class Config:
     - ef_search: Nodes to consider during the search.
     - ml: Layer multiplier of the HNSW index.
     - distance: Distance metric function.
+
+    Distance metrics:
+    - euclidean
+    - dot
+    - cosine
+    - norm_cosine
     """
 
     ef_construction: int
