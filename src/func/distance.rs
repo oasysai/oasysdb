@@ -76,6 +76,7 @@ impl IntoPy<Py<PyAny>> for Distance {
             Distance::Dot => "dot".into_py(py),
             Distance::Euclidean => "euclidean".into_py(py),
             Distance::Cosine => "cosine".into_py(py),
+            Distance::NormCosine => "norm_cosine".into_py(py),
         }
     }
 }
