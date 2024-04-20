@@ -9,9 +9,7 @@
 
 # 👋 Meet OasysDB
 
-OasysDB is a **lightweight** and **easy-to-use** embedded vector database written in Rust. With its simple API, it requires no learning curve to understand and get started.
-
-OasysDB requires no server setup and configuration. Simply embed it directly inside your AI application by adding it as a dependency.
+OasysDB is a **lightweight** and **easy-to-use** embedded vector database written in Rust. With its simple API, it requires no learning curve to understand and use. OasysDB also requires no server setup and configuration. It is designed to be embedded directly inside your AI application simply by adding it as a dependency.
 
 ```bash
 # Rust via Crates.io
@@ -23,7 +21,7 @@ pip install oasysdb
 
 ## Use Cases
 
-OasysDB is a very flexible vector database that you can use for systems related with vector similarity search such as:
+OasysDB is very flexible! You can use it for systems related with vector similarity search such as:
 
 - Local RAG (Retrieval-Augmented Generation) pipeline with an LLM and embedding model to generate a context-aware output.
 - Image similarity search engine to find similar images based on their semantic content. [See Python demo](https://colab.research.google.com/drive/15_1hH7jGKzMeQ6IfnScjsc-iJRL5XyL7?usp=sharing).
