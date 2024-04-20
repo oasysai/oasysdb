@@ -15,7 +15,7 @@ const COLLECTION_SIZE: usize = 1_000_000;
 const DIMENSION: usize = 128;
 
 fn bench_search_collection(criterion: &mut Criterion) {
-    let id = "Search collection";
+    let id = "search collection";
 
     // Create the collection.
     let collection = build_test_collection(DIMENSION, COLLECTION_SIZE);
@@ -28,8 +28,30 @@ fn bench_search_collection(criterion: &mut Criterion) {
         black_box(collection.search(&vector, 10).unwrap());
     };
 
-    criterion.bench_function(id, |bencher| bencher.iter(routine));
+    criterion.bench_function(id, |b| b.iter(routine));
 }
 
-criterion_group!(bench, bench_search_collection);
-criterion_main!(bench);
+fn bench_true_search_collection(criterion: &mut Criterion) {
+    let id = "true search collection";
+
+    // Create the collection.
+    let collection = build_test_collection(DIMENSION, COLLECTION_SIZE);
+
+    // Create a random vector to search for.
+    let vector = Vector::random(DIMENSION);
+
+    // Benchmark the search speed.
+    let routine = || {
+        black_box(collection.true_search(&vector, 10).unwrap());
+    };
+
+    criterion.bench_function(id, |b| b.iter(routine));
+}
+
+criterion_group!(
+    collection,
+    bench_search_collection,
+    bench_true_search_collection
+);
+
+criterion_main!(collection);
