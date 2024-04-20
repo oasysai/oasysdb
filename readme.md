@@ -50,7 +50,7 @@ OasysDB is designed to be boring 😂
 
 Simple and easy to use API with no learning curve. No worries about setting up a server or configuring the database. We want you to forget about the vector database stuff and actually focus on building your AI application fast.
 
-Read more about the design philosophy of OasysDB in the [Design Documentation](/docs/design.md).
+Read more about the design philosophy of OasysDB in the [Comprehensive Guide](/docs/guide.md).
 
 # 🚀 Quickstart with Rust
 
