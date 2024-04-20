@@ -52,7 +52,9 @@ Simple and easy to use API with no learning curve. No worries about setting up a
 
 Read more about the design philosophy of OasysDB in the [Design Documentation](/docs/design.md).
 
-# ⚙️ Quickstart with Rust
+# 🚀 Quickstart with Rust
+
+![Rust-Banner.png](https://i.postimg.cc/NMCwFBPd/Rust-Banner.png)
 
 To get started with OasysDB in Rust, you need to add `oasysdb` to your `Cargo.toml`. You can do so by running the command below which will add the latest version of OasysDB to your project.
 
@@ -91,7 +93,7 @@ fn main() {
 }
 ```
 
-## Dealing with Metadata
+## Dealing with Metadata Types
 
 In OasysDB, you can store additional metadata for each vector which is useful to associate the vectors with other data. The code snippet below shows how to insert the `Metadata` to the `Record` or extract it.
 
@@ -115,7 +117,9 @@ fn main() {
 }
 ```
 
-# 🐍 Quickstart with Python
+# 🚀 Quickstart with Python
+
+![Python-Banner.png](https://i.postimg.cc/rp1qjBZJ/Python-Banner.png)
 
 OasysDB also provides a Python binding which allows you to add it directly to your project. You can install the Python library of OasysDB by running the command below:
 
@@ -161,7 +165,7 @@ OasysDB uses a built-in benchmarking suite using Rust's [Criterion](https://docs
 
 Currently, the benchmarks are focused on the performance of the collection's vector search functionality. We are working on adding more benchmarks to measure the performance of other operations.
 
-If you are curious and want to run the benchmarks, you can use the following command which will download the benchmarking dataset and run the benchmarks:
+If you are curious and want to run the benchmarks, you can use the command below to run the benchmarks. If you do run it, please share the results with us 😉
 
 ```bash
 cargo bench
