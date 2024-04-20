@@ -9,21 +9,50 @@
 
 # 👋 Meet OasysDB
 
-OasysDB is a SQLite-inspired **lightweight** and **easy to use** embedded vector database. It is designed to be embedded directly inside your AI application. It is written in Rust and uses [Sled](https://docs.rs/sled) as its persistence storage engine to save vector collections to the disk.
+OasysDB is a **lightweight** and **easy-to-use** embedded vector database written in Rust. With its simple API, it requires no learning curve to understand and get started.
 
-OasysDB implements **HNSW** (Hierachical Navigable Small World) as its indexing algorithm. It is a state-of-the-art algorithm that is used by many vector databases. It is fast and scales well to large datasets.
+OasysDB requires no server setup and configuration. Simply embed it directly inside your AI application by adding it as a dependency.
 
-## Why OasysDB?
+```bash
+# Rust via Crates.io
+cargo add oasysdb
 
-OasysDB is very flexible for use cases related with vector search such as using RAG (Retrieval-Augmented Generation) method with an LLM to generate a context-aware output. These are some of the reasons why you might want to use OasysDB:
+# Python via PyPI
+pip install oasysdb
+```
 
-⭐️ **Embedded database**: OasysDB doesn't require you to set up a separate server and manage it. You can embed it directly into your application and use its simple API like a regular library.
+## Use Cases
 
-⭐️ **Optional persistence**: You can choose to persist the vector collection to the disk or keep it in memory. By default, whenever you use a collection, it will be loaded to the memory to ensure that the search performance is high.
+OasysDB is a very flexible vector database that you can use for systems related with vector similarity search such as:
 
-⭐️ **Incremental operations**: OasysDB allows you to add, remove, or modify vectors from collections without having to rebuild indexes. This allows for a more flexible and efficient approach on storing your vector data.
+- Local RAG (Retrieval-Augmented Generation) pipeline with an LLM and embedding model to generate a context-aware output.
+- Image similarity search engine to find similar images based on their semantic content. [See Python demo](https://colab.research.google.com/drive/15_1hH7jGKzMeQ6IfnScjsc-iJRL5XyL7?usp=sharing).
+- Real-time product recommendation system to suggest similar products based on the product features or user preferences.
+- Add your use case here 😁
 
-⭐ **Flexible schema**: Along with the vectors, you can store additional metadata for each vector. This is useful for storing information about the vectors such as the original text, image URL, or any other data that you want to associate with the vectors.
+## Features
+
+### Core Features
+
+🔸 **Embedded Database**: Zero setup & no server required.\
+🔸 **Optional Persistence**: In-memory or disk-based collection.\
+🔸 **Incremental Ops**: Modify vectors without rebuilding indexes.\
+🔸 **Flexible Schema**: Store additional metadata for each vector.
+
+### Technical Features
+
+🔹 **Fast HNSW**: Efficient approximate vector similarity search.\
+🔹 **Configurable Metric**: Use Euclidean, Cosine, or other metric.\
+🔹 **Parallel Processing**: Multi-threaded & SIMD optimized calculation.\
+🔹 **Built-in Incremental ID**: No headache vector record management.
+
+## Design Philosophy
+
+OasysDB is designed to be boring 😂
+
+Simple and easy to use API with no learning curve. No worries about setting up a server or configuring the database. We want you to forget about the vector database stuff and actually focus on building your AI application fast.
+
+Read more about the design philosophy of OasysDB in the [Design Documentation](/docs/design.md).
 
 # ⚙️ Quickstart with Rust
 
