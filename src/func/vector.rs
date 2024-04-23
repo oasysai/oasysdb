@@ -18,6 +18,16 @@ impl VectorID {
     pub fn is_valid(&self) -> bool {
         self.0 != u32::MAX
     }
+
+    /// Returns the vector ID as u32 type.
+    pub fn to_u32(&self) -> u32 {
+        self.0
+    }
+
+    /// Returns the vector ID as usize type.
+    pub fn to_usize(&self) -> usize {
+        self.0 as usize
+    }
 }
 
 impl From<u32> for VectorID {
