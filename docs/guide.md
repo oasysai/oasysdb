@@ -16,6 +16,8 @@ For that, I made some quite opinionated design decisions that I believe will hel
   - [Persistence to Disk](#persistence-to-disk)
     - [Notes & Tips](#notes--tips)
 - [Indexing Algorithm](#indexing-algorithm)
+  - [Intro to HNSW](#intro-to-hnsw)
+  - [Index Configuration](#index-configuration)
 
 # Inner Workings
 
