@@ -66,3 +66,40 @@ If you have any questions or need help with optimizing the performance of your a
 I'm always happy to help you out 🤗
 
 # Indexing Algorithm
+
+This is arguably the most important part of OasysDB ⭐️
+
+The indexing algorithm is what makes OasysDB a vector database and what allows you to perform fast similarity searches on your vectors records.
+
+OasysDB uses the HNSW (Hierarchical Navigable Small World) algorithm. We're not going to dive deep into the algorithm in this guide, but, I will explain how it works in the context of OasysDB.
+
+## Intro to HNSW
+
+HNSW is a graph-based indexing algorithm. It consists of multiple layers containing nodes referencing other nodes (neighbors). These nodes represent the vector IDs of the records in the collection.
+
+When you insert vector records into a collection, OasysDB will:
+
+1. Generate vector IDs for the records.
+2. Calculate distances between the new and existing vectors.
+3. Place nodes and cluster them based on their similarity in the layers.
+4. Store the other data in HashMaps for fast access.
+
+Because OasysDB stores the vector IDs in the index graph as nodes, having an auto-incremented integer as the vector ID is important for memory efficiency and performance.
+
+## Index Configuration
+
+OasysDB allows you to configure the index parameters when creating a collection. As of the current version, these configurations can't be changed after the collection is created. These configurations include:
+
+- **M**: The maximum number of neighbor connections to keep for each node when building the index or inserting a new vector record. OasysDB uses M of 32 by default and this value works well for most use cases. As of the current version, you can't change this value at all.
+
+- **EF Construction**: This parameter along with the M parameter determines how well the index will be constructed. The higher the EF Construction value, the slower the index construction will be, but, the more accurate the index will be up to a certain point.
+
+  According to [HNSWLIB's documentation](https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md), to check if EF Construction value is good enough is to measure the recall for the search operation with k = M and EF Search = EF Construction. If the recall is lower than 0.9, than there is room for improvement.
+
+- **EF Search**: This parameter determines how many nodes to visit when searching for the nearest neighbors. The higher the EF Search value, the more accurate the search result will be, but, the slower the search will be.
+
+  EF Search value should be set to a value higher than k (the number of neighbors you want to find) when performing a search operation.
+
+- **ML**: This parameter determines how likely it is for a node to be placed in the higher layer. This multiplier is what allows HNSW to be the most dense at the bottom and the least dense at the top keeping the search operation efficient. The optimal value for ML is 1 / ln(M). In OasysDB, this would be around 0.2885.
+
+OasysDB has more parameters that you can configure but not directly related to the index configuration. For those parameters, we will discuss it in the next section 😁
