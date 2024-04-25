@@ -105,3 +105,37 @@ OasysDB allows you to configure the index parameters when creating a collection.
 - **ML**: This parameter determines how likely it is for a node to be placed in the higher layer. This multiplier is what allows HNSW to be the most dense at the bottom and the least dense at the top keeping the search operation efficient. The optimal value for ML is 1 / ln(M). In OasysDB, this would be around 0.2885.
 
 OasysDB has more parameters that you can configure but not directly related to the index configuration. For those parameters, we will discuss it in the next section 😁
+
+## Distance Metric
+
+For collections in OasysDB, you can specify the distance metric to use when calculating the distance between vectors. The distance metric is used mostly when inserting a new vector record into the collection and a bit when performing a search operation.
+
+As of the current version, OasysDB supports the following distance metrics:
+
+- [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance)
+- [Cosine Similarity](https://en.wikipedia.org/wiki/Cosine_similarity)
+- [Dot Product](https://en.wikipedia.org/wiki/Dot_product)
+
+### Cosine VS Normalized Cosine
+
+A lot of embedding models seem to recommend using cosine similarity as the distance metric. This is because cosine similarity is invariant to the magnitude of the vectors and only measures the angle between them which makes it easy to work with.
+
+With OasysDB, you can use the default **Cosine** or the **Normalized Cosine** distance metric.
+
+With the default Cosine, it will calculate both the dot product and the magnitude of the vectors to calculate the cosine similarity as you would expect.
+
+But for models that already normalize the vectors, you can use the Normalized Cosine distance metric. This will skip the magnitude calculation and only calculate the dot product which will result in a faster insert and search operation.
+
+## Relevancy Score
+
+Relevancy score is a big part of OasysDB. It allows you to essentially exclude vectors that are not relevant to your search query.
+
+Unlike other configurations, the relevancy score can be changed after the collection is created. I even encourage you to experiment with different relevancy scores to see what works best for your use case 😁
+
+Relevancy score is a float value and it functions differently based on the distance metric you use.
+
+For example, for the Cosine distance metric, since the cosine similarity value ranges from -1 to 1, where 1 would be the most similar, if you set the relevancy score to 0.8, OasysDB will only return vectors that have a cosine similarity of 0.8 or higher.
+
+Another example, for the Euclidean distance metric, since the Euclidean distance value ranges from 0 to infinity, where 0 would be the most similar, if you set the relevancy score to 0.2, OasysDB will only return vectors that have an Euclidean distance of 0.2 or lower.
+
+This is why it's important to experiment with different relevancy scores to see what works best for your use case.
