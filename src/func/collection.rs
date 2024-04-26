@@ -370,8 +370,20 @@ impl Collection {
             nearest.push(res);
         }
 
-        // Sort the nearest neighbors by distance.
-        nearest.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+        // Sort the nearest neighbors by distance depending on the metric.
+        // For Euclidean: sort by ascending order since smaller is better.
+        match self.config.distance {
+            Distance::Euclidean => {
+                nearest.sort_by(|a, b| {
+                    a.distance.partial_cmp(&b.distance).unwrap()
+                });
+            }
+            _ => {
+                nearest.sort_by(|a, b| {
+                    b.distance.partial_cmp(&a.distance).unwrap()
+                });
+            }
+        };
 
         // Remove irrelevant results and truncate the list.
         let mut res = self.truncate_irrelevant_result(nearest);
