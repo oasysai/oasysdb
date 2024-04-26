@@ -18,6 +18,11 @@ For that, I made some quite opinionated design decisions that I believe will hel
 - [Indexing Algorithm](#indexing-algorithm)
   - [Intro to HNSW](#intro-to-hnsw)
   - [Index Configuration](#index-configuration)
+  - [Distance Metric](#distance-metric)
+    - [Cosine VS Normalized Cosine](#cosine-vs-normalized-cosine)
+  - [Relevancy Score](#relevancy-score)
+- [Conclusion](#conclusion)
+  - [Relevant Resources](#relevant-resources)
 
 # Inner Workings
 
@@ -147,3 +152,10 @@ In short, use OasysDB to keep your sanity 😂
 I hope this guide has given you a good understanding of how OasysDB works and how to use it for your project. If you have any questions or need help with anything Rust related, join the [Discord](https://discord.gg/bDhQrkqNP4) server and share them with me.
 
 ~ Edwin
+
+### Relevant Resources
+
+- [HNSW by Pinecone](https://www.pinecone.io/learn/series/faiss/hnsw/)
+- [HNSW Algorithm by Lantern](https://lantern.dev/blog/hnsw)
+- [What Are Vector Embeddings?](https://www.analyticsvidhya.com/blog/2020/08/information-retrieval-using-embeddings/)
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings/frequently-asked-questions)
