@@ -294,7 +294,7 @@ impl Collection {
         vector: &Vector,
         n: usize,
     ) -> Result<Vec<SearchResult>, Error> {
-        let mut search = Search::default();
+        let mut search = Search::new(0, self.config.distance);
 
         // Early return if the collection is empty.
         if self.vectors.is_empty() {
@@ -528,7 +528,7 @@ impl Collection {
 
         // Create index constructor.
 
-        let search_pool = SearchPool::new(vectors.len());
+        let search_pool = SearchPool::new(vectors.len(), config.distance);
         let mut upper_layers = vec![vec![]; top_layer.0];
         let base_layer = vectors
             .par_iter()
@@ -694,11 +694,14 @@ impl Collection {
 
         // Create a new index construction state.
         let state = IndexConstruction {
-            base_layer: base_layer.as_slice(),
-            search_pool: SearchPool::new(self.vectors.len()),
             top_layer,
+            base_layer: base_layer.as_slice(),
             vectors: &self.vectors,
             config: &self.config,
+            search_pool: SearchPool::new(
+                self.vectors.len(),
+                self.config.distance,
+            ),
         };
 
         // Insert all vectors into the state.

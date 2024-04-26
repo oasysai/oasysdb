@@ -244,9 +244,9 @@ pub struct Search {
 }
 
 impl Search {
-    pub fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize, distance: Distance) -> Self {
         let visited = Visited::with_capacity(capacity);
-        Self { visited, ..Default::default() }
+        Self { visited, distance, ..Default::default() }
     }
 
     /// Searches the nearest neighbors in the graph layer.
@@ -288,7 +288,7 @@ impl Search {
         // Create a new candidate.
         let other = &vectors[vector_id];
         let distance = self.distance.calculate(vector, other);
-        let distance = OrderedFloat::from(distance);
+        let distance = OrderedFloat(distance);
         let new = Candidate { distance, vector_id: *vector_id };
 
         // Make sure the index to insert to is within the EF scope.
@@ -350,20 +350,22 @@ impl Default for Search {
 
 pub struct SearchPool {
     pool: Mutex<Vec<(Search, Search)>>,
+    distance: Distance,
     len: usize,
 }
 
 impl SearchPool {
-    pub fn new(len: usize) -> Self {
+    pub fn new(len: usize, distance: Distance) -> Self {
         let pool = Mutex::new(Vec::new());
-        Self { pool, len }
+        Self { pool, len, distance }
     }
 
     /// Returns the last searches from the pool.
     pub fn pop(&self) -> (Search, Search) {
+        let search = Search::new(self.len, self.distance);
         match self.pool.lock().pop() {
             Some(result) => result,
-            None => (Search::new(self.len), Search::new(self.len)),
+            None => (search.clone(), search),
         }
     }
 

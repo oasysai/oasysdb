@@ -176,3 +176,20 @@ def test_list_records():
     assert len(records) == collection.len()
     assert all(isinstance(k, VectorID) for k in records.keys())
     assert all(isinstance(v, Record) for v in records.values())
+
+
+def test_collection_distance_cosine():
+    config = Config.create_default()
+    config.distance = "cosine"
+    collection = Collection(config=config)
+
+    # Insert one record.
+    record = Record.random(dimension=DIMENSION)
+    collection.insert(record)
+
+    # Search for the record.
+    query = Vector.random(dimension=DIMENSION)
+    results = collection.search(query, n=1)
+    true_results = collection.true_search(query, n=1)
+
+    assert results[0].distance == true_results[0].distance
