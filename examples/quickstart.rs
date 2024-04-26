@@ -22,5 +22,9 @@ fn main() {
     // Search for the nearest neighbors.
     let query = Vector::random(dimension);
     let result = collection.search(&query, 5).unwrap();
-    println!("Nearest ID: {}", result[0].id);
+
+    for res in result {
+        let (id, distance) = (res.id, res.distance);
+        println!("{distance:.5} | ID: {id}");
+    }
 }

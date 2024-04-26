@@ -176,3 +176,46 @@ def test_list_records():
     assert len(records) == collection.len()
     assert all(isinstance(k, VectorID) for k in records.keys())
     assert all(isinstance(v, Record) for v in records.values())
+
+
+def test_collection_distance_euclidean():
+    config = Config.default()
+    collection = Collection(config=config)
+
+    # Insert records.
+    k = 5
+    records = Record.many_random(dimension=DIMENSION, len=k)
+    collection.insert_many(records)
+
+    # Search for the record.
+    query = Vector.random(dimension=DIMENSION)
+    results = collection.search(query, n=k)
+
+    # Sort result based on distance ascending.
+    sort = sorted(results, key=lambda x: x.distance)
+
+    for i in range(k):
+        assert results[i].distance == sort[i].distance
+
+
+def test_collection_distance_cosine():
+    config = Config.create_default()
+    config.distance = "cosine"
+    collection = Collection(config=config)
+
+    # Insert records.
+    k = 5
+    records = Record.many_random(dimension=DIMENSION, len=k)
+    collection.insert_many(records)
+
+    # Search for the record.
+    query = Vector.random(dimension=DIMENSION)
+    results = collection.search(query, n=k)
+    true_results = collection.true_search(query, n=k)
+
+    # Sort result based on distance descending.
+    sort = sorted(results, key=lambda x: x.distance, reverse=True)
+
+    for i in range(k):
+        assert results[i].distance == true_results[i].distance
+        assert results[i].distance == sort[i].distance

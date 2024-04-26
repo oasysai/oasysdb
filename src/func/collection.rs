@@ -294,7 +294,7 @@ impl Collection {
         vector: &Vector,
         n: usize,
     ) -> Result<Vec<SearchResult>, Error> {
-        let mut search = Search::default();
+        let mut search = Search::new(0, self.config.distance);
 
         // Early return if the collection is empty.
         if self.vectors.is_empty() {
@@ -341,9 +341,12 @@ impl Collection {
             SearchResult { id, distance, data }
         };
 
-        // Get relevant results and truncate the list.
+        // Sort the search results by distance.
         let res = search.iter().map(map_result).collect();
-        let mut relevant = self.truncate_irrelevant_result(res);
+        let sorted = self.sort_by_distance(res);
+
+        // Truncate the list based on the relevancy score.
+        let mut relevant = self.truncate_irrelevant_result(sorted);
         relevant.truncate(n);
         Ok(relevant)
     }
@@ -370,11 +373,11 @@ impl Collection {
             nearest.push(res);
         }
 
-        // Sort the nearest neighbors by distance.
-        nearest.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+        // Sort the results by distance depending on the metric.
+        let sorted = self.sort_by_distance(nearest);
 
         // Remove irrelevant results and truncate the list.
-        let mut res = self.truncate_irrelevant_result(nearest);
+        let mut res = self.truncate_irrelevant_result(sorted);
         res.truncate(n);
         Ok(res)
     }
@@ -528,7 +531,7 @@ impl Collection {
 
         // Create index constructor.
 
-        let search_pool = SearchPool::new(vectors.len());
+        let search_pool = SearchPool::new(vectors.len(), config.distance);
         let mut upper_layers = vec![vec![]; top_layer.0];
         let base_layer = vectors
             .par_iter()
@@ -694,11 +697,14 @@ impl Collection {
 
         // Create a new index construction state.
         let state = IndexConstruction {
-            base_layer: base_layer.as_slice(),
-            search_pool: SearchPool::new(self.vectors.len()),
             top_layer,
+            base_layer: base_layer.as_slice(),
             vectors: &self.vectors,
             config: &self.config,
+            search_pool: SearchPool::new(
+                self.vectors.len(),
+                self.config.distance,
+            ),
         };
 
         // Insert all vectors into the state.
@@ -765,6 +771,29 @@ impl Collection {
             .into_par_iter()
             .filter(|r| r.distance >= self.relevancy)
             .collect()
+    }
+
+    /// Sorts the search results by distance and distance metric.
+    fn sort_by_distance(&self, result: Vec<SearchResult>) -> Vec<SearchResult> {
+        let mut result = result;
+
+        // Sort the results by distance based on the metric.
+        // For Euclidean distance, sort in ascending order
+        // because the best distance is 0.0.
+        match self.config.distance {
+            Distance::Euclidean => {
+                result.sort_by(|a, b| {
+                    a.distance.partial_cmp(&b.distance).unwrap()
+                });
+            }
+            _ => {
+                result.sort_by(|a, b| {
+                    b.distance.partial_cmp(&a.distance).unwrap()
+                });
+            }
+        };
+
+        result
     }
 }
 
