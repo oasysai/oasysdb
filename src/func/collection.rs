@@ -341,9 +341,12 @@ impl Collection {
             SearchResult { id, distance, data }
         };
 
-        // Get relevant results and truncate the list.
+        // Sort the search results by distance.
         let res = search.iter().map(map_result).collect();
-        let mut relevant = self.truncate_irrelevant_result(res);
+        let sorted = self.sort_by_distance(res);
+
+        // Truncate the list based on the relevancy score.
+        let mut relevant = self.truncate_irrelevant_result(sorted);
         relevant.truncate(n);
         Ok(relevant)
     }
@@ -370,23 +373,11 @@ impl Collection {
             nearest.push(res);
         }
 
-        // Sort the nearest neighbors by distance depending on the metric.
-        // For Euclidean: sort by ascending order since smaller is better.
-        match self.config.distance {
-            Distance::Euclidean => {
-                nearest.sort_by(|a, b| {
-                    a.distance.partial_cmp(&b.distance).unwrap()
-                });
-            }
-            _ => {
-                nearest.sort_by(|a, b| {
-                    b.distance.partial_cmp(&a.distance).unwrap()
-                });
-            }
-        };
+        // Sort the results by distance depending on the metric.
+        let sorted = self.sort_by_distance(nearest);
 
         // Remove irrelevant results and truncate the list.
-        let mut res = self.truncate_irrelevant_result(nearest);
+        let mut res = self.truncate_irrelevant_result(sorted);
         res.truncate(n);
         Ok(res)
     }
@@ -780,6 +771,29 @@ impl Collection {
             .into_par_iter()
             .filter(|r| r.distance >= self.relevancy)
             .collect()
+    }
+
+    /// Sorts the search results by distance and distance metric.
+    fn sort_by_distance(&self, result: Vec<SearchResult>) -> Vec<SearchResult> {
+        let mut result = result;
+
+        // Sort the results by distance based on the metric.
+        // For Euclidean distance, sort in ascending order
+        // because the best distance is 0.0.
+        match self.config.distance {
+            Distance::Euclidean => {
+                result.sort_by(|a, b| {
+                    a.distance.partial_cmp(&b.distance).unwrap()
+                });
+            }
+            _ => {
+                result.sort_by(|a, b| {
+                    b.distance.partial_cmp(&a.distance).unwrap()
+                });
+            }
+        };
+
+        result
     }
 }
 
