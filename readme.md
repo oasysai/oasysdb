@@ -1,29 +1,60 @@
 ![OasysDB Use Case](https://i.postimg.cc/k4x4Q55k/banner.png)
 
+[![GitHub Stars](https://img.shields.io/github/stars/oasysai/oasysdb?label=Stars&logo=github&style=for-the-badge&color=%23fcd34d)](https://github.com/oasysai/oasysdb)
+[![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
+[![Crates.io](https://img.shields.io/crates/d/oasysdb?style=for-the-badge&logo=rust&label=Crates.io&color=%23f43f5e)](https://crates.io/crates/oasysdb)
+![PyPI](https://img.shields.io/pypi/dm/oasysdb?style=for-the-badge&label=PyPI&logo=python&logoColor=ffffff&color=%232dd4bf)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?style=for-the-badge)](/docs/code_of_conduct.md)
-[![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
-[![Crates.io](https://img.shields.io/crates/d/oasysdb?style=for-the-badge&label=Crates.io&color=%23f43f5e)](https://crates.io/crates/oasysdb)
 
 # 👋 Meet OasysDB
 
-OasysDB is a SQLite-inspired **lightweight** and **easy to use** embedded vector database. It is designed to be embedded directly inside your AI application. It is written in Rust and uses [Sled](https://docs.rs/sled) as its persistence storage engine to save vector collections to the disk.
+OasysDB is a **lightweight** and **easy-to-use** embedded vector database written in Rust. With its simple API, it requires no learning curve to understand and use. OasysDB also requires no server setup and configuration. It is designed to be embedded directly inside your AI application simply by adding it as a dependency.
 
-OasysDB implements **HNSW** (Hierachical Navigable Small World) as its indexing algorithm. It is a state-of-the-art algorithm that is used by many vector databases. It is fast and scales well to large datasets.
+```bash
+# Rust via Crates.io
+cargo add oasysdb
 
-## Why OasysDB?
+# Python via PyPI
+pip install oasysdb
+```
 
-OasysDB is very flexible for use cases related with vector search such as using RAG (Retrieval-Augmented Generation) method with an LLM to generate a context-aware output. These are some of the reasons why you might want to use OasysDB:
+## Use Cases
 
-⭐️ **Embedded database**: OasysDB doesn't require you to set up a separate server and manage it. You can embed it directly into your application and use its simple API like a regular library.
+OasysDB is very flexible! You can use it for systems related with vector similarity search such as:
 
-⭐️ **Optional persistence**: You can choose to persist the vector collection to the disk or keep it in memory. By default, whenever you use a collection, it will be loaded to the memory to ensure that the search performance is high.
+- Local RAG (Retrieval-Augmented Generation) pipeline with an LLM and embedding model to generate a context-aware output.
+- Image similarity search engine to find similar images based on their semantic content. [See Python demo](https://colab.research.google.com/drive/15_1hH7jGKzMeQ6IfnScjsc-iJRL5XyL7?usp=sharing).
+- Real-time product recommendation system to suggest similar products based on the product features or user preferences.
+- Add your use case here 😁
 
-⭐️ **Incremental operations**: OasysDB allows you to add, remove, or modify vectors from collections without having to rebuild indexes. This allows for a more flexible and efficient approach on storing your vector data.
+## Features
 
-⭐ **Flexible schema**: Along with the vectors, you can store additional metadata for each vector. This is useful for storing information about the vectors such as the original text, image URL, or any other data that you want to associate with the vectors.
+### Core Features
 
-# ⚙️ Quickstart with Rust
+🔸 **Embedded Database**: Zero setup & no server required.\
+🔸 **Optional Persistence**: In-memory or disk-based collection.\
+🔸 **Incremental Ops**: Modify vectors without rebuilding indexes.\
+🔸 **Flexible Schema**: Store additional metadata for each vector.
+
+### Technical Features
+
+🔹 **Fast HNSW**: Efficient approximate vector similarity search.\
+🔹 **Configurable Metric**: Use Euclidean, Cosine, or other metric.\
+🔹 **Parallel Processing**: Multi-threaded & SIMD optimized calculation.\
+🔹 **Built-in Incremental ID**: No headache vector record management.
+
+## Design Philosophy
+
+OasysDB is designed to be boring 😂
+
+Simple and easy to use API with no learning curve. No worries about setting up a server or configuring the database. We want you to forget about the vector database stuff and actually focus on building your AI application fast.
+
+Read more about the design philosophy of OasysDB in the [Comprehensive Guide](/docs/guide.md).
+
+# 🚀 Quickstart with Rust
+
+![Rust-Banner.png](https://i.postimg.cc/NMCwFBPd/Rust-Banner.png)
 
 To get started with OasysDB in Rust, you need to add `oasysdb` to your `Cargo.toml`. You can do so by running the command below which will add the latest version of OasysDB to your project.
 
@@ -66,7 +97,7 @@ fn main() {
 }
 ```
 
-## Dealing with Metadata
+## Dealing with Metadata Types
 
 In OasysDB, you can store additional metadata for each vector which is useful to associate the vectors with other data. The code snippet below shows how to insert the `Metadata` to the `Record` or extract it.
 
@@ -90,7 +121,9 @@ fn main() {
 }
 ```
 
-# 🐍 Quickstart with Python
+# 🚀 Quickstart with Python
+
+![Python-Banner.png](https://i.postimg.cc/rp1qjBZJ/Python-Banner.png)
 
 OasysDB also provides a Python binding which allows you to add it directly to your project. You can install the Python library of OasysDB by running the command below:
 
@@ -136,7 +169,7 @@ OasysDB uses a built-in benchmarking suite using Rust's [Criterion](https://docs
 
 Currently, the benchmarks are focused on the performance of the collection's vector search functionality. We are working on adding more benchmarks to measure the performance of other operations.
 
-If you are curious and want to run the benchmarks, you can use the following command which will download the benchmarking dataset and run the benchmarks:
+If you are curious and want to run the benchmarks, you can use the command below to run the benchmarks. If you do run it, please share the results with us 😉
 
 ```bash
 cargo bench
