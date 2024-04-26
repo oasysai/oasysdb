@@ -1,3 +1,26 @@
+# v0.4.4
+
+### What's Changed
+
+- Maximize compatibility with the standard library error types to allow users to convert OasysDB errors to most commonly used error handling libraries such as `anyhow`, `thiserror`, etc.
+- Add conversion methods to convert metadata to JSON value by `serde_json` and vice versa. This allows users to store JSON format metadata easily.
+- Add normalized cosine distance metric to the collection search functionality. Read more about the normalized cosine distance metric [here](/docs/guide.md#cosine-vs-normalized-cosine).
+- Fix the search distance calculation to use the correct distance metric and sort it accordingly based on the collection configuration.
+- Add vector ID utility methods to the `VectorID` struct to make it easier to work with the vector ID.
+
+### Additional Notes
+
+- Add a new benchmark to measure the true search AKA brute-force search performance of the collection. If possible, dealing with a small dataset, it is recommended to use the true search method for better accuracy. The benchmark can be run using the `cargo bench` command.
+- Improve the documentation to include more examples and explanations on how to use the library: [Comprehensive Guide](/docs/guide.md).
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.4.3...v0.4.4
+
 # v0.4.3
 
 ### What's Changed
