@@ -16,7 +16,7 @@ fn get_collection() {
 #[test]
 fn save_collection_new() {
     let mut db = Database::new("data/rs").unwrap();
-    let old_count = db.len();
+    let len = db.len();
 
     // Create a collection from scratch.
     let config = Config::default();
@@ -28,7 +28,7 @@ fn save_collection_new() {
 
     db.save_collection("new", &collection).unwrap();
     assert_eq!(collection.len(), 1);
-    assert_eq!(db.len(), old_count + 1);
+    assert_eq!(db.len(), len + 1);
 }
 
 #[test]
