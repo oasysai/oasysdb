@@ -258,9 +258,16 @@ impl Search {
         links: usize,
     ) {
         while let Some(Reverse(candidate)) = self.candidates.pop() {
-            // Skip candidates that are too far.
+            // Skip candidates conditionally.
+            // For Euclidean metrics, skip candidate with larger distances
+            // because 0.0 is the smallest and best distance.
+            // For other metrics, the bigger the distance, the better.
             if let Some(furthest) = self.nearest.last() {
-                if candidate.distance > furthest.distance {
+                if let Distance::Euclidean = self.distance {
+                    if candidate.distance > furthest.distance {
+                        break;
+                    }
+                } else if candidate.distance < furthest.distance {
                     break;
                 }
             }
