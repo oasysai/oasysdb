@@ -139,3 +139,11 @@ For example, for the Cosine distance metric, since the cosine similarity value r
 Another example, for the Euclidean distance metric, since the Euclidean distance value ranges from 0 to infinity, where 0 would be the most similar, if you set the relevancy score to 0.2, OasysDB will only return vectors that have an Euclidean distance of 0.2 or lower.
 
 This is why it's important to experiment with different relevancy scores to see what works best for your use case.
+
+# Conclusion
+
+In short, use OasysDB to keep your sanity 😂
+
+I hope this guide has given you a good understanding of how OasysDB works and how to use it for your project. If you have any questions or need help with anything Rust related, join the [Discord](https://discord.gg/bDhQrkqNP4) server and share them with me.
+
+~ Edwin
