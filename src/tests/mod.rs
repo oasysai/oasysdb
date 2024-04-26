@@ -13,8 +13,8 @@ const LEN: usize = 100;
 /// The test database initial collection name.
 const NAME: &str = "vectors";
 
-fn create_test_database(path: &str) -> Database {
-    let mut db = Database::new(path).unwrap();
+fn create_test_database() -> Database {
+    let mut db = Database::new("data/rs").unwrap();
     let collection = create_collection();
     db.save_collection(NAME, &collection).unwrap();
     db

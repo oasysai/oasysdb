@@ -41,7 +41,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo test
-        run: cargo test --all-features
+        run: cargo test --all-features -- --test-threads 1
 
   run-python-tests:
     name: Run Python tests

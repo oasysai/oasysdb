@@ -6,10 +6,10 @@ DIMENSION = 128
 LEN = 100
 
 
-def create_test_database(path: str) -> Database:
+def create_test_database() -> Database:
     """Creates a new test database with an initial collection."""
 
-    db = Database.new(path)
+    db = Database.new("data/py")
     assert db.is_empty()
 
     # Create a test collection with random records.
@@ -25,24 +25,24 @@ def create_test_database(path: str) -> Database:
 
 
 def test_open():
-    db = Database(path="data/101")
+    db = Database(path="data/mt")
     assert db.is_empty()
 
 
 def test_new():
-    db = create_test_database(path="data/102")
+    db = create_test_database()
     assert not db.is_empty()
     assert db.len() == 1
 
 
 def test_get_collection():
-    db = create_test_database(path="data/103")
+    db = create_test_database()
     collection = db.get_collection(name=NAME)
     assert collection.len() == LEN
 
 
 def test_save_collection():
-    db = create_test_database(path="data/104")
+    db = create_test_database()
 
     # Create a new collection and save it to the database.
     config = Config.create_default()
@@ -53,6 +53,6 @@ def test_save_collection():
 
 
 def test_delete_collection():
-    db = create_test_database(path="data/105")
+    db = create_test_database()
     db.delete_collection(name=NAME)
     assert db.is_empty()
