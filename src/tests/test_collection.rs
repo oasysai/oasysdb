@@ -1,6 +1,14 @@
 use super::*;
 
 #[test]
+fn new_with_distance() {
+    let mut config = Config::default();
+    config.distance = Distance::Cosine;
+    let mut collection = Collection::new(&config);
+    collection.insert(&Record::random(DIMENSION)).unwrap();
+}
+
+#[test]
 fn build_large() {
     let len = 10000;
     let records = Record::many_random(DIMENSION, len);

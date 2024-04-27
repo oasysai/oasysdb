@@ -2,27 +2,21 @@ use super::*;
 
 #[test]
 fn new() {
-    let db = Database::new("data/001").unwrap();
+    let db = Database::new("data/rs").unwrap();
     assert_eq!(db.len(), 0);
-}
-#[test]
-fn new_with_distance() {
-    let mut config = Config::default();
-    config.distance = Distance::Cosine;
-    let mut collection = Collection::new(&config);
-    collection.insert(&Record::random(DIMENSION)).unwrap();
 }
 
 #[test]
 fn get_collection() {
-    let db = create_test_database("data/002");
+    let db = create_test_database();
     let collection = db.get_collection(NAME).unwrap();
     assert_eq!(collection.len(), LEN);
 }
 
 #[test]
 fn save_collection_new() {
-    let mut db = Database::new("data/003").unwrap();
+    let mut db = Database::new("data/rs").unwrap();
+    let len = db.len();
 
     // Create a collection from scratch.
     let config = Config::default();
@@ -34,12 +28,12 @@ fn save_collection_new() {
 
     db.save_collection("new", &collection).unwrap();
     assert_eq!(collection.len(), 1);
-    assert_eq!(db.len(), 1);
+    assert_eq!(db.len(), len + 1);
 }
 
 #[test]
 fn save_collection_update() {
-    let mut db = create_test_database("data/004");
+    let mut db = create_test_database();
 
     // Update the collection.
     let mut collection = db.get_collection(NAME).unwrap();
@@ -52,7 +46,7 @@ fn save_collection_update() {
 
 #[test]
 fn delete_collection() {
-    let mut db = create_test_database("data/005");
+    let mut db = create_test_database();
     db.delete_collection(NAME).unwrap();
     assert_eq!(db.len(), 0);
 }
