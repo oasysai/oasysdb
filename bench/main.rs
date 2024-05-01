@@ -48,10 +48,26 @@ fn bench_true_search_collection(criterion: &mut Criterion) {
     criterion.bench_function(id, |b| b.iter(routine));
 }
 
+fn bench_insert_to_collection(criterion: &mut Criterion) {
+    let id = "insert to collection";
+
+    // Create the initial collection.
+    let mut collection = build_test_collection(DIMENSION, COLLECTION_SIZE);
+
+    // Benchmark the insert speed.
+    let record = Record::random(DIMENSION);
+    criterion.bench_function(id, |bencher| {
+        bencher.iter(|| {
+            black_box(collection.insert(&record).unwrap());
+        })
+    });
+}
+
 criterion_group!(
     collection,
     bench_search_collection,
-    bench_true_search_collection
+    bench_true_search_collection,
+    bench_insert_to_collection
 );
 
 criterion_main!(collection);
