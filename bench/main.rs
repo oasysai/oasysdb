@@ -48,12 +48,6 @@ fn bench_true_search_collection(criterion: &mut Criterion) {
     criterion.bench_function(id, |b| b.iter(routine));
 }
 
-criterion_group!(
-    collection_search,
-    bench_search_collection,
-    bench_true_search_collection
-);
-
 fn bench_insert_to_collection(criterion: &mut Criterion) {
     let id = "insert to collection";
 
@@ -69,5 +63,11 @@ fn bench_insert_to_collection(criterion: &mut Criterion) {
     });
 }
 
-criterion_group!(collection_insert, bench_insert_to_collection);
-criterion_main!(collection_search, collection_insert);
+criterion_group!(
+    collection,
+    bench_search_collection,
+    bench_true_search_collection,
+    bench_insert_to_collection
+);
+
+criterion_main!(collection);
