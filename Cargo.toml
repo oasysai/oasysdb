@@ -47,6 +47,7 @@ jemallocator = "0.5.4"
 jemalloc-ctl = "0.5.4"
 
 [features]
+gen = []
 json = ["dep:serde_json"]
 py = ["dep:pyo3"]
 
