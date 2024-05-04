@@ -128,19 +128,15 @@ impl Index<&VectorID> for Collection {
     }
 }
 
-// This exposes Collection methods to Python.
-// Any modifications to these methods should be reflected in:
-// - py/tests/test_collection.py
-// - py/oasysdb/collection.pyi
-#[cfg_attr(feature = "py", pymethods)]
+// Python only methods.
+#[cfg(feature = "py")]
+#[pymethods]
 impl Collection {
-    #[cfg(feature = "py")]
     #[new]
     fn py_new(config: &Config) -> Self {
         Self::new(config)
     }
 
-    #[cfg(feature = "py")]
     #[staticmethod]
     fn from_records(
         config: &Config,
@@ -149,7 +145,6 @@ impl Collection {
         Self::build(config, &records)
     }
 
-    #[cfg(feature = "py")]
     #[staticmethod]
     #[pyo3(name = "build")]
     fn py_build(
@@ -159,6 +154,38 @@ impl Collection {
         Self::build(config, &records)
     }
 
+    #[getter(config)]
+    fn py_config(&self) -> Config {
+        self.config.clone()
+    }
+
+    #[getter(dimension)]
+    fn py_dimension(&self) -> usize {
+        self.dimension
+    }
+
+    #[setter(dimension)]
+    fn py_set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
+        self.set_dimension(dimension)
+    }
+
+    #[getter(relevancy)]
+    fn py_relevancy(&self) -> f32 {
+        self.relevancy
+    }
+
+    #[setter(relevancy)]
+    fn py_set_relevancy(&mut self, relevancy: f32) {
+        self.relevancy = relevancy;
+    }
+}
+
+// This exposes Collection methods to both Python and Rust.
+// Any modifications to these methods should be reflected in:
+// - py/tests/test_collection.py
+// - py/oasysdb/collection.pyi
+#[cfg_attr(feature = "py", pymethods)]
+impl Collection {
     /// Inserts a vector record into the collection, and return `VectorID` if success.
     /// * `record`: Vector record to insert.
     pub fn insert(&mut self, record: &Record) -> Result<VectorID, Error> {
@@ -380,36 +407,6 @@ impl Collection {
         let mut res = self.truncate_irrelevant_result(sorted);
         res.truncate(n);
         Ok(res)
-    }
-
-    #[cfg(feature = "py")]
-    #[getter(config)]
-    fn py_config(&self) -> Config {
-        self.config.clone()
-    }
-
-    #[cfg(feature = "py")]
-    #[getter(dimension)]
-    fn py_dimension(&self) -> usize {
-        self.dimension
-    }
-
-    #[cfg(feature = "py")]
-    #[setter(dimension)]
-    fn py_set_dimension(&mut self, dimension: usize) -> Result<(), Error> {
-        self.set_dimension(dimension)
-    }
-
-    #[cfg(feature = "py")]
-    #[getter(relevancy)]
-    fn py_relevancy(&self) -> f32 {
-        self.relevancy
-    }
-
-    #[cfg(feature = "py")]
-    #[setter(relevancy)]
-    fn py_set_relevancy(&mut self, relevancy: f32) {
-        self.relevancy = relevancy;
     }
 
     /// Returns the number of vector records in the collection.

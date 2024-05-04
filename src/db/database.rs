@@ -7,21 +7,29 @@ pub struct Database {
     count: usize,
 }
 
-#[cfg_attr(feature = "py", pymethods)]
+/// Python only methods.
+#[cfg(feature = "py")]
+#[pymethods]
 impl Database {
-    #[cfg(feature = "py")]
     #[staticmethod]
     #[pyo3(name = "new")]
     fn py_new(path: &str) -> PyResult<Self> {
         Self::new(path).map_err(|e| e.into())
     }
 
-    #[cfg(feature = "py")]
     #[new]
     fn py_open(path: &str) -> PyResult<Self> {
         Self::open(path).map_err(|e| e.into())
     }
 
+    fn __len__(&self) -> usize {
+        self.len()
+    }
+}
+
+// Mixed Rust and Python methods.
+#[cfg_attr(feature = "py", pymethods)]
+impl Database {
     /// Gets a collection from the database.
     /// * `name` - Name of the collection.
     pub fn get_collection(&self, name: &str) -> Result<Collection, Error> {
@@ -76,9 +84,17 @@ impl Database {
         self.count == 0
     }
 
-    #[cfg(feature = "py")]
-    fn __len__(&self) -> usize {
-        self.len()
+    /// Flushes dirty IO buffers and syncs the data to disk.
+    /// Returns bytes flushed.
+    pub fn flush(&self) -> Result<usize, Error> {
+        let bytes = self.collections.flush()?;
+        Ok(bytes)
+    }
+
+    /// Asynchronously performs flush operation.
+    pub async fn async_flush(&self) -> Result<usize, Error> {
+        let bytes = self.collections.flush_async().await?;
+        Ok(bytes)
     }
 }
 

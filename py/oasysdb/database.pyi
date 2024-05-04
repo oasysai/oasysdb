@@ -42,6 +42,16 @@ class Database:
         - name: Collection name.
         """
 
+    def flush(self) -> int:
+        """Flushes dirty IO buffers and calls fsync.
+
+        Returns:
+        Bytes flushed.
+        """
+
+    def async_flush(self) -> int:
+        """Asynchronously performs the flush operation."""
+
     def len(self) -> int:
         """Returns the number of collections in the database."""
 
