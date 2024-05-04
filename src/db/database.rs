@@ -76,6 +76,20 @@ impl Database {
         self.count == 0
     }
 
+    /// Flushes dirty IO buffers from the database.
+    /// Returns bytes flushed.
+    pub fn flush(&self) -> Result<usize, Error> {
+        let bytes = self.collections.flush()?;
+        Ok(bytes)
+    }
+
+    /// Asynchronously flushes dirty IO buffers from the database.
+    /// Returns bytes flushed.
+    pub async fn async_flush(&self) -> Result<usize, Error> {
+        let bytes = self.collections.flush_async().await?;
+        Ok(bytes)
+    }
+
     #[cfg(feature = "py")]
     fn __len__(&self) -> usize {
         self.len()
