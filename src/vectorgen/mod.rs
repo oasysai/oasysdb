@@ -1,4 +1,11 @@
 use crate::prelude::*;
+use reqwest::blocking::Client;
+use serde_json::{json, Value};
+
+mod openai;
+
+// Re-export the model implementations below.
+pub use openai::OpenAI;
 
 /// Trait for embedding models to easily generate vectors.
 pub trait EmbeddingModel {
