@@ -11,7 +11,6 @@ mod func;
 
 /// Embedding models to generate vectors.
 #[cfg(feature = "gen")]
-#[cfg(not(feature = "py"))]
 pub mod vectorgen;
 
 /// Convenience re-exports for the public APIs.

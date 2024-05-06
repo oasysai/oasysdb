@@ -47,13 +47,13 @@ optional = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
+dotenv = "0.15.0"
 
 # Memory management.
 jemallocator = "0.5.4"
 jemalloc-ctl = "0.5.4"
 
 [features]
-default = ["gen"]
 gen = ["dep:reqwest", "json"]
 json = ["dep:serde_json"]
 py = ["dep:pyo3"]
