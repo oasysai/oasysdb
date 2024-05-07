@@ -60,40 +60,40 @@ impl From<VectorID> for usize {
 #[derive(PartialEq, PartialOrd)]
 pub struct Vector(pub Vec<f32>);
 
-// Methods available to Python.
-// If this implementation is modified, make sure to modify:
-// - py/tests/test_vector.py
-// - py/oasysdb/vector.pyi
-#[cfg_attr(feature = "py", pymethods)]
+// Methods available only to Python.
+#[cfg(feature = "py")]
+#[pymethods]
 impl Vector {
-    #[cfg(feature = "py")]
     #[new]
     fn py_new(vector: Vec<f32>) -> Self {
         vector.into()
     }
 
-    #[cfg(feature = "py")]
     fn to_list(&self) -> Vec<f32> {
         self.0.clone()
     }
 
-    #[cfg(feature = "py")]
     #[staticmethod]
     #[pyo3(name = "random")]
     fn py_random(dimension: usize) -> Self {
         Vector::random(dimension)
     }
 
-    #[cfg(feature = "py")]
     fn __repr__(&self) -> String {
         format!("{:?}", self)
     }
 
-    #[cfg(feature = "py")]
     fn __len__(&self) -> usize {
         self.len()
     }
+}
 
+// Methods available to both Python and Rust.
+// If this implementation is modified, make sure to modify:
+// - py/tests/test_vector.py
+// - py/oasysdb/vector.pyi
+#[cfg_attr(feature = "py", pymethods)]
+impl Vector {
     /// Returns the dimension of the vector.
     pub fn len(&self) -> usize {
         self.0.len()

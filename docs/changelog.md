@@ -1,3 +1,18 @@
+# v0.4.5
+
+### What's Changed
+
+- Add insert benchmark to measure the performance of inserting vectors into the collection. The benchmark can be run using the `cargo bench` command.
+- Fix the issue with large-size dirty IO buffers caused by the database operation. This issue is fixed by flushing the dirty IO buffers after the operation is completed. This operation can be done synchronously or asynchronously based on the user's preference since this operation might take some time to complete.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.4.4...v0.4.5
+
 # v0.4.4
 
 ### What's Changed

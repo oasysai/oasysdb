@@ -1,3 +1,4 @@
+import asyncio
 from oasysdb.prelude import Record, Collection, Config, Database
 
 
@@ -56,3 +57,13 @@ def test_delete_collection():
     db = create_test_database()
     db.delete_collection(name=NAME)
     assert db.is_empty()
+
+
+def test_flush():
+    db = create_test_database()
+    assert db.flush() > 0
+
+
+def test_async_flush():
+    db = create_test_database()
+    assert asyncio.run(db.async_flush()) > 0

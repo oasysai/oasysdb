@@ -1,4 +1,5 @@
 use super::*;
+use futures::executor;
 
 #[test]
 fn new() {
@@ -49,4 +50,18 @@ fn delete_collection() {
     let mut db = create_test_database();
     db.delete_collection(NAME).unwrap();
     assert_eq!(db.len(), 0);
+}
+
+#[test]
+fn flush() {
+    let db = create_test_database();
+    let bytes = db.flush().unwrap();
+    assert!(bytes > 0);
+}
+
+#[test]
+fn async_flush() {
+    let db = create_test_database();
+    let bytes = executor::block_on(db.async_flush()).unwrap();
+    assert!(bytes > 0);
 }
