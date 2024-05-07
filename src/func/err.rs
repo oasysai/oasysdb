@@ -11,6 +11,12 @@ use super::*;
 #[cfg(feature = "py")]
 use pyo3::exceptions::PyValueError;
 
+#[cfg(feature = "gen")]
+use reqwest::Error as ReqwestError;
+
+#[cfg(feature = "json")]
+use serde_json::Error as JSONError;
+
 /// The type of error.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +27,7 @@ pub enum ErrorKind {
     CollectionError,
     DistanceError,
     SerializationError,
+    RequestError,
 }
 
 /// A custom error object with error type and message.
@@ -132,5 +139,21 @@ impl From<Box<BincodeError>> for Error {
 impl From<Error> for PyErr {
     fn from(err: Error) -> Self {
         PyErr::new::<PyValueError, String>(err.message)
+    }
+}
+
+#[cfg(feature = "gen")]
+impl From<ReqwestError> for Error {
+    fn from(err: ReqwestError) -> Self {
+        let kind = ErrorKind::RequestError;
+        Error::new(&kind, &err.to_string())
+    }
+}
+
+#[cfg(feature = "json")]
+impl From<JSONError> for Error {
+    fn from(err: JSONError) -> Self {
+        let kind = ErrorKind::SerializationError;
+        Error::new(&kind, &err.to_string())
     }
 }

@@ -3,6 +3,9 @@ mod test_database;
 mod test_distance;
 mod test_metadata;
 
+#[cfg(feature = "gen")]
+mod test_vectorgen;
+
 use crate::prelude::*;
 use rayon::iter::*;
 use std::collections::HashMap;

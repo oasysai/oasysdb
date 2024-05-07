@@ -45,10 +45,12 @@ pip install maturin
 
 After setting up Maturin, fork the repository and clone it to your local machine. Then, in the root directory of the project, you need to set up and activate Python virtual environment for the project with `requirements.txt` as the dependency.
 
+Depending on the features you want to work on, you may need to create a `.env` file in the root directory of the repository. The `.env` file should contain the variables listed in the `.env.example` file with the appropriate values.
+
 Once everything is set, you can run the following commands in the root directory of the repository:
 
 ```bash
-# Run Rust tests.
+# Run Rust tests, add feature flags as needed.
 cargo test
 
 # Install OasysDB as a Python package.
