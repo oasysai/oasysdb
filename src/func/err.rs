@@ -1,9 +1,11 @@
+use std::fmt::{Display, Formatter, Result};
+
 // Other error types.
 use bincode::ErrorKind as BincodeError;
 use sled::Error as SledError;
 use std::error::Error as StandardError;
-use std::fmt::{Display, Formatter, Result};
 use std::io::Error as IOError;
+use std::string::FromUtf8Error as StringError;
 
 #[cfg(feature = "py")]
 use super::*;
@@ -130,6 +132,13 @@ impl From<IOError> for Error {
 
 impl From<Box<BincodeError>> for Error {
     fn from(err: Box<BincodeError>) -> Self {
+        let kind = ErrorKind::SerializationError;
+        Error::new(&kind, &err.to_string())
+    }
+}
+
+impl From<StringError> for Error {
+    fn from(err: StringError) -> Self {
         let kind = ErrorKind::SerializationError;
         Error::new(&kind, &err.to_string())
     }
