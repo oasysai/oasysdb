@@ -32,17 +32,23 @@ OasysDB is very flexible! You can use it for systems related with vector similar
 
 ### Core Features
 
-🔸 **Embedded Database**: Zero setup & no server required.\
-🔸 **Optional Persistence**: In-memory or disk-based collection.\
-🔸 **Incremental Ops**: Modify vectors without rebuilding indexes.\
-🔸 **Flexible Schema**: Store additional metadata for each vector.
+🔸 **Embedded Database**: Zero setup and no dedicated server or process required.
+
+🔸 **Optional Persistence**: In-memory vector collections that can be persisted to disk.
+
+🔸 **Incremental Ops**: Insert, modify, and delete vectors without rebuilding indexes.
+
+🔸 **Flexible Schema**: Store additional and flexible metadata for each vector record.
 
 ### Technical Features
 
-🔹 **Fast HNSW**: Efficient approximate vector similarity search.\
-🔹 **Configurable Metric**: Use Euclidean, Cosine, or other metric.\
-🔹 **Parallel Processing**: Multi-threaded & SIMD optimized calculation.\
-🔹 **Built-in Incremental ID**: No headache vector record management.
+🔹 **Fast HNSW**: Efficient vector similarity search with state-of-the-art algorithm.
+
+🔹 **Configurable Metric**: Use Euclidean, Cosine, or other metric for your specific use-case.
+
+🔹 **Parallel Processing**: Multi-threaded & SIMD-optimized vector distance calculation.
+
+🔹 **Built-in Incremental ID**: No headache record management and efficient storage.
 
 ## Design Philosophy
 
@@ -120,6 +126,14 @@ fn main() {
     println!("{}", data);
 }
 ```
+
+## Feature Flags
+
+OasysDB provides several feature flags to enable or disable certain features. You can do this by adding the feature flags to your project `Cargo.toml` file. Below are the available feature flags and their descriptions:
+
+- `json`: Enables easy Serde's JSON conversion from and to the metadata type. This feature is very useful if you have a complex metadata type or if you use APIs that communicate using JSON.
+
+- `gen`: Enables the vector generator trait and modules to extract vector embeddings from your contents using OpenAI or other embedding models. This feature allows OasysDB to handle vector embedding extraction for you without separate dependencies.
 
 # 🚀 Quickstart with Python
 
