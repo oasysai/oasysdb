@@ -3,6 +3,21 @@ use super::*;
 /// The directory where collections are stored in the database.
 const COLLECTIONS_DIR: &str = "collections";
 
+/// The database record for the persisted vector collection.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CollectionRecord {
+    /// Name of the collection.
+    pub name: String,
+    /// File path where the collection is stored.
+    pub path: String,
+    /// Number of vector records in the collection.
+    pub count: usize,
+    /// Timestamp when the collection was created.
+    pub created_at: usize,
+    /// Timestamp when the collection was last updated.
+    pub updated_at: usize,
+}
+
 /// The database storing vector collections.
 #[cfg_attr(feature = "py", pyclass(module = "oasysdb.database"))]
 pub struct Database {
@@ -35,37 +50,65 @@ impl Database {
 #[cfg_attr(feature = "py", pymethods)]
 impl Database {
     /// Gets a collection from the database.
-    /// * `name` - Name of the collection.
+    /// * `name`: Name of the collection.
     pub fn get_collection(&self, name: &str) -> Result<Collection, Error> {
-        let path = self.get_existing_collection_path(name)?;
-        self.read_from_file(&path)
+        // Retrieve the collection record from the database.
+        let record: CollectionRecord = match self.collections.get(name)? {
+            Some(value) => bincode::deserialize(&value)?,
+            None => return Err(Error::collection_not_found()),
+        };
+
+        self.read_from_file(&record.path)
     }
 
     /// Saves new or update existing collection to the database.
-    /// * `name` - Name of the collection.
-    /// * `collection` - Vector collection to save.
+    /// * `name`: Name of the collection.
+    /// * `collection`: Vector collection to save.
     pub fn save_collection(
         &mut self,
         name: &str,
         collection: &Collection,
     ) -> Result<(), Error> {
+        // This variable is required since some operations require
+        // the write_to_file method to succeed.
         let mut new = false;
+
+        let mut record: CollectionRecord;
         let path: String;
 
         // Check if it's a new collection.
         if !self.collections.contains_key(name)? {
             new = true;
-            path = self.get_new_collection_path(name)?;
+            path = self.create_new_collection_path(name)?;
+
+            // Create a new collection record.
+            let timestamp = self.get_timestamp();
+            record = CollectionRecord {
+                name: name.to_string(),
+                path: path.clone(),
+                count: collection.len(),
+                created_at: timestamp,
+                updated_at: timestamp,
+            };
         } else {
-            path = self.get_existing_collection_path(name)?;
+            let bytes = self.collections.get(name)?.unwrap().to_vec();
+            record = bincode::deserialize(&bytes)?;
+            path = record.path.clone();
+
+            // Update the record values.
+            record.count = collection.len();
+            record.updated_at = self.get_timestamp();
         }
 
         // Write the collection to a file.
         self.write_to_file(&path, collection)?;
 
-        // If it's a new collection, update the count and store the path.
+        // Insert or update the collection record in the database.
+        let bytes = bincode::serialize(&record)?;
+        self.collections.insert(name, bytes)?;
+
+        // If it's a new collection, update the count.
         if new {
-            self.collections.insert(name, path.as_bytes())?;
             self.count += 1;
         }
 
@@ -73,12 +116,16 @@ impl Database {
     }
 
     /// Deletes a collection from the database.
-    /// * `name` - Collection name to delete.
+    /// * `name`: Collection name to delete.
     pub fn delete_collection(&mut self, name: &str) -> Result<(), Error> {
+        let record: CollectionRecord = match self.collections.get(name)? {
+            Some(value) => bincode::deserialize(&value)?,
+            None => return Err(Error::collection_not_found()),
+        };
+
         // Delete the collection file first before removing
         // the reference from the database.
-        let path = self.get_existing_collection_path(name)?;
-        self.delete_file(&path)?;
+        self.delete_file(&record.path)?;
 
         self.collections.remove(name)?;
         self.count -= 1;
@@ -112,7 +159,7 @@ impl Database {
 impl Database {
     /// Re-creates and opens the database at the given path.
     /// This method will delete the database if it exists.
-    /// * `path` - Directory to store the database.
+    /// * `path`: Directory to store the database.
     pub fn new(path: &str) -> Result<Self, Error> {
         // Remove the database dir if it exists.
         if Path::new(path).exists() {
@@ -131,7 +178,7 @@ impl Database {
 
     /// Opens existing or creates new database.
     /// If the database doesn't exist, it will be created.
-    /// * `path` - Directory to store the database.
+    /// * `path`: Directory to store the database.
     pub fn open(path: &str) -> Result<Self, Error> {
         let collections = sled::open(path)?;
         let count = collections.len();
@@ -140,8 +187,8 @@ impl Database {
     }
 
     /// Serializes and writes the collection to a file.
-    /// * `path` - File path to write the collection to.
-    /// * `collection` - Vector collection to write.
+    /// * `path`: File path to write the collection to.
+    /// * `collection`: Vector collection to write.
     fn write_to_file(
         &self,
         path: &str,
@@ -161,7 +208,7 @@ impl Database {
     }
 
     /// Reads and deserializes the collection from a file.
-    /// * `path` - File path to read the collection from.
+    /// * `path`: File path to read the collection from.
     fn read_from_file(&self, path: &str) -> Result<Collection, Error> {
         let file = OpenOptions::new().read(true).open(path)?;
         let mut reader = BufReader::new(file);
@@ -174,27 +221,14 @@ impl Database {
     }
 
     /// Deletes a file at the given path.
-    /// * `path` - File path to delete.
     fn delete_file(&self, path: &str) -> Result<(), Error> {
         remove_file(path)?;
         Ok(())
     }
 
-    /// Returns the path where the collection is stored in the database.
-    /// * `name` - Name of the collection.
-    fn get_existing_collection_path(
-        &self,
-        name: &str,
-    ) -> Result<String, Error> {
-        match self.collections.get(name)? {
-            Some(value) => Ok(String::from_utf8(value.to_vec())?),
-            None => Err(Error::collection_not_found()),
-        }
-    }
-
     /// Returns the path where the collection will be stored.
-    /// * `name` - Name of the collection.
-    fn get_new_collection_path(&self, name: &str) -> Result<String, Error> {
+    /// * `name`: Name of the collection.
+    fn create_new_collection_path(&self, name: &str) -> Result<String, Error> {
         // Hash the collection name to create a unique filename.
         let mut hasher = DefaultHasher::new();
         name.hash(&mut hasher);
@@ -218,5 +252,13 @@ impl Database {
         }
 
         Ok(())
+    }
+
+    /// Returns the UNIX timestamp in milliseconds.
+    fn get_timestamp(&self) -> usize {
+        let now = SystemTime::now();
+        // We can unwrap safely since UNIX_EPOCH is always valid.
+        let timestamp = now.duration_since(UNIX_EPOCH).unwrap();
+        timestamp.as_millis() as usize
     }
 }
