@@ -56,7 +56,7 @@ I made this decision to make the indexing algorithm more efficient and performan
 
 By default, due to the nature of the vector indexing algorithm, OasysDB stores the vector record data in memory via the collection interface. This means that unless persisted to disk via the database save collection method, the data will be lost when the program is closed.
 
-Under the hood, OasysDB serializes the collection using [Serde](https://github.com/serde-rs/serde) and saves it to the database file using [Sled](https://github.com/spacejam/sled). Because of this, **whenever you modify a collection, you need to save the collection back to the database to persist the changes to disk.**
+Under the hood, OasysDB serializes the collection to bytes using [Serde](https://github.com/serde-rs/serde) and writes it to a file. The reference to the file is then saved, along with other details, to the database powered by [Sled](https://github.com/spacejam/sled). Because of this, **whenever you modify a collection, you need to save the collection back to the database to persist the changes to disk.**
 
 When opening the database, OasysDB doesn't automatically load the collections from the database file into memory as this would be inefficient if you have many collections you don't necessarily use all the time. Instead, you need to load the collections you want to use into memory manually using the get collection method.
 
