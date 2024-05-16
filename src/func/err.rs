@@ -1,8 +1,9 @@
+use std::fmt::{Display, Formatter, Result};
+
 // Other error types.
 use bincode::ErrorKind as BincodeError;
 use sled::Error as SledError;
 use std::error::Error as StandardError;
-use std::fmt::{Display, Formatter, Result};
 use std::io::Error as IOError;
 
 #[cfg(feature = "py")]
