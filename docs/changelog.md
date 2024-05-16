@@ -1,3 +1,24 @@
+# v0.5.0
+
+### What's Changed
+
+- **BREAKING CHANGE**: Although there is no change in the database API, the underlying storage format has been changed to save the collection data to dedicated files directly. The details of the new persistent system and how to migrate from v0.4.x to v0.5.0 can be found in this [migration guide](/docs/migrations/0.4.5-to-0.5.0.md).
+
+- By adding the feature `gen`, you can now use the `EmbeddingModel` trait and OpenAI's embedding models to generate vectors or records from text without external dependencies. This feature is optional and can be enabled by adding the feature to the `Cargo.toml` file.
+
+  ```toml
+  [dependencies]
+  oasysdb = { version = "0.5.0", features = ["gen"] }
+  ```
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.4.5...v0.5.0
+
 # v0.4.5
 
 ### What's Changed
