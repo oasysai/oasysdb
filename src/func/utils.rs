@@ -1,5 +1,3 @@
-use self::distance::Distance;
-
 use super::*;
 
 pub const INVALID: VectorID = VectorID(u32::MAX);
