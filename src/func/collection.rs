@@ -154,6 +154,15 @@ impl Collection {
         Self::build(config, &records)
     }
 
+    #[pyo3(name = "insert_many")]
+    fn py_insert_many(
+        &mut self,
+        records: Vec<Record>,
+    ) -> Result<Vec<VectorID>, Error> {
+        let ids = self.insert_many(&records)?;
+        Ok(ids)
+    }
+
     #[getter(config)]
     fn py_config(&self) -> Config {
         self.config.clone()
@@ -222,16 +231,6 @@ impl Collection {
         self.insert_to_layers(&[id]);
 
         Ok(id)
-    }
-
-    #[cfg(feature = "py")]
-    #[pyo3(name = "insert_many")]
-    fn py_insert_many(
-        &mut self,
-        records: Vec<Record>,
-    ) -> Result<Vec<VectorID>, Error> {
-        let ids = self.insert_many(&records)?;
-        Ok(ids)
     }
 
     /// Deletes a vector record from the collection.
@@ -635,6 +634,24 @@ impl Collection {
 
         self.insert_to_layers(&ids);
         Ok(ids)
+    }
+
+    /// Filters the collection to get matching vector records.
+    /// * `filter`: Filter to apply to the records.
+    pub fn filter(
+        &self,
+        filter: &Filter,
+    ) -> Result<HashMap<VectorID, Record>, Error> {
+        let ids = filter.get_vector_ids(&self.data);
+
+        // Use this with .collect() to convert the tuple to a HashMap.
+        let map_result = |id: &VectorID| {
+            let vector = self.vectors[id].clone();
+            let data = self.data[id].clone();
+            (*id, Record::new(&vector, &data))
+        };
+
+        Ok(ids.par_iter().map(map_result).collect())
     }
 
     /// Returns the configured vector dimension of the collection.

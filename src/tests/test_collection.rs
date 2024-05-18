@@ -169,3 +169,24 @@ fn config_with_distance_panic() {
         Config::new(ef, ef, ml, dist).unwrap();
     }
 }
+
+#[test]
+fn filter_text() {
+    let mut collection = create_collection();
+
+    // Insert a record with a text value.
+    let vector = Vector::random(DIMENSION);
+    let data = "This is awesome!";
+    let record = Record::new(&vector, &data.into());
+    let id = collection.insert(&record).unwrap();
+
+    // Filter text equal.
+    let filter = Filter::TextEqual(data.to_string());
+    let result = collection.filter(&filter).unwrap();
+    assert_eq!(result.contains_key(&id), true);
+
+    // Filter text include.
+    let filter = Filter::TextInclude("awesome".to_string());
+    let result = collection.filter(&filter).unwrap();
+    assert_eq!(result.contains_key(&id), true);
+}

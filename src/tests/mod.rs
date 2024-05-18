@@ -7,7 +7,7 @@ mod test_metadata;
 mod test_vectorgen;
 
 use crate::prelude::*;
-use rayon::iter::*;
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 const DIMENSION: usize = 128;
