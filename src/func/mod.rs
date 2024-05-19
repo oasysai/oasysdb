@@ -4,8 +4,6 @@ pub mod collection;
 pub mod distance;
 /// Error types for the database.
 pub mod err;
-/// Filter operations for the collection.
-pub mod filter;
 /// Types for the metadata.
 pub mod metadata;
 /// Types for the vectors.
@@ -17,7 +15,6 @@ mod utils;
 use collection::*;
 use distance::*;
 use err::*;
-use filter::*;
 use metadata::*;
 use utils::*;
 use vector::*;
