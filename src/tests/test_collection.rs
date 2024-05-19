@@ -180,13 +180,35 @@ fn filter_text() {
     let record = Record::new(&vector, &data.into());
     let id = collection.insert(&record).unwrap();
 
-    // Filter text equal.
-    let filter = Filter::TextEqual(data.to_string());
-    let result = collection.filter(&filter).unwrap();
+    // Filter include text.
+    let result = collection.filter(&data.into()).unwrap();
+    assert_eq!(result.contains_key(&id), true);
+}
+
+#[test]
+fn filter_object() {
+    let mut collection = create_collection();
+
+    // Create custom data for the object.
+    let source = [
+        ("name", "Justin"),
+        ("city", "San Francisco"),
+        ("role", "Software Engineer"),
+    ];
+
+    // Insert a record with an object value.
+    let vector = Vector::random(DIMENSION);
+    let data = HashMap::from(source);
+    let record = Record::new(&vector, &data.into());
+    let id = collection.insert(&record).unwrap();
+
+    // Filter object with multiple keys.
+    let filter = HashMap::from([source[0], source[1]]);
+    let result = collection.filter(&filter.into()).unwrap();
     assert_eq!(result.contains_key(&id), true);
 
-    // Filter text include.
-    let filter = Filter::TextInclude("awesome".to_string());
-    let result = collection.filter(&filter).unwrap();
-    assert_eq!(result.contains_key(&id), true);
+    // Filter object with missing key.
+    let filter = HashMap::from([source[0], ("car", "Tesla")]);
+    let result = collection.filter(&filter.into()).unwrap();
+    assert_eq!(result.contains_key(&id), false);
 }
