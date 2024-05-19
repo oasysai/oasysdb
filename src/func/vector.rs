@@ -6,14 +6,33 @@ use super::*;
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct VectorID(pub u32);
 
-#[cfg_attr(feature = "py", pymethods)]
+#[cfg(feature = "py")]
+#[pymethods]
 impl VectorID {
-    #[cfg(feature = "py")]
     #[new]
     fn py_new(id: u32) -> Self {
         id.into()
     }
 
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __str__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __eq__(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
+    fn __hash__(&self) -> usize {
+        self.0 as usize
+    }
+}
+
+#[cfg_attr(feature = "py", pymethods)]
+impl VectorID {
     /// True if this vector ID is valid.
     pub fn is_valid(&self) -> bool {
         self.0 != u32::MAX

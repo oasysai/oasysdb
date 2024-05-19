@@ -148,8 +148,13 @@ class Collection:
         """
 
     def list(self) -> Dict[VectorID, Record]:
-        """Returns a dictionary of records in the collection
-        in the format of { VectorID: Record }.
+        """Returns a dictionary of records in the collection."""
+
+    def filter(self, filter: Any) -> Dict[VectorID, Record]:
+        """Returns a dictionary of records that match the filter.
+
+        Args:
+        - filter: Metadata value to filter.
         """
 
     def update(self, id: VectorID, record: Record) -> None:

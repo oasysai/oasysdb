@@ -163,6 +163,15 @@ impl Collection {
         Ok(ids)
     }
 
+    #[pyo3(name = "filter")]
+    fn py_filter(
+        &self,
+        filter: &PyAny,
+    ) -> Result<HashMap<VectorID, Record>, Error> {
+        let filter = Metadata::from(filter);
+        self.filter(&filter)
+    }
+
     #[getter(config)]
     fn py_config(&self) -> Config {
         self.config.clone()

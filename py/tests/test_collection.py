@@ -219,3 +219,17 @@ def test_collection_distance_cosine():
     for i in range(k):
         assert results[i].distance == true_results[i].distance
         assert results[i].distance == sort[i].distance
+
+
+def test_collection_filter_text():
+    collection = create_test_collection()
+
+    # Insert records with text data.
+    data = "OasysDB is awesome!"
+    vector = Vector.random(dimension=DIMENSION)
+    record = Record(vector=vector.to_list(), data=data)
+    id = Collection.insert(collection, record)
+
+    # Search for the record using the text filter.
+    results = collection.filter(data)
+    assert results.get(id).data == data
