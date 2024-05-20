@@ -233,3 +233,23 @@ def test_collection_filter_text():
     # Search for the record using the text filter.
     results = collection.filter(data)
     assert results.get(id).data == data
+
+
+def test_collection_filter_object():
+    collection = create_test_collection()
+
+    # Sample object data.
+    data = {
+        "name": "Justin",
+        "age": 30,
+        "siblings": ["Kevin", "Luke"],
+    }
+
+    # Insert records with object data.
+    vector = Vector.random(dimension=DIMENSION)
+    record = Record(vector=vector.to_list(), data=data)
+    id = Collection.insert(collection, record)
+
+    # Filter records with a dict.
+    results = collection.filter({"name": "Justin"})
+    assert results.get(id).data == data
