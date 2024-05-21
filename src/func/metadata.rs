@@ -21,12 +21,29 @@ pub enum Metadata {
 impl Metadata {
     /// Returns true if the metadata matches the filter.
     pub fn match_filter(&self, filter: &Metadata) -> bool {
+        // Metadata text should contain the filter text.
         if let Metadata::Text(filter_text) = filter {
             if let Metadata::Text(text) = self {
                 return text.contains(filter_text);
             }
         }
 
+        // Metadata integer should be equal to the filter integer.
+        if let Metadata::Integer(filter_int) = filter {
+            if let Metadata::Integer(int) = self {
+                return int == filter_int;
+            }
+        }
+
+        // Metadata float should be equal to the filter float.
+        if let Metadata::Float(filter_float) = filter {
+            if let Metadata::Float(float) = self {
+                return float == filter_float;
+            }
+        }
+
+        // Metadata object should match all key-value pairs in the filter object.
+        // This operation performs matching similar to the AND operation.
         if let Metadata::Object(filter_object) = filter {
             if let Metadata::Object(object) = self {
                 return Metadata::match_filter_object(object, filter_object);
