@@ -647,6 +647,12 @@ impl Collection {
 
     /// Filters the collection metadata to get matching vector records.
     /// * `filter`: Metadata filter to apply to the records.
+    ///
+    /// Supported filters:
+    /// * Text: Contains the filter text.
+    /// * Integer: Equals to the filter integer.
+    /// * Float: Equals to the filter float.
+    /// * Object: Matches all key-value pairs in the filter object.
     pub fn filter(
         &self,
         filter: &Metadata,

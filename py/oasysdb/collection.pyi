@@ -155,6 +155,11 @@ class Collection:
 
         Args:
         - filter: Metadata value to filter.
+
+        Supported filter types:
+        - String: Includes the filter string.
+        - Number (int or float): Equal to the filter number.
+        - Dictionary: Matches all key-value pairs in the filter dictionary.
         """
 
     def update(self, id: VectorID, record: Record) -> None:
