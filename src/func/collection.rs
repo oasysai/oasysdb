@@ -908,7 +908,7 @@ impl Record {
 
 /// The collection nearest neighbor search result.
 #[cfg_attr(feature = "py", pyclass(module = "oasysdb.collection", get_all))]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct SearchResult {
     /// Vector ID.
     pub id: u32,
