@@ -1,3 +1,26 @@
+# v0.5.1
+
+### What's Changed
+
+We add a new method `Collection.filter` to filter the vector records based on the metadata. This method returns a HashMap of the filtered vector records and their corresponding vector IDs. This implementation performs a linear search through the collection and thus might be slow for large datasets.
+
+This implementation includes support for the following metadata to filter:
+
+- `String`: Stored value must include the filter string.
+- `Float`: The metadata value must be equal to the filter float.
+- `Integer`: The metadata value must be equal to the filter integer.
+- `Object`: The metadata value must match all the key-value pairs in the filter object.
+
+We currently don't support filtering based on the array type metadata because I am not sure of the best way to implement it. If you have any suggestions, please let me know.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.5.0...v0.5.1
+
 # v0.5.0
 
 ### What's Changed
