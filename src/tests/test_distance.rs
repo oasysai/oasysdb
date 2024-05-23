@@ -12,6 +12,11 @@ fn distance_calculation() {
 
     assert_eq!(dot, 44.0);
     assert_eq!(euclidean, 1.7320508);
-    assert_eq!(cosine, 0.99385864);
     assert_eq!(dot, norm_cosine);
+
+    // When utilizing SIMD, the cosine similarity is approximated
+    // for performance purposes. So, as long as the difference is small,
+    // the test should pass.
+    let diff = cosine - 0.99385864;
+    assert!(diff.abs() < 0.01);
 }

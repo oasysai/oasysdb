@@ -49,10 +49,7 @@ impl Distance {
     }
 
     fn cosine(a: &Vector, b: &Vector) -> f32 {
-        let dot = Self::dot(a, b);
-        let ma = a.0.iter().map(|x| x.powi(2)).sum::<f32>().sqrt();
-        let mb = b.0.iter().map(|y| y.powi(2)).sum::<f32>().sqrt();
-        dot / (ma * mb)
+        1.0 - f32::cosine(&a.0, &b.0).unwrap() as f32
     }
 
     fn euclidean(a: &Vector, b: &Vector) -> f32 {
