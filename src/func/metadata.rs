@@ -18,6 +18,64 @@ pub enum Metadata {
     Object(HashMap<String, Metadata>),
 }
 
+impl Metadata {
+    /// Returns true if the metadata matches the filter.
+    pub fn match_filter(&self, filter: &Metadata) -> bool {
+        // Metadata text should contain the filter text.
+        if let Metadata::Text(filter_text) = filter {
+            if let Metadata::Text(text) = self {
+                return text.contains(filter_text);
+            }
+        }
+
+        // Metadata integer should be equal to the filter integer.
+        if let Metadata::Integer(filter_int) = filter {
+            if let Metadata::Integer(int) = self {
+                return int == filter_int;
+            }
+        }
+
+        // Metadata float should be equal to the filter float.
+        if let Metadata::Float(filter_float) = filter {
+            if let Metadata::Float(float) = self {
+                return float == filter_float;
+            }
+        }
+
+        // Metadata object should match all key-value pairs in the filter object.
+        // This operation performs matching similar to the AND operation.
+        if let Metadata::Object(filter_object) = filter {
+            if let Metadata::Object(object) = self {
+                return Metadata::match_filter_object(object, filter_object);
+            }
+        }
+
+        false
+    }
+
+    fn match_filter_object(
+        object: &HashMap<String, Metadata>,
+        filter_object: &HashMap<String, Metadata>,
+    ) -> bool {
+        for (key, filter) in filter_object {
+            let data = object.get(key);
+
+            // If the key doesn't have a value, it doesn't match.
+            if data.is_none() {
+                return false;
+            }
+
+            // If the value doesn't match the filter, it doesn't match.
+            if !filter.match_filter(data.unwrap()) {
+                return false;
+            }
+        }
+
+        // Only return true if all key-value pairs match.
+        true
+    }
+}
+
 impl From<usize> for Metadata {
     fn from(value: usize) -> Self {
         Metadata::Integer(value)

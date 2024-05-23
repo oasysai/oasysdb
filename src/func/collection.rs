@@ -154,6 +154,24 @@ impl Collection {
         Self::build(config, &records)
     }
 
+    #[pyo3(name = "insert_many")]
+    fn py_insert_many(
+        &mut self,
+        records: Vec<Record>,
+    ) -> Result<Vec<VectorID>, Error> {
+        let ids = self.insert_many(&records)?;
+        Ok(ids)
+    }
+
+    #[pyo3(name = "filter")]
+    fn py_filter(
+        &self,
+        filter: &PyAny,
+    ) -> Result<HashMap<VectorID, Record>, Error> {
+        let filter = Metadata::from(filter);
+        self.filter(&filter)
+    }
+
     #[getter(config)]
     fn py_config(&self) -> Config {
         self.config.clone()
@@ -222,16 +240,6 @@ impl Collection {
         self.insert_to_layers(&[id]);
 
         Ok(id)
-    }
-
-    #[cfg(feature = "py")]
-    #[pyo3(name = "insert_many")]
-    fn py_insert_many(
-        &mut self,
-        records: Vec<Record>,
-    ) -> Result<Vec<VectorID>, Error> {
-        let ids = self.insert_many(&records)?;
-        Ok(ids)
     }
 
     /// Deletes a vector record from the collection.
@@ -635,6 +643,37 @@ impl Collection {
 
         self.insert_to_layers(&ids);
         Ok(ids)
+    }
+
+    /// Filters the collection metadata to get matching vector records.
+    /// * `filter`: Metadata filter to apply to the records.
+    ///
+    /// Supported filters:
+    /// * Text: Contains the filter text.
+    /// * Integer: Equals to the filter integer.
+    /// * Float: Equals to the filter float.
+    /// * Object: Matches all key-value pairs in the filter object.
+    pub fn filter(
+        &self,
+        filter: &Metadata,
+    ) -> Result<HashMap<VectorID, Record>, Error> {
+        // Get the IDs of the records that match the filter.
+        let data_iter = self.data.par_iter();
+        let ids: Vec<VectorID> = data_iter
+            .filter_map(|(id, data)| match data.match_filter(filter) {
+                true => Some(*id),
+                false => None,
+            })
+            .collect();
+
+        // Use this with .collect() to convert the tuple to a HashMap.
+        let map_result = |id: &VectorID| {
+            let vector = self.vectors[id].clone();
+            let data = self.data[id].clone();
+            (*id, Record::new(&vector, &data))
+        };
+
+        Ok(ids.par_iter().map(map_result).collect())
     }
 
     /// Returns the configured vector dimension of the collection.
