@@ -1,3 +1,8 @@
+// Note: This example measures the recall rate of the HNSW index.
+// This might not reflect the actual performance of the index, as the
+// recall rate is highly dependent on the quality of the data and the
+// query distribution.
+
 use oasysdb::prelude::*;
 
 // High-level collection configuration.
