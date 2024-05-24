@@ -242,7 +242,7 @@ pub struct Search {
     pub ef: usize,
     pub visited: Visited,
     candidates: BinaryHeap<HeapNode>,
-    nearest: Vec<Candidate>,
+    nearest: Vec<Candidate>, // Ordered ascendingly by distance.
     working: Vec<Candidate>,
     discarded: Vec<Candidate>,
     distance: Distance,
@@ -263,26 +263,28 @@ impl Search {
         links: usize,
     ) {
         while let Some(heap_node) = self.candidates.pop() {
-            if let Some(last) = self.nearest.last() {
-                // For min heap, ignore candidates with distance greater than the last.
-                if let HeapNode::Min(Reverse(candidate)) = heap_node {
-                    if candidate.distance > last.distance {
-                        break;
-                    }
-                }
+            let candidate = match heap_node {
+                HeapNode::Max(candidate) => candidate,
+                HeapNode::Min(Reverse(candidate)) => candidate,
+            };
 
-                // For max heap, ignore candidates with distance less than the last.
-                if let HeapNode::Max(candidate) = heap_node {
-                    if candidate.distance < last.distance {
+            // For max heap, ignore candidates with distance less than the first.
+            if matches!(heap_node, HeapNode::Max(_)) {
+                if let Some(first) = self.nearest.first() {
+                    if candidate.distance < first.distance {
                         break;
                     }
                 }
             }
 
-            let candidate = match heap_node {
-                HeapNode::Max(candidate) => candidate,
-                HeapNode::Min(Reverse(candidate)) => candidate,
-            };
+            // For min heap, ignore candidates with distance greater than the last.
+            if matches!(heap_node, HeapNode::Min(_)) {
+                if let Some(last) = self.nearest.last() {
+                    if candidate.distance > last.distance {
+                        break;
+                    }
+                }
+            }
 
             let layer_iter = layer.nearest_iter(&candidate.vector_id);
             for vector_id in layer_iter.take(links) {
@@ -293,7 +295,8 @@ impl Search {
         }
     }
 
-    /// Pushes a new neighbor candidate to the search object.
+    /// Creates and pushes a candidate to the nearest fieled
+    /// and candidates binary heap fields.
     pub fn push(
         &mut self,
         vector_id: &VectorID,
