@@ -230,11 +230,18 @@ pub struct Candidate {
     pub vector_id: VectorID,
 }
 
+#[derive(Clone, Copy, Debug)]
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+pub enum HeapNode {
+    Max(Candidate),
+    Min(Reverse<Candidate>),
+}
+
 #[derive(Clone)]
 pub struct Search {
     pub ef: usize,
     pub visited: Visited,
-    candidates: BinaryHeap<Reverse<Candidate>>,
+    candidates: BinaryHeap<HeapNode>,
     nearest: Vec<Candidate>,
     working: Vec<Candidate>,
     discarded: Vec<Candidate>,
@@ -255,20 +262,27 @@ impl Search {
         vectors: &HashMap<VectorID, Vector>,
         links: usize,
     ) {
-        while let Some(Reverse(candidate)) = self.candidates.pop() {
-            // Skip candidates conditionally.
-            // For Euclidean metrics, skip candidate with larger distances
-            // because 0.0 is the smallest and best distance.
-            // For other metrics, the bigger the distance, the better.
-            if let Some(furthest) = self.nearest.last() {
-                if let Distance::Euclidean = self.distance {
-                    if candidate.distance > furthest.distance {
+        while let Some(heap_node) = self.candidates.pop() {
+            if let Some(last) = self.nearest.last() {
+                // For min heap, ignore candidates with distance greater than the last.
+                if let HeapNode::Min(Reverse(candidate)) = heap_node {
+                    if candidate.distance > last.distance {
                         break;
                     }
-                } else if candidate.distance < furthest.distance {
-                    break;
+                }
+
+                // For max heap, ignore candidates with distance less than the last.
+                if let HeapNode::Max(candidate) = heap_node {
+                    if candidate.distance < last.distance {
+                        break;
+                    }
                 }
             }
+
+            let candidate = match heap_node {
+                HeapNode::Max(candidate) => candidate,
+                HeapNode::Min(Reverse(candidate)) => candidate,
+            };
 
             let layer_iter = layer.nearest_iter(&candidate.vector_id);
             for vector_id in layer_iter.take(links) {
@@ -295,6 +309,7 @@ impl Search {
         let distance = self.distance.calculate(vector, other);
         let distance = OrderedFloat(distance);
         let new = Candidate { distance, vector_id: *vector_id };
+        let node = self.get_heap_node(&new);
 
         // Make sure the index to insert to is within the EF scope.
         let index = match self.nearest.binary_search(&new) {
@@ -304,7 +319,7 @@ impl Search {
         };
 
         self.nearest.insert(index, new);
-        self.candidates.push(Reverse(new));
+        self.candidates.push(node);
     }
 
     /// Lowers the search to the next lower layer.
@@ -313,7 +328,8 @@ impl Search {
         self.visited.clear();
 
         for &candidate in self.nearest.iter() {
-            self.candidates.push(Reverse(candidate));
+            let node = self.get_heap_node(&candidate);
+            self.candidates.push(node);
         }
 
         let candidates = self.nearest.iter().map(|c| c.vector_id);
@@ -336,6 +352,16 @@ impl Search {
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = Candidate> + '_ {
         self.nearest.iter().copied()
+    }
+
+    /// Returns the heap node based on the distance metric:
+    /// - For Euclidean metrics, the minimum distance is the best candidate.
+    /// - For other metrics, the maximum distance is the best candidate.
+    fn get_heap_node(&self, candidate: &Candidate) -> HeapNode {
+        match self.distance {
+            Distance::Euclidean => HeapNode::Min(Reverse(*candidate)),
+            _ => HeapNode::Max(*candidate),
+        }
     }
 }
 
@@ -439,17 +465,17 @@ impl<'a> IndexConstruction<'a> {
 
         for (i, candidate) in candidates.iter().enumerate() {
             let vid = candidate.vector_id;
-            let old = &self.vectors[&vid];
+            let current = &self.vectors[&vid];
             let distance = candidate.distance;
 
             // Function to sort the vectors by distance.
             let ordering = |id: &VectorID| {
                 if !id.is_valid() {
-                    Ordering::Greater
-                } else {
-                    let other = &self.vectors[id];
-                    distance.cmp(&dist.calculate(old, other).into())
+                    return Ordering::Greater;
                 }
+
+                let other = &self.vectors[id];
+                distance.cmp(&dist.calculate(current, other).into())
             };
 
             // Find the correct index to insert at to keep the order.
