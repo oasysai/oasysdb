@@ -362,9 +362,6 @@ impl Collection {
             } else {
                 let layer = self.upper_layers[layer.0 - 1].as_slice();
                 search.search(layer, vector, &self.vectors, M);
-            }
-
-            if !layer.is_zero() {
                 search.cull();
             }
         }
