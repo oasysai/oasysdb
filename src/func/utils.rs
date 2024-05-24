@@ -376,9 +376,7 @@ impl Default for Search {
             visited: Visited::with_capacity(0),
             candidates: BinaryHeap::new(),
             nearest: Vec::new(),
-            working: Vec::new(),
-            discarded: Vec::new(),
-            ef: 5,
+            ef: 64,
             distance: Distance::Euclidean,
         }
     }
