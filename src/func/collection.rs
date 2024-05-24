@@ -94,8 +94,8 @@ impl Default for Config {
     /// * `distance`: euclidean
     fn default() -> Self {
         Self {
-            ef_construction: 40,
-            ef_search: 15,
+            ef_construction: 128,
+            ef_search: 64,
             ml: 0.2885,
             distance: Distance::Euclidean,
         }
