@@ -354,7 +354,7 @@ impl Collection {
         search.push(vector_id, vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
-            search.ef = if layer.is_zero() { self.config.ef_search } else { 5 };
+            search.ef = self.config.ef_search;
 
             if layer.0 == 0 {
                 let layer = self.base_layer.as_slice();
