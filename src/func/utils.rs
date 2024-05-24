@@ -291,7 +291,13 @@ impl Search {
                 self.push(&vector_id, vector, vectors);
             }
 
-            self.nearest.truncate(self.ef);
+            match self.distance {
+                Distance::Euclidean => self.nearest.truncate(self.ef),
+                _ => {
+                    let start = self.nearest.len().saturating_sub(self.ef);
+                    self.nearest = self.nearest[start..].to_vec()
+                }
+            }
         }
     }
 
