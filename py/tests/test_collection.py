@@ -19,8 +19,8 @@ def test_create_config():
 
     # Create config based on the default.
     config = Config(
-        ef_construction=40,
-        ef_search=15,
+        ef_construction=128,
+        ef_search=64,
         ml=0.2885,
         distance="euclidean"
     )
