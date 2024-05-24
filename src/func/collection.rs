@@ -88,8 +88,8 @@ impl Config {
 
 impl Default for Config {
     /// Default configuration for the collection index.
-    /// * `ef_construction`: 40
-    /// * `ef_search`: 15
+    /// * `ef_construction`: 128
+    /// * `ef_search`: 64
     /// * `ml`: 0.2885
     /// * `distance`: euclidean
     fn default() -> Self {
