@@ -445,9 +445,7 @@ impl<'a> IndexConstruction<'a> {
         search.push(&valid_id.into(), vector, self.vectors);
 
         for current_layer in self.top_layer.descend() {
-            if current_layer <= *layer {
-                search.ef = self.config.ef_construction;
-            }
+            search.ef = self.config.ef_construction;
 
             // Find the nearest neighbor candidates.
             if current_layer > *layer {
