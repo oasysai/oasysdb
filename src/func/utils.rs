@@ -243,8 +243,6 @@ pub struct Search {
     pub visited: Visited,
     candidates: BinaryHeap<HeapNode>,
     nearest: Vec<Candidate>, // Ordered ascendingly by distance.
-    working: Vec<Candidate>,
-    discarded: Vec<Candidate>,
     distance: Distance,
 }
 
@@ -350,8 +348,6 @@ impl Search {
         self.visited.clear();
         self.candidates.clear();
         self.nearest.clear();
-        self.working.clear();
-        self.discarded.clear();
     }
 
     /// Selects the nearest neighbors.
