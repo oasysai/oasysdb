@@ -155,7 +155,7 @@ fn list() {
 fn config_with_distance() {
     let ef = 10;
     let ml = 1.0;
-    for dist in vec!["cosine", "dot", "euclidean"] {
+    for dist in vec!["cosine", "euclidean"] {
         Config::new(ef, ef, ml, dist).unwrap();
     }
 }

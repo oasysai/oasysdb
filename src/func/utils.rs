@@ -230,18 +230,11 @@ pub struct Candidate {
     pub vector_id: VectorID,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[derive(Eq, Ord, PartialEq, PartialOrd)]
-pub enum HeapNode {
-    Max(Candidate),
-    Min(Reverse<Candidate>),
-}
-
 #[derive(Clone)]
 pub struct Search {
     pub ef: usize,
     pub visited: Visited,
-    candidates: BinaryHeap<HeapNode>,
+    candidates: BinaryHeap<Reverse<Candidate>>,
     nearest: Vec<Candidate>, // Ordered ascendingly by distance.
     distance: Distance,
 }
@@ -260,27 +253,10 @@ impl Search {
         vectors: &HashMap<VectorID, Vector>,
         links: usize,
     ) {
-        while let Some(heap_node) = self.candidates.pop() {
-            let candidate = match heap_node {
-                HeapNode::Max(candidate) => candidate,
-                HeapNode::Min(Reverse(candidate)) => candidate,
-            };
-
-            // For max heap, ignore candidates with distance less than the first.
-            if matches!(heap_node, HeapNode::Max(_)) {
-                if let Some(first) = self.nearest.first() {
-                    if candidate.distance < first.distance {
-                        break;
-                    }
-                }
-            }
-
-            // For min heap, ignore candidates with distance greater than the last.
-            if matches!(heap_node, HeapNode::Min(_)) {
-                if let Some(last) = self.nearest.last() {
-                    if candidate.distance > last.distance {
-                        break;
-                    }
+        while let Some(Reverse(candidate)) = self.candidates.pop() {
+            if let Some(last) = self.nearest.last() {
+                if candidate.distance > last.distance {
+                    break;
                 }
             }
 
@@ -289,13 +265,7 @@ impl Search {
                 self.push(&vector_id, vector, vectors);
             }
 
-            match self.distance {
-                Distance::Euclidean => self.nearest.truncate(self.ef),
-                _ => {
-                    let start = self.nearest.len().saturating_sub(self.ef);
-                    self.nearest = self.nearest[start..].to_vec()
-                }
-            }
+            self.nearest.truncate(self.ef);
         }
     }
 
@@ -316,7 +286,6 @@ impl Search {
         let distance = self.distance.calculate(vector, other);
         let distance = OrderedFloat(distance);
         let new = Candidate { distance, vector_id: *vector_id };
-        let node = self.get_heap_node(&new);
 
         // Make sure the index to insert to is within the EF scope.
         let index = match self.nearest.binary_search(&new) {
@@ -326,7 +295,7 @@ impl Search {
         };
 
         self.nearest.insert(index, new);
-        self.candidates.push(node);
+        self.candidates.push(Reverse(new));
     }
 
     /// Lowers the search to the next lower layer.
@@ -335,8 +304,7 @@ impl Search {
         self.visited.clear();
 
         for &candidate in self.nearest.iter() {
-            let node = self.get_heap_node(&candidate);
-            self.candidates.push(node);
+            self.candidates.push(Reverse(candidate));
         }
 
         let candidates = self.nearest.iter().map(|c| c.vector_id);
@@ -357,16 +325,6 @@ impl Search {
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = Candidate> + '_ {
         self.nearest.iter().copied()
-    }
-
-    /// Returns the heap node based on the distance metric:
-    /// - For Euclidean metrics, the minimum distance is the best candidate.
-    /// - For other metrics, the maximum distance is the best candidate.
-    fn get_heap_node(&self, candidate: &Candidate) -> HeapNode {
-        match self.distance {
-            Distance::Euclidean => HeapNode::Min(Reverse(*candidate)),
-            _ => HeapNode::Max(*candidate),
-        }
     }
 }
 
@@ -461,7 +419,7 @@ impl<'a> IndexConstruction<'a> {
         // Select the neighbors.
         let candidates = {
             let candidates = search.select_simple();
-            &candidates[..Ord::min(candidates.len(), M)]
+            &candidates[..Ord::min(M, candidates.len())]
         };
 
         for (i, candidate) in candidates.iter().enumerate() {
