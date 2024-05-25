@@ -62,7 +62,6 @@ jemalloc-ctl = "0.5.4"
 futures = "0.3.30"
 
 [features]
-default = ["py", "gen", "json"]
 gen = ["dep:reqwest", "json"]
 json = ["dep:serde_json"]
 py = ["dep:pyo3"]
