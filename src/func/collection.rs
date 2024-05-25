@@ -79,7 +79,7 @@ impl Config {
     }
 
     /// Sets the distance calculation function.
-    /// * `distance`: Distance function, e.g. euclidean or dot.
+    /// * `distance`: Distance function, e.g. euclidean.
     pub fn set_distance(&mut self, distance: &str) -> Result<(), Error> {
         self.distance = Distance::from(distance)?;
         Ok(())
@@ -402,6 +402,8 @@ impl Collection {
             nearest.push(res);
         }
 
+        // Sort the results by distance in ascending order.
+        // The closest the distance, the better the match.
         let sort_ascending = |a: &SearchResult, b: &SearchResult| {
             a.distance.partial_cmp(&b.distance).unwrap()
         };

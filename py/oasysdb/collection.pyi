@@ -15,9 +15,7 @@ class Config:
 
     Distance metrics:
     - euclidean
-    - dot
     - cosine
-    - norm_cosine
     """
 
     ef_construction: int

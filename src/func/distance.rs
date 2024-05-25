@@ -13,10 +13,8 @@ pub enum Distance {
 impl Distance {
     /// Creates a new distance function from a string.
     /// Available options:
-    /// * `dot`: Dot product function.
     /// * `euclidean`: Euclidean distance function.
     /// * `cosine`: Cosine similarity function.
-    /// * `norm_cosine`: Cosine function for normalized vectors.
     pub fn from(distance: &str) -> Result<Self, Error> {
         match distance {
             "euclidean" => Ok(Distance::Euclidean),
