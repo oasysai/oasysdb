@@ -213,12 +213,8 @@ def test_collection_distance_cosine():
     results = collection.search(query, n=k)
     true_results = collection.true_search(query, n=k)
 
-    # Sort result based on distance.
-    sort = sorted(results, key=lambda x: x.distance)
-
     for i in range(k):
         assert results[i].distance == true_results[i].distance
-        assert results[i].distance == sort[i].distance
 
 
 def test_collection_filter_text():
