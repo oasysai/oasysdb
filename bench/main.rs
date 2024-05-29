@@ -70,4 +70,40 @@ criterion_group!(
     bench_insert_to_collection
 );
 
-criterion_main!(collection);
+fn bench_save_collection_to_database(criterion: &mut Criterion) {
+    let id = "save collection to database";
+
+    // Setup the database and collection.
+    let collection = build_test_collection(DIMENSION, COLLECTION_SIZE);
+    let mut db = create_test_database(DIMENSION, COLLECTION_SIZE);
+
+    // Benchmark the save speed.
+    criterion.bench_function(id, |bencher| {
+        bencher.iter(|| {
+            black_box(db.save_collection("bench", &collection).unwrap());
+        })
+    });
+}
+
+fn bench_get_collection_from_database(criterion: &mut Criterion) {
+    let id = "get collection from database";
+    let db = create_test_database(DIMENSION, COLLECTION_SIZE);
+
+    // Benchmark the get speed.
+    // This is the operation that loads the collection into memory.
+    let routine = || {
+        black_box(db.get_collection("bench").unwrap());
+    };
+
+    criterion.bench_function(id, |b| b.iter(routine));
+}
+
+criterion_group! {
+    name = database;
+    config = Criterion::default().sample_size(10);
+    targets =
+        bench_save_collection_to_database,
+        bench_get_collection_from_database
+}
+
+criterion_main!(collection, database);
