@@ -235,9 +235,7 @@ pub struct Search {
     pub ef: usize,
     pub visited: Visited,
     candidates: BinaryHeap<Reverse<Candidate>>,
-    nearest: Vec<Candidate>,
-    working: Vec<Candidate>,
-    discarded: Vec<Candidate>,
+    nearest: Vec<Candidate>, // Ordered ascendingly by distance.
     distance: Distance,
 }
 
@@ -256,16 +254,8 @@ impl Search {
         links: usize,
     ) {
         while let Some(Reverse(candidate)) = self.candidates.pop() {
-            // Skip candidates conditionally.
-            // For Euclidean metrics, skip candidate with larger distances
-            // because 0.0 is the smallest and best distance.
-            // For other metrics, the bigger the distance, the better.
-            if let Some(furthest) = self.nearest.last() {
-                if let Distance::Euclidean = self.distance {
-                    if candidate.distance > furthest.distance {
-                        break;
-                    }
-                } else if candidate.distance < furthest.distance {
+            if let Some(last) = self.nearest.last() {
+                if candidate.distance > last.distance {
                     break;
                 }
             }
@@ -279,7 +269,8 @@ impl Search {
         }
     }
 
-    /// Pushes a new neighbor candidate to the search object.
+    /// Creates and pushes a candidate to the nearest fieled
+    /// and candidates binary heap fields.
     pub fn push(
         &mut self,
         vector_id: &VectorID,
@@ -325,8 +316,6 @@ impl Search {
         self.visited.clear();
         self.candidates.clear();
         self.nearest.clear();
-        self.working.clear();
-        self.discarded.clear();
     }
 
     /// Selects the nearest neighbors.
@@ -345,9 +334,7 @@ impl Default for Search {
             visited: Visited::with_capacity(0),
             candidates: BinaryHeap::new(),
             nearest: Vec::new(),
-            working: Vec::new(),
-            discarded: Vec::new(),
-            ef: 5,
+            ef: 64,
             distance: Distance::Euclidean,
         }
     }
@@ -416,9 +403,7 @@ impl<'a> IndexConstruction<'a> {
         search.push(&valid_id.into(), vector, self.vectors);
 
         for current_layer in self.top_layer.descend() {
-            if current_layer <= *layer {
-                search.ef = self.config.ef_construction;
-            }
+            search.ef = self.config.ef_construction;
 
             // Find the nearest neighbor candidates.
             if current_layer > *layer {
@@ -434,22 +419,22 @@ impl<'a> IndexConstruction<'a> {
         // Select the neighbors.
         let candidates = {
             let candidates = search.select_simple();
-            &candidates[..Ord::min(candidates.len(), M)]
+            &candidates[..Ord::min(M, candidates.len())]
         };
 
         for (i, candidate) in candidates.iter().enumerate() {
             let vid = candidate.vector_id;
-            let old = &self.vectors[&vid];
+            let current = &self.vectors[&vid];
             let distance = candidate.distance;
 
             // Function to sort the vectors by distance.
             let ordering = |id: &VectorID| {
                 if !id.is_valid() {
-                    Ordering::Greater
-                } else {
-                    let other = &self.vectors[id];
-                    distance.cmp(&dist.calculate(old, other).into())
+                    return Ordering::Greater;
                 }
+
+                let other = &self.vectors[id];
+                distance.cmp(&dist.calculate(current, other).into())
             };
 
             // Find the correct index to insert at to keep the order.

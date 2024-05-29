@@ -19,8 +19,8 @@ def test_create_config():
 
     # Create config based on the default.
     config = Config(
-        ef_construction=40,
-        ef_search=15,
+        ef_construction=128,
+        ef_search=64,
         ml=0.2885,
         distance="euclidean"
     )
@@ -213,12 +213,8 @@ def test_collection_distance_cosine():
     results = collection.search(query, n=k)
     true_results = collection.true_search(query, n=k)
 
-    # Sort result based on distance descending.
-    sort = sorted(results, key=lambda x: x.distance, reverse=True)
-
     for i in range(k):
         assert results[i].distance == true_results[i].distance
-        assert results[i].distance == sort[i].distance
 
 
 def test_collection_filter_text():

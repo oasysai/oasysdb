@@ -79,7 +79,7 @@ impl Config {
     }
 
     /// Sets the distance calculation function.
-    /// * `distance`: Distance function, e.g. euclidean or dot.
+    /// * `distance`: Distance function, e.g. euclidean.
     pub fn set_distance(&mut self, distance: &str) -> Result<(), Error> {
         self.distance = Distance::from(distance)?;
         Ok(())
@@ -88,14 +88,14 @@ impl Config {
 
 impl Default for Config {
     /// Default configuration for the collection index.
-    /// * `ef_construction`: 40
-    /// * `ef_search`: 15
+    /// * `ef_construction`: 128
+    /// * `ef_search`: 64
     /// * `ml`: 0.2885
     /// * `distance`: euclidean
     fn default() -> Self {
         Self {
-            ef_construction: 40,
-            ef_search: 15,
+            ef_construction: 128,
+            ef_search: 64,
             ml: 0.2885,
             distance: Distance::Euclidean,
         }
@@ -354,7 +354,7 @@ impl Collection {
         search.push(vector_id, vector, &self.vectors);
 
         for layer in LayerID(self.upper_layers.len()).descend() {
-            search.ef = if layer.is_zero() { self.config.ef_search } else { 5 };
+            search.ef = self.config.ef_search;
 
             if layer.0 == 0 {
                 let layer = self.base_layer.as_slice();
@@ -362,9 +362,6 @@ impl Collection {
             } else {
                 let layer = self.upper_layers[layer.0 - 1].as_slice();
                 search.search(layer, vector, &self.vectors, M);
-            }
-
-            if !layer.is_zero() {
                 search.cull();
             }
         }
@@ -376,12 +373,9 @@ impl Collection {
             SearchResult { id, distance, data }
         };
 
-        // Sort the search results by distance.
-        let res = search.iter().map(map_result).collect();
-        let sorted = self.sort_by_distance(res);
-
         // Truncate the list based on the relevancy score.
-        let mut relevant = self.truncate_irrelevant_result(sorted);
+        let res = search.iter().map(map_result).collect();
+        let mut relevant = self.truncate_irrelevant_result(res);
         relevant.truncate(n);
         Ok(relevant)
     }
@@ -408,11 +402,16 @@ impl Collection {
             nearest.push(res);
         }
 
-        // Sort the results by distance depending on the metric.
-        let sorted = self.sort_by_distance(nearest);
+        // Sort the results by distance in ascending order.
+        // The closest the distance, the better the match.
+        let sort_ascending = |a: &SearchResult, b: &SearchResult| {
+            a.distance.partial_cmp(&b.distance).unwrap()
+        };
+
+        nearest.par_sort_by(sort_ascending);
 
         // Remove irrelevant results and truncate the list.
-        let mut res = self.truncate_irrelevant_result(sorted);
+        let mut res = self.truncate_irrelevant_result(nearest);
         res.truncate(n);
         Ok(res)
     }
@@ -791,45 +790,10 @@ impl Collection {
             return result;
         }
 
-        // For Euclidean distance, relevant results are those
-        // smaller than the relevancy score with best distance of 0.0.
-        if self.config.distance == Distance::Euclidean {
-            return result
-                .into_par_iter()
-                .filter(|r| r.distance <= self.relevancy)
-                .collect();
-        }
-
-        // For other distance metrics, like cosine similarity
-        // and dot product, the relevant results are above
-        // the relevancy score.
         result
             .into_par_iter()
-            .filter(|r| r.distance >= self.relevancy)
+            .filter(|r| r.distance <= self.relevancy)
             .collect()
-    }
-
-    /// Sorts the search results by distance and distance metric.
-    fn sort_by_distance(&self, result: Vec<SearchResult>) -> Vec<SearchResult> {
-        let mut result = result;
-
-        // Sort the results by distance based on the metric.
-        // For Euclidean distance, sort in ascending order
-        // because the best distance is 0.0.
-        match self.config.distance {
-            Distance::Euclidean => {
-                result.sort_by(|a, b| {
-                    a.distance.partial_cmp(&b.distance).unwrap()
-                });
-            }
-            _ => {
-                result.sort_by(|a, b| {
-                    b.distance.partial_cmp(&a.distance).unwrap()
-                });
-            }
-        };
-
-        result
     }
 }
 
@@ -908,7 +872,7 @@ impl Record {
 
 /// The collection nearest neighbor search result.
 #[cfg_attr(feature = "py", pyclass(module = "oasysdb.collection", get_all))]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct SearchResult {
     /// Vector ID.
     pub id: u32,

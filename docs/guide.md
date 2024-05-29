@@ -117,19 +117,8 @@ For collections in OasysDB, you can specify the distance metric to use when calc
 
 As of the current version, OasysDB supports the following distance metrics:
 
-- [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance)
-- [Cosine Similarity](https://en.wikipedia.org/wiki/Cosine_similarity)
-- [Dot Product](https://en.wikipedia.org/wiki/Dot_product)
-
-### Cosine VS Normalized Cosine
-
-A lot of embedding models seem to recommend using cosine similarity as the distance metric. This is because cosine similarity is invariant to the magnitude of the vectors and only measures the angle between them which makes it easy to work with.
-
-With OasysDB, you can use the default **Cosine** or the **Normalized Cosine** distance metric.
-
-With the default Cosine, it will calculate both the dot product and the magnitude of the vectors to calculate the cosine similarity as you would expect.
-
-But for models that already normalize the vectors, you can use the Normalized Cosine distance metric. This will skip the magnitude calculation and only calculate the dot product which will result in a faster insert and search operation.
+- [Euclidean Distance](https://en.wikipedia.org/wiki/Euclidean_distance)
+- [Cosine Distance](https://en.wikipedia.org/wiki/Cosine_similarity#Cosine_distance)
 
 ## Relevancy Score
 
