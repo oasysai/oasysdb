@@ -393,11 +393,11 @@ impl<'a> IndexConstruction<'a> {
         insertion.ef = self.config.ef_construction;
 
         // Find the first valid vector ID to push.
-        let validator = |i: usize| self.vectors.get(&i.into()).is_some();
-        let valid_id = (0..self.vectors.len())
+        let validator = |i: u32| self.vectors.get(&i.into()).is_some();
+        let valid_id = (0..u32::MAX)
             .into_par_iter()
             .find_first(|i| validator(*i))
-            .unwrap();
+            .unwrap_or(0);
 
         search.reset();
         search.push(&valid_id.into(), vector, self.vectors);
