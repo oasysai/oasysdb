@@ -1,3 +1,29 @@
+# v0.6.0
+
+### What's Changed
+
+- **CONDITIONAL BREAKING CHANGE**: We remove support for dot distance metric and we replace cosine similarity with cosine distance metric. This change is made to make the distance metric consistent with the other distance metrics.
+- The default configuration for the collection (EF Construction and EF Search) is increased to a more sensible value according to the common real-world use cases. The default EF Construction is set to 128 and the default EF Search is set to 64.
+- We add a new script to measure the recall rate of the collection search functionality. And with this, we improve the search recall rate of OasysDB to match the recall rate of HNSWLib with the same configuration.
+
+  ```sh
+  cargo run --example measure-recall
+  ```
+
+- We add a new benchmark to measure the performance of saving and getting the collection. The benchmark can be run by running the command below.
+
+  ```sh
+  cargo bench
+  ```
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+https://github.com/oasysai/oasysdb/compare/v0.5.1...v0.6.0
+
 # v0.5.1
 
 ### What's Changed
