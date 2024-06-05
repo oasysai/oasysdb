@@ -60,6 +60,7 @@ class Record:
     Metadata types:
     - String
     - Number
+    - Boolean
     - List of metadata types
     - Dictionary of metadata types
     """
