@@ -12,6 +12,8 @@ pub enum Metadata {
     Integer(usize),
     /// A float number to represent something like a score.
     Float(f32),
+    /// A boolean value often used for states like active or viewed.
+    Boolean(bool),
     /// An array containing any type of metadata.
     Array(Vec<Metadata>),
     /// A map of string and metadata pairs. The most common type.
@@ -39,6 +41,13 @@ impl Metadata {
         if let Metadata::Float(filter_float) = filter {
             if let Metadata::Float(float) = self {
                 return float == filter_float;
+            }
+        }
+
+        // Metadata boolean should be equal to the filter boolean.
+        if let Metadata::Boolean(filter_bool) = filter {
+            if let Metadata::Boolean(bool) = self {
+                return bool == filter_bool;
             }
         }
 
@@ -76,6 +85,8 @@ impl Metadata {
     }
 }
 
+// Implement the conversion from the Rust primitive types to Metadata.
+
 impl From<usize> for Metadata {
     fn from(value: usize) -> Self {
         Metadata::Integer(value)
@@ -97,6 +108,12 @@ impl From<String> for Metadata {
 impl From<&str> for Metadata {
     fn from(value: &str) -> Self {
         Metadata::Text(value.to_string())
+    }
+}
+
+impl From<bool> for Metadata {
+    fn from(value: bool) -> Self {
+        Metadata::Boolean(value)
     }
 }
 
@@ -169,6 +186,7 @@ impl From<Value> for Metadata {
             Value::Number(number) => convert_number(number),
             Value::Array(array) => convert_array(array),
             Value::Object(object) => convert_object(object),
+            Value::Bool(bool) => Metadata::Boolean(bool),
             _ => panic!("Unsupported JSON type for the metadata."),
         }
     }
@@ -210,6 +228,7 @@ impl From<Metadata> for Value {
             Metadata::Text(text) => Value::String(text),
             Metadata::Integer(int) => convert_integer(int),
             Metadata::Float(float) => convert_float(float),
+            Metadata::Boolean(bool) => Value::Bool(bool),
             Metadata::Array(array) => convert_array(array),
             Metadata::Object(object) => convert_object(object),
         }
@@ -234,6 +253,11 @@ impl From<&PyAny> for Metadata {
         // Extract float.
         if let Ok(float) = value.extract::<f32>() {
             return Metadata::Float(float);
+        }
+
+        // Extract boolean.
+        if let Ok(bool) = value.extract::<bool>() {
+            return Metadata::Boolean(bool);
         }
 
         // Extract list.
@@ -280,6 +304,7 @@ impl IntoPy<Py<PyAny>> for Metadata {
             Metadata::Text(text) => text.into_py(py),
             Metadata::Integer(int) => int.into_py(py),
             Metadata::Float(float) => float.into_py(py),
+            Metadata::Boolean(bool) => bool.into_py(py),
             Metadata::Array(arr) => list_converter(arr),
             Metadata::Object(obj) => dict_converter(obj),
         }
