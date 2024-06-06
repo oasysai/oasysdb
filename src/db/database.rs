@@ -194,16 +194,15 @@ impl Database {
         path: &str,
         collection: &Collection,
     ) -> Result<(), Error> {
-        let data = bincode::serialize(collection)?;
-
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(path)?;
 
-        let mut writer = BufWriter::new(file);
-        writer.write_all(&data)?;
+        let writer = BufWriter::new(file);
+        bincode::serialize_into(writer, collection)?;
+
         Ok(())
     }
 
@@ -211,12 +210,10 @@ impl Database {
     /// * `path`: File path to read the collection from.
     fn read_from_file(&self, path: &str) -> Result<Collection, Error> {
         let file = OpenOptions::new().read(true).open(path)?;
-        let mut reader = BufReader::new(file);
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
+        let reader = BufReader::new(file);
 
         // Deserialize the collection.
-        let collection = bincode::deserialize(&data)?;
+        let collection = bincode::deserialize_from(reader)?;
         Ok(collection)
     }
 
