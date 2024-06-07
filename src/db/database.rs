@@ -3,6 +3,9 @@ use super::*;
 /// The directory where collections are stored in the database.
 const COLLECTIONS_DIR: &str = "collections";
 
+/// The directory to store temporary files.
+const TMP_DIR: &str = "tmp";
+
 /// The database record for the persisted vector collection.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CollectionRecord {
@@ -163,7 +166,7 @@ impl Database {
     pub fn new(path: &str) -> Result<Self, Error> {
         // Remove the database dir if it exists.
         if Path::new(path).exists() {
-            remove_dir_all(path)?;
+            fs::remove_dir_all(path)?;
         }
 
         // Setup the directory where collections will be stored.
@@ -194,16 +197,28 @@ impl Database {
         path: &str,
         collection: &Collection,
     ) -> Result<(), Error> {
-        let data = bincode::serialize(collection)?;
+        // Get the file name from the path.
+        let filename = Path::new(path).file_name().ok_or(Error {
+            kind: ErrorKind::IOError,
+            message: format!("Unable to retrieve file name: {path}"),
+        })?;
 
+        // Write the collection to a temporary file first.
+        // This is to prevent data corruption if the process is interrupted.
+        let temp_path = Path::new(&self.path).join(TMP_DIR).join(filename);
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
-            .open(path)?;
+            .open(&temp_path)?;
 
-        let mut writer = BufWriter::new(file);
-        writer.write_all(&data)?;
+        let writer = BufWriter::new(file);
+        bincode::serialize_into(writer, collection)?;
+
+        // Rename the temporary file to the original path.
+        // This operation is atomic and will replace the original file.
+        fs::rename(&temp_path, path)?;
+
         Ok(())
     }
 
@@ -222,7 +237,7 @@ impl Database {
 
     /// Deletes a file at the given path.
     fn delete_file(&self, path: &str) -> Result<(), Error> {
-        remove_file(path)?;
+        fs::remove_file(path)?;
         Ok(())
     }
 
@@ -247,8 +262,10 @@ impl Database {
     /// Creates the collections directory on the path if it doesn't exist.
     fn setup_collections_dir(path: &str) -> Result<(), Error> {
         let collections_dir = Path::new(path).join(COLLECTIONS_DIR);
+        let temp_dir = Path::new(path).join(TMP_DIR);
         if !collections_dir.exists() {
-            create_dir_all(&collections_dir)?;
+            fs::create_dir_all(&collections_dir)?;
+            fs::create_dir_all(&temp_dir)?;
         }
 
         Ok(())
