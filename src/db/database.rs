@@ -264,8 +264,8 @@ impl Database {
         let collections_dir = Path::new(path).join(COLLECTIONS_DIR);
         let temp_dir = Path::new(path).join(TMP_DIR);
         if !collections_dir.exists() {
-            fs::create_dir_all(&collections_dir)?;
-            fs::create_dir_all(&temp_dir)?;
+            fs::create_dir_all(collections_dir)?;
+            fs::create_dir_all(temp_dir)?;
         }
 
         Ok(())
