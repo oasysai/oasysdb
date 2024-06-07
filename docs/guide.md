@@ -19,14 +19,13 @@ For that, I made some quite opinionated design decisions that I believe will hel
   - [Intro to HNSW](#intro-to-hnsw)
   - [Index Configuration](#index-configuration)
   - [Distance Metric](#distance-metric)
-    - [Cosine VS Normalized Cosine](#cosine-vs-normalized-cosine)
   - [Relevancy Score](#relevancy-score)
 - [Conclusion](#conclusion)
   - [Relevant Resources](#relevant-resources)
 
 # Inner Workings
 
-You can think of OasysDB as a NoSQL database optimized for vector operations because of how the data is indexed. Instead of using a traditional B-Tree or LSM-Tree, OasysDB uses [HNSW](#indexing-algorithm) algorithm to index the data in the form of graphs.
+You can think of OasysDB as a NoSQL database optimized for vector operations because of how the data is indexed. Instead of using a traditional B-Tree or LSM-Tree, OasysDB uses [HNSW](#indexing-algorithm) as its vector indexing algorithm to index the data in the form of graphs.
 
 Besides that, OasysDB shares similar concept with traditional NoSQL databases. It stores data in collections, where each collection contains multiple records.
 
@@ -122,17 +121,11 @@ As of the current version, OasysDB supports the following distance metrics:
 
 ## Relevancy Score
 
-Relevancy score is a big part of OasysDB. It allows you to essentially exclude vectors that are not relevant to your search query.
+Relevancy score is a big part of OasysDB. It allows you to essentially exclude vectors that are not relevant to your search query. Unlike other configurations, the relevancy score can be changed after the collection is created. I even encourage you to experiment with different relevancy scores to see what works best for your use case 😁
 
-Unlike other configurations, the relevancy score can be changed after the collection is created. I even encourage you to experiment with different relevancy scores to see what works best for your use case 😁
+Relevancy score is a float value that acts as a threshold to filter out vectors which distance is further than the set relevancy score and consider only vectors that are closer to the query vector.
 
-Relevancy score is a float value and it functions differently based on the distance metric you use.
-
-For example, for the Cosine distance metric, since the cosine similarity value ranges from -1 to 1, where 1 would be the most similar, if you set the relevancy score to 0.8, OasysDB will only return vectors that have a cosine similarity of 0.8 or higher.
-
-Another example, for the Euclidean distance metric, since the Euclidean distance value ranges from 0 to infinity, where 0 would be the most similar, if you set the relevancy score to 0.2, OasysDB will only return vectors that have an Euclidean distance of 0.2 or lower.
-
-This is why it's important to experiment with different relevancy scores to see what works best for your use case.
+For example, for the Euclidean distance metric, since the Euclidean distance value ranges from 0 to infinity, the closer the distance is to 0, the more similar the vectors are. If you were to set the relevancy score to 0.2, OasysDB will only return vectors that have a Euclidean distance of 0.2 or lower from the query vector.
 
 # Conclusion
 
