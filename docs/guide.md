@@ -37,6 +37,7 @@ When you want to store a vector in OasysDB, you will insert vector record object
 
 - Text
 - Number
+- Boolean
 - Array
 - Object
 
