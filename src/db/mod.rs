@@ -8,7 +8,7 @@ use sled::Db;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, OpenOptions};
 use std::hash::{Hash, Hasher};
-use std::io::{BufReader, BufWriter, Read};
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 

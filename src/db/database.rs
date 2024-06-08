@@ -226,12 +226,10 @@ impl Database {
     /// * `path`: File path to read the collection from.
     fn read_from_file(&self, path: &str) -> Result<Collection, Error> {
         let file = OpenOptions::new().read(true).open(path)?;
-        let mut reader = BufReader::new(file);
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
+        let reader = BufReader::new(file);
 
         // Deserialize the collection.
-        let collection = bincode::deserialize(&data)?;
+        let collection = bincode::deserialize_from(reader)?;
         Ok(collection)
     }
 

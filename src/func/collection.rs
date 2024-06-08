@@ -108,7 +108,7 @@ impl Default for Config {
 pub struct Collection {
     /// The collection configuration object.
     pub config: Config,
-    /// The min/max distance to consider a neighbor.
+    /// The maximum distance to consider a neighbor.
     pub relevancy: f32,
     // Private fields below.
     data: HashMap<VectorID, Metadata>,

@@ -27,3 +27,23 @@ fn metadata_to_json_value() {
 
     assert_eq!(value, value_from_metadata);
 }
+
+#[cfg(feature = "json")]
+#[test]
+fn insert_data_type_json() {
+    let mut collection = create_collection();
+
+    let data = json!({
+        "number": 1,
+        "boolean": true,
+        "string": "text",
+    });
+
+    // Create a new record with JSON data.
+    let vector = Vector::random(DIMENSION);
+    let new_record = Record::new(&vector, &data.clone().into());
+    let id = collection.insert(&new_record).unwrap();
+
+    let metadata = Metadata::from(data);
+    assert_eq!(collection.get(&id).unwrap().data, metadata);
+}
