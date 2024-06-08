@@ -16,6 +16,6 @@ Chore examples:
 - Code refactoring
 - Dependency updates
 
-### Why is this needed?
+### Why is this beneficial?
 
 Why do you think this chore is needed? Is it related to a problem that you encounter that are not related to a bug or a feature request?

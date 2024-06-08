@@ -19,7 +19,7 @@ Example:
 1. Go to ...
 2. Click on ...
 
-### Expected Behavior
+### Expected behavior
 
 A clear and concise description of what you expected to happen.
 
@@ -27,6 +27,6 @@ A clear and concise description of what you expected to happen.
 
 How severe is the bug? Are you using OasysDB in production?
 
-### Additional Context
+### Additional context
 
 Add any other context about the problem here. For example, screenshots, screen recordings, or logs.

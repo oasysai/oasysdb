@@ -17,5 +17,6 @@ How should the reviewer test this PR? If applicable, have you added tests to cov
 
 ### Chore checklist
 
-- [ ] I have updated the documentation accordingly.
-- [ ] I have added comments to most of my code, particularly in hard-to-understand areas.
+- [ ] I formatted my code according to the style and linter guidelines.
+- [ ] If applicable, I updated the documentation accordingly.
+- [ ] I added comments to most of my code, particularly in hard-to-understand areas.
