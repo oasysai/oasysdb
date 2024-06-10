@@ -9,5 +9,5 @@ trim_trailing_whitespace = true
 [*.{rs, py}]
 indent_size = 4
 
-[*.yml]
+[*.{yml, md, css}]
 indent_size = 2
