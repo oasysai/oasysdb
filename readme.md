@@ -17,11 +17,6 @@ With 3 different runtime modes, OasysDB will accompany you throughout your journ
 - **Hosted**: Run OasysDB as a standalone server. _Coming soon_
 - **Distributed**: Run sharded OasysDB instances. _Coming not so soon_ 😉
 
-### Getting Started
-
-- [Rust](#🚀-quickstart-with-rust)
-- [Python](#🚀-quickstart-with-python)
-
 ## Use Cases
 
 OasysDB is very flexible! You can use it for almost any systems related with vector search such as:
