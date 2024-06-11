@@ -33,4 +33,5 @@ jobs:
         run: pip install mkdocs-material
 
       - name: Publish the documentation
-        run: mkdocs gh-deploy --force
+        run: |
+          mkdocs gh-deploy --force --message "cd: deployed docs changes from {sha} commit"
