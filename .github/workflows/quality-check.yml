@@ -8,11 +8,17 @@ name: Quality check and testing
 # 4. Run pytest: Build wheels and run Python tests.
 
 on:
-  pull_request:
   workflow_dispatch:
+
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
