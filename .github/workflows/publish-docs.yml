@@ -34,4 +34,4 @@ jobs:
 
       - name: Publish the documentation
         run: |
-          mkdocs gh-deploy --message "cd: deploy docs from {sha}"
+          mkdocs gh-deploy --force --message "cd: deploy docs from {sha}"
