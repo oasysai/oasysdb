@@ -1,4 +1,6 @@
-# v0.6.0
+# Changelog
+
+## v0.6.0
 
 ### What's Changed
 
@@ -6,15 +8,15 @@
 - The default configuration for the collection (EF Construction and EF Search) is increased to a more sensible value according to the common real-world use cases. The default EF Construction is set to 128 and the default EF Search is set to 64.
 - We add a new script to measure the recall rate of the collection search functionality. And with this, we improve the search recall rate of OasysDB to match the recall rate of HNSWLib with the same configuration.
 
-  ```sh
-  cargo run --example measure-recall
-  ```
+```sh
+cargo run --example measure-recall
+```
 
 - We add a new benchmark to measure the performance of saving and getting the collection. The benchmark can be run by running the command below.
 
-  ```sh
-  cargo bench
-  ```
+```sh
+cargo bench
+```
 
 ### Contributors
 
@@ -22,9 +24,9 @@
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.5.1...v0.6.0
+[v0.5.1...v0.6.0](https://github.com/oasysai/oasysdb/compare/v0.5.1...v0.6.0)
 
-# v0.5.1
+## v0.5.1
 
 ### What's Changed
 
@@ -45,9 +47,9 @@ We currently don't support filtering based on the array type metadata because I 
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.5.0...v0.5.1
+[v0.5.0...v0.5.1](https://github.com/oasysai/oasysdb/compare/v0.5.0...v0.5.1)
 
-# v0.5.0
+## v0.5.0
 
 ### What's Changed
 
@@ -55,10 +57,10 @@ https://github.com/oasysai/oasysdb/compare/v0.5.0...v0.5.1
 
 - By adding the feature `gen`, you can now use the `EmbeddingModel` trait and OpenAI's embedding models to generate vectors or records from text without external dependencies. This feature is optional and can be enabled by adding the feature to the `Cargo.toml` file.
 
-  ```toml
-  [dependencies]
-  oasysdb = { version = "0.5.0", features = ["gen"] }
-  ```
+```toml
+[dependencies]
+oasysdb = { version = "0.5.0", features = ["gen"] }
+```
 
 ### Contributors
 
@@ -66,9 +68,9 @@ https://github.com/oasysai/oasysdb/compare/v0.5.0...v0.5.1
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.4.5...v0.5.0
+[v0.4.5...v0.5.0](https://github.com/oasysai/oasysdb/compare/v0.4.5...v0.5.0)
 
-# v0.4.5
+## v0.4.5
 
 ### What's Changed
 
@@ -81,9 +83,9 @@ https://github.com/oasysai/oasysdb/compare/v0.4.5...v0.5.0
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.4.4...v0.4.5
+[v0.4.4...v0.4.5](https://github.com/oasysai/oasysdb/compare/v0.4.4...v0.4.5)
 
-# v0.4.4
+## v0.4.4
 
 ### What's Changed
 
@@ -104,9 +106,9 @@ https://github.com/oasysai/oasysdb/compare/v0.4.4...v0.4.5
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.4.3...v0.4.4
+[v0.4.3...v0.4.4](https://github.com/oasysai/oasysdb/compare/v0.4.3...v0.4.4)
 
-# v0.4.3
+## v0.4.3
 
 ### What's Changed
 
@@ -120,9 +122,9 @@ https://github.com/oasysai/oasysdb/compare/v0.4.3...v0.4.4
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.4.2...v0.4.3
+[v0.4.2...v0.4.3](https://github.com/oasysai/oasysdb/compare/v0.4.2...v0.4.3)
 
-# v0.4.2
+## v0.4.2
 
 ### What's Changed
 
@@ -132,9 +134,9 @@ For Rust users, this version doesn't offer any additional features or functional
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.4.1...v0.4.2
+[v0.4.1...v0.4.2](https://github.com/oasysai/oasysdb/compare/v0.4.1...v0.4.2)
 
-# v0.4.1
+## v0.4.1
 
 ### What's Changed
 
@@ -151,28 +153,28 @@ https://github.com/oasysai/oasysdb/compare/v0.4.1...v0.4.2
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.4.0...v0.4.1
+[v0.4.0...v0.4.1](https://github.com/oasysai/oasysdb/compare/v0.4.0...v0.4.1)
 
-# v0.4.0
+## v0.4.0
 
 ### What's Changed
 
 - **CONDITIONAL BREAKING CHANGE**: Add an option to configure distance for the vector collection via `Config` struct. The new field `distance` can be set using the `Distance` enum. This includes Euclidean, Cosine, and Dot distance metrics. The default distance metric is Euclidean. This change is backward compatible if you are creating a config using the `Config::default()` method. Otherwise, you need to update the config to include the distance metric.
 
-  ```rs
-  let config = Config {
-      ...
-      distance: Distance::Cosine,
-  };
-  ```
+```rs
+let config = Config {
+  ...
+  distance: Distance::Cosine,
+};
+```
 
 - With the new distance metric feature, now, you can set a `relevancy` threshold for the search results. This will filter out the results that are below or above the threshold depending on the distance metric used. This feature is disabled by default which is set to -1.0. To enable this feature, you can set the `relevancy` field in the `Collection` struct.
 
-  ```rs
-  ...
-  let mut collection = Collection::new(&config)?;
-  collection.relevancy = 3.0;
-  ```
+```rs
+...
+let mut collection = Collection::new(&config)?;
+collection.relevancy = 3.0;
+```
 
 - Add a new method `Collection::insert_many` to insert multiple vector records into the collection at once. This method is more optimized than using the `Collection::insert` method in a loop.
 
@@ -183,9 +185,9 @@ https://github.com/oasysai/oasysdb/compare/v0.4.0...v0.4.1
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.3.0...v0.4.0
+[v0.3.0...v0.4.0](https://github.com/oasysai/oasysdb/compare/v0.3.0...v0.4.0)
 
-# v0.3.0
+## v0.3.0
 
 This release introduces a BREAKING CHANGE to one of the method from the `Database` struct. The `Database::create_collection` method has been removed from the library due to redundancy. The `Database::save_collection` method can be used to create a new collection or update an existing one. This change is made to simplify the API and to make it more consistent with the other methods in the `Database` struct.
 
@@ -193,15 +195,15 @@ This release introduces a BREAKING CHANGE to one of the method from the `Databas
 
 - **BREAKING CHANGE**: Removed the `Database::create_collection` method from the library. To replace this, you can use the code snippet below:
 
-  ```rs
-  // Before: this creates a new empty collection.
-  db.create_collection("vectors", None, Some(records))?;
+```rs
+// Before: this creates a new empty collection.
+db.create_collection("vectors", None, Some(records))?;
 
-  // After: create new or build a collection then save it.
-  // let collection = Collection::new(&config)?;
-  let collection = Collection::build(&config, &records)?;
-  db.save_collection("vectors", &collection)?;
-  ```
+// After: create new or build a collection then save it.
+// let collection = Collection::new(&config)?;
+let collection = Collection::build(&config, &records)?;
+db.save_collection("vectors", &collection)?;
+```
 
 - Added the `Collection::list` method to list all the vector records in the collection.
 - Created a full Python binding for OasysDB which is available on PyPI. This allows you to use OasysDB directly from Python. The Python binding is available at https://pypi.org/project/oasysdb.
@@ -214,9 +216,9 @@ This release introduces a BREAKING CHANGE to one of the method from the `Databas
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.2.1...v0.3.0
+[v0.2.1...v0.3.0](https://github.com/oasysai/oasysdb/compare/v0.2.1...v0.3.0)
 
-# v0.2.1
+## v0.2.1
 
 ### What's Changed
 
@@ -229,9 +231,9 @@ https://github.com/oasysai/oasysdb/compare/v0.2.1...v0.3.0
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.2.0...v0.2.1
+[v0.2.0...v0.2.1](https://github.com/oasysai/oasysdb/compare/v0.2.0...v0.2.1)
 
-# v0.2.0
+## v0.2.0
 
 ### What's Changed
 
@@ -246,9 +248,9 @@ https://github.com/oasysai/oasysdb/compare/v0.2.0...v0.2.1
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/compare/v0.1.0...v0.2.0
+[v0.1.0...v0.2.0](https://github.com/oasysai/oasysdb/compare/v0.1.0...v0.2.0)
 
-# v0.1.0
+## v0.1.0
 
 ### What's Changed
 
@@ -263,4 +265,4 @@ https://github.com/oasysai/oasysdb/compare/v0.1.0...v0.2.0
 
 ### Full Changelog
 
-https://github.com/oasysai/oasysdb/commits/v0.1.0
+[v0.1.0](https://github.com/oasysai/oasysdb/commits/v0.1.0)

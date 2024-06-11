@@ -1,0 +1,89 @@
+site_name: OasysDB
+
+repo_name: oasysai/oasysdb
+repo_url: https://github.com/oasysai/oasysdb
+
+theme:
+  name: material
+  logo: assets/wordmark.png
+  favicon: assets/favicon64.png
+
+  icon:
+    repo: fontawesome/brands/github
+
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      toggle:
+        name: Light Mode
+        icon: material/brightness-7
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      toggle:
+        name: Dark Mode
+        icon: material/brightness-4
+
+  font:
+    text: Space Grotesk
+    code: Space Mono
+
+  features:
+    - header.autohide
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.expand
+    - navigation.footer
+    - content.code.copy
+
+copyright: Copyright &copy; 2024 OasysDB
+
+extra:
+  generator: false
+
+  social:
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/oasysai
+
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/oasysai
+
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/bDhQrkqNP4
+
+extra_css:
+  - assets/style.css
+
+nav:
+  - Home:
+      - Introduction: index.md
+
+  - Other:
+      - Changelog: changelog.md
+      - Contributing: contributing.md
+      - Code of Conduct: code_of_conduct.md
+      - Migrations:
+          - 0.4.5 to 0.5.0: migrations/0.4.5_to_0.5.0.md
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+  - pymdownx.tabbed:
+      alternate_style: true
+
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  - toc:
+      permalink: "#"
+
+exclude_docs: |
+  pull_request_template.md
+  security.md

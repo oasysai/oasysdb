@@ -16,6 +16,6 @@ On the high level, how would you like the feature to be implemented? Why do you 
 
 Do you have any alternative solutions?
 
-### Additional Context
+### Additional context
 
 Add additional context about the feature request. Like, screenshots, links to related issues, or other relevant information.
