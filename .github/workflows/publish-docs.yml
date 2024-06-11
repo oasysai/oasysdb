@@ -21,9 +21,6 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v4
 
-      - name: Setup pages
-        uses: actions/configure-pages@v5
-
       - name: Install Python
         uses: actions/setup-python@v5
         with:
