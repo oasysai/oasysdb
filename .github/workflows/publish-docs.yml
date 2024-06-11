@@ -34,4 +34,4 @@ jobs:
 
       - name: Publish the documentation
         run: |
-          mkdocs gh-deploy --message "cd: deployed docs changes from {sha} commit"
+          mkdocs gh-deploy --message "cd: deploy docs from {sha}"
