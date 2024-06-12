@@ -1,6 +1,6 @@
 [package]
 name = "oasysdb"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 license = "Apache-2.0"
 readme = "readme.md"
@@ -8,7 +8,7 @@ readme = "readme.md"
 # Information.
 authors = ["Edwin Kys", "Oasys"]
 description = "Fast & flexible embedded vector database with incremental HNSW indexing."
-homepage = "https://oasysai.com/"
+homepage = "https://docs.oasysdb.com"
 repository = "https://github.com/oasysai/oasysdb"
 
 # Metadata.

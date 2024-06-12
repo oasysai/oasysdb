@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.6.1
+
+### What's Changed
+
+- Add support for boolean metadata type. This allows full compatibility with JSON-like object or dictionary metadata when storing vector records in the collection.
+- We optimize the database save and get collection operations performance by 10-20% by reducing the number of IO operations. Also, the save collection operation is now atomic which means that the collection is saved to the disk only when the operation is completed successfully.
+- We launch our own documentation website at [docs.oasysdb.com](https://docs.oasysdb.com) to provide a better user experience and more comprehensive documentation for the OasysDB library. It's still a work in progress and we will continue to improve the documentation over time.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+[v0.6.0...v0.6.1](https://github.com/oasysai/oasysdb/compare/v0.6.0...v0.6.1)
+
 ## v0.6.0
 
 ### What's Changed
