@@ -10,6 +10,9 @@ jobs:
   publish-crate:
     name: Publish to Crates.io
     runs-on: ubuntu-latest
+    environment:
+      name: rust crate
+      url: https://crates.io/crates/oasysdb
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
