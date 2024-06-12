@@ -1,11 +1,13 @@
 ![OasysDB Use Case](https://i.postimg.cc/k4x4Q55k/banner.png)
 
-[![GitHub Stars](https://img.shields.io/github/stars/oasysai/oasysdb?label=Stars&logo=github&style=for-the-badge&color=%23fcd34d)](https://github.com/oasysai/oasysdb)
-[![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
-[![Crates.io](https://img.shields.io/crates/d/oasysdb?style=for-the-badge&logo=rust&label=Crates.io&color=%23f43f5e)](https://crates.io/crates/oasysdb)
-[![PyPI](https://img.shields.io/pypi/dm/oasysdb?style=for-the-badge&label=PyPI&logo=python&logoColor=ffffff&color=%232dd4bf)](https://pypi.org/project/oasysdb/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?style=for-the-badge)](/docs/code_of_conduct.md)
+[![GitHub Stars](https://img.shields.io/github/stars/oasysai/oasysdb?style=for-the-badge&logo=github&logoColor=%23000000&labelColor=%23fcd34d&color=%23000000)](https://github.com/oasysai/oasysdb)
+[![Discord](https://img.shields.io/badge/chat-%23000000?style=for-the-badge&logo=discord&logoColor=%23ffffff&label=discord&labelColor=%237289da)](https://discord.gg/bDhQrkqNP4)
+
+[![Crates.io](https://img.shields.io/crates/d/oasysdb?style=for-the-badge&logo=rust&logoColor=%23000&label=crates.io&labelColor=%23fdba74&color=%23000000)](https://crates.io/crates/oasysdb)
+[![PyPI](https://img.shields.io/pypi/dm/oasysdb?style=for-the-badge&label=PyPI&logo=python&logoColor=ffffff&labelColor=%230284c7&color=%23000000)](https://pypi.org/project/oasysdb/)
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&labelColor=%2314b8a6&color=%23000)](https://opensource.org/licenses/Apache-2.0)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?style=for-the-badge&labelColor=%2314b8a6&color=%23000)](/docs/code_of_conduct.md)
 
 # 👋 Meet OasysDB
 
