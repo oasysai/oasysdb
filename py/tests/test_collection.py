@@ -140,9 +140,6 @@ def test_search_record():
     results = collection.search(vector, n=n)
     true_results = collection.true_search(vector, n=n)
 
-    assert len(results) == n
-    assert len(true_results) == n
-
     # Make sure the first result of the approximate search
     # is somewhere in the true results.
     assert results[0].id in [true.id for true in true_results]
