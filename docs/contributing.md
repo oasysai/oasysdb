@@ -4,7 +4,7 @@ First of all, thank you for considering contributing to OasysDB! We welcome cont
 
 ## Code of Conduct
 
-We are committed to building an inclusive and welcoming community. We believe that it will lead to a more successful project and a better experience for everyone involved. To achieve that, any participant in our project is expected to act respectfully and to follow the [Code of Conduct](/docs/code_of_conduct.md).
+We are committed to building an inclusive and welcoming community. We believe that it will lead to a more successful project and a better experience for everyone involved. To achieve that, any participant in our project is expected to act respectfully and to follow the [Code of Conduct](code_of_conduct.md).
 
 ## Have questions or suggestions?
 
@@ -70,7 +70,7 @@ This command will run the benchmarks to measure the performance of the vector da
 
 ## Style guide
 
-We use mostly the default linting and style guide for Rust except for some linting changes listed in [rustfmt.toml](rustfmt.toml) file. For more information, see the [Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
+We use mostly the default linting and style guide for Rust except for some linting changes listed in rustfmt.toml file. For more information, see the [Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
 
 For commit messages, we use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format. This allows us to maintain consistency and readability in our commit messages.
 

@@ -85,5 +85,6 @@ markdown_extensions:
       permalink: "#"
 
 exclude_docs: |
+  guide.md
   pull_request_template.md
   security.md
