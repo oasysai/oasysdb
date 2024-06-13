@@ -21,6 +21,7 @@ pub use db::database;
 pub use func::collection;
 pub use func::distance;
 pub use func::err;
+pub use func::filter;
 pub use func::metadata;
 pub use func::vector;
 

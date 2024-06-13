@@ -3,6 +3,11 @@ mod test_database;
 mod test_distance;
 mod test_metadata;
 
+// This test requires the JSON feature to be enabled to make our life
+// easier allowing conversion from JSON Value type to the Metadata enum.
+#[cfg(feature = "json")]
+mod test_filter;
+
 #[cfg(feature = "gen")]
 mod test_vectorgen;
 

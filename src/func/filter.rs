@@ -1,0 +1,223 @@
+use super::*;
+
+/// Joined filter operator for multiple filters.
+#[derive(Debug, PartialEq)]
+pub enum FilterJoin {
+    /// Results must match all filters.
+    AND,
+    /// Results must match at least one filter.
+    OR,
+}
+
+/// The filters to apply to the collection metadata.
+#[derive(Debug, PartialEq)]
+pub struct Filters {
+    /// The list of filters to apply.
+    pub filters: Vec<Filter>,
+    /// How the filters should be used together.
+    pub join: FilterJoin,
+}
+
+impl Filters {
+    /// Creates a new filter set.
+    /// * `filters`: List of filters.
+    /// * `join`: Filter join operator.
+    pub fn new(filters: Vec<Filter>, join: FilterJoin) -> Self {
+        Self { filters, join }
+    }
+}
+
+impl From<&str> for Filters {
+    fn from(filters: &str) -> Self {
+        // Check which join operator is used.
+        let or_count = filters.matches(" OR ").count();
+        let and_count = filters.matches(" AND ").count();
+
+        let join = if or_count > 0 && and_count > 0 {
+            panic!("Mixing AND and OR join operators is not supported.");
+        } else if or_count > 0 {
+            FilterJoin::OR
+        } else {
+            // If no join operator is found, use AND since it doesn't matter.
+            FilterJoin::AND
+        };
+
+        // Split the filters.
+        let splitter = if join == FilterJoin::AND { " AND " } else { " OR " };
+        let filters = filters.split(splitter).map(Into::into).collect();
+        Self::new(filters, join)
+    }
+}
+
+impl From<String> for Filters {
+    fn from(filters: String) -> Self {
+        Filters::from(filters.as_str())
+    }
+}
+
+/// The basic filter operator to use to compare with metadata.
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq)]
+pub enum FilterOperator {
+    Equal,
+    NotEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+    Contains,
+}
+
+/// The filter to match against the collection metadata.
+#[derive(Debug, PartialEq)]
+pub struct Filter {
+    /// Metadata key to filter.
+    pub key: String,
+    /// The filter value to match against.
+    pub value: Metadata,
+    /// Filter operator to use for matching.
+    pub operator: FilterOperator,
+}
+
+impl Filter {
+    /// Creates a new filter instance.
+    /// * `key`: Key to filter.
+    /// * `value`: Value to use for filtering.
+    /// * `operator`: Filter operator.
+    pub fn new(key: &str, value: Metadata, operator: FilterOperator) -> Self {
+        Self::validate_filter(key, &value, &operator);
+        Self { key: key.to_string(), value, operator }
+    }
+
+    /// Validates the key with the supported value and filter operator.
+    /// * `key`: Filter key.
+    /// * `value`: Filter metadata value.
+    /// * `operator`: Filter operator.
+    fn validate_filter(key: &str, value: &Metadata, operator: &FilterOperator) {
+        // Check if the key is valid.
+        if key.is_empty() {
+            panic!("Filter key cannot be empty.");
+        }
+
+        let key_parts: Vec<&str> = key.split('.').collect();
+        let key_type = key_parts[0];
+        let valid_key_types = vec![
+            "text", "integer", "float", "boolean", "array", "object",
+            "distance", "id",
+        ];
+
+        // Check if the key is valid.
+        if !valid_key_types.contains(&key_type) {
+            panic!("Invalid filter key type: {key_type}");
+        }
+
+        Self::validate_value(key_type, value);
+        Self::validate_operator(key_type, operator);
+    }
+
+    // Validates the filter value based on the key type.
+    fn validate_value(key_type: &str, value: &Metadata) {
+        // Prevent array and object types for value.
+        // Because, we should handle it like this: object.key = value
+        match value {
+            Metadata::Array(_) | Metadata::Object(_) => {
+                panic!("Unsupported array or object type as value.")
+            }
+            // We handle the primitive types below.
+            _ => {}
+        }
+
+        // Array and object keys are always valid because we will validate
+        // the value type when performing the filter.
+        let always_valid_key_types = vec!["array", "object"];
+        if always_valid_key_types.contains(&key_type) {
+            return;
+        }
+
+        // Error message for invalid filter value type.
+        let panic =
+            || panic!("Invalid filter value of {value:?} for key: {key_type}");
+
+        // For key types other than array and object,
+        // we need to validate the value type.
+        match value {
+            Metadata::Text(_) => {
+                if key_type != "text" {
+                    panic();
+                }
+            }
+            Metadata::Integer(_) => {
+                if key_type != "integer" {
+                    panic();
+                }
+            }
+            Metadata::Float(_) => {
+                if key_type != "float" {
+                    panic();
+                }
+            }
+            Metadata::Boolean(_) => {
+                if key_type != "boolean" {
+                    panic();
+                }
+            }
+            // Array and object values has been handled above.
+            _ => {}
+        }
+    }
+
+    /// Validates the filter operator based on the key type.
+    fn validate_operator(key_type: &str, operator: &FilterOperator) {
+        match operator {
+            // Contains operator is only valid for text, array, and object types.
+            FilterOperator::Contains => {
+                let valid_types = vec!["text", "array", "object"];
+                if !valid_types.contains(&key_type) {
+                    panic!("Invalid CONTAINS operator for key: {key_type}");
+                }
+            }
+            // Numeric operators are not valid for text and boolean types.
+            FilterOperator::GreaterThan
+            | FilterOperator::GreaterThanOrEqual
+            | FilterOperator::LessThan
+            | FilterOperator::LessThanOrEqual => {
+                let invalid_types = vec!["text", "boolean"];
+                if invalid_types.contains(&key_type) {
+                    panic!("Invalid numeric operator for key type: {key_type}");
+                }
+            }
+            // Equal and not equal are valid for all types.
+            _ => {}
+        }
+    }
+}
+
+impl From<&str> for Filter {
+    fn from(filter: &str) -> Self {
+        // Split the filter string into EXACTLY 3 parts.
+        let parts: Vec<&str> = filter.splitn(3, ' ').collect();
+        let parts: Vec<&str> = parts.into_iter().map(|p| p.trim()).collect();
+
+        // Get and validate the filter operator.
+        let operator = match parts[1] {
+            "=" => FilterOperator::Equal,
+            "!=" => FilterOperator::NotEqual,
+            ">" => FilterOperator::GreaterThan,
+            ">=" => FilterOperator::GreaterThanOrEqual,
+            "<" => FilterOperator::LessThan,
+            "<=" => FilterOperator::LessThanOrEqual,
+            "CONTAINS" => FilterOperator::Contains,
+            _ => panic!("Invalid filter operator: {}", parts[1]),
+        };
+
+        let key = parts[0].to_string();
+        let value = Metadata::from(parts[2]);
+        Self::new(&key, value, operator)
+    }
+}
+
+impl From<String> for Filter {
+    fn from(filter: String) -> Self {
+        Filter::from(filter.as_str())
+    }
+}

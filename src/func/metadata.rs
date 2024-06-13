@@ -101,12 +101,24 @@ impl From<f32> for Metadata {
 
 impl From<String> for Metadata {
     fn from(value: String) -> Self {
-        Metadata::Text(value)
+        Metadata::from(value.as_str())
     }
 }
 
 impl From<&str> for Metadata {
     fn from(value: &str) -> Self {
+        if let Ok(int) = value.parse::<usize>() {
+            return Metadata::Integer(int);
+        }
+
+        if let Ok(float) = value.parse::<f32>() {
+            return Metadata::Float(float);
+        }
+
+        if let Ok(bool) = value.parse::<bool>() {
+            return Metadata::Boolean(bool);
+        }
+
         Metadata::Text(value.to_string())
     }
 }
