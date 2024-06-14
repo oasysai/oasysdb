@@ -72,3 +72,29 @@ fn array_contains_filter() {
     let filter_from_str = Filter::from("array CONTAINS value");
     assert_eq!(filter, filter_from_str);
 }
+
+#[test]
+fn and_filters() {
+    let filters = Filters::AND(vec![
+        Filter::new("text", json!("value").into(), FilterOperator::Equal),
+        Filter::new("integer", json!(10).into(), FilterOperator::GreaterThan),
+    ]);
+
+    let filters_from_str = Filters::from("text = value AND integer > 10");
+    assert_eq!(filters, filters_from_str);
+}
+
+#[test]
+fn or_filters_complex_type() {
+    let query = "object.number >= 0 OR object.text CONTAINS value";
+    let filters_from_str = Filters::from(query);
+
+    let operator = FilterOperator::GreaterThanOrEqual;
+    let filter_1 = Filter::new("object.number", json!(0).into(), operator);
+
+    let operator = FilterOperator::Contains;
+    let filter_2 = Filter::new("object.text", json!("value").into(), operator);
+
+    let filters = Filters::OR(vec![filter_1, filter_2]);
+    assert_eq!(filters, filters_from_str);
+}

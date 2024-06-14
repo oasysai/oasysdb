@@ -1,51 +1,38 @@
 use super::*;
 
-/// Joined filter operator for multiple filters.
-#[derive(Debug, PartialEq)]
-pub enum FilterJoin {
-    /// Results must match all filters.
-    AND,
-    /// Results must match at least one filter.
-    OR,
-}
+const AND: &str = " AND ";
+const OR: &str = " OR ";
 
 /// The filters to apply to the collection metadata.
 #[derive(Debug, PartialEq)]
-pub struct Filters {
-    /// The list of filters to apply.
-    pub filters: Vec<Filter>,
-    /// How the filters should be used together.
-    pub join: FilterJoin,
-}
-
-impl Filters {
-    /// Creates a new filter set.
-    /// * `filters`: List of filters.
-    /// * `join`: Filter join operator.
-    pub fn new(filters: Vec<Filter>, join: FilterJoin) -> Self {
-        Self { filters, join }
-    }
+pub enum Filters {
+    /// Results must match all filters.
+    AND(Vec<Filter>),
+    /// Results must match at least one filter.
+    OR(Vec<Filter>),
 }
 
 impl From<&str> for Filters {
     fn from(filters: &str) -> Self {
         // Check which join operator is used.
-        let or_count = filters.matches(" OR ").count();
-        let and_count = filters.matches(" AND ").count();
+        let or_count = filters.matches(OR).count();
+        let and_count = filters.matches(AND).count();
 
         let join = if or_count > 0 && and_count > 0 {
             panic!("Mixing AND and OR join operators is not supported.");
         } else if or_count > 0 {
-            FilterJoin::OR
+            OR
         } else {
             // If no join operator is found, use AND since it doesn't matter.
-            FilterJoin::AND
+            AND
         };
 
         // Split the filters.
-        let splitter = if join == FilterJoin::AND { " AND " } else { " OR " };
-        let filters = filters.split(splitter).map(Into::into).collect();
-        Self::new(filters, join)
+        let filters = filters.split(join).map(Into::into).collect();
+        match join {
+            OR => Filters::OR(filters),
+            _ => Filters::AND(filters),
+        }
     }
 }
 
