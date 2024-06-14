@@ -68,6 +68,17 @@ pub enum FilterOperator {
     Contains,
 }
 
+// String type representing the filter key type.
+// This helps us prevent typos and make the code more readable.
+const TEXT: &str = "text";
+const INTEGER: &str = "integer";
+const FLOAT: &str = "float";
+const BOOLEAN: &str = "boolean";
+const ARRAY: &str = "array";
+const OBJECT: &str = "object";
+const DISTANCE: &str = "distance";
+const ID: &str = "id";
+
 /// The filter to match against the collection metadata.
 #[derive(Debug, PartialEq)]
 pub struct Filter {
@@ -101,14 +112,26 @@ impl Filter {
 
         let key_parts: Vec<&str> = key.split('.').collect();
         let key_type = key_parts[0];
-        let valid_key_types = vec![
-            "text", "integer", "float", "boolean", "array", "object",
-            "distance", "id",
-        ];
+
+        // Some key string types we support.
+        let metadata_types = vec![TEXT, INTEGER, FLOAT, BOOLEAN, ARRAY, OBJECT];
+        let collection_types = vec![DISTANCE, ID];
+
+        let valid_key_types: Vec<&str> = metadata_types
+            .into_iter()
+            .chain(collection_types.into_iter())
+            .collect();
 
         // Check if the key is valid.
         if !valid_key_types.contains(&key_type) {
             panic!("Invalid filter key type: {key_type}");
+        }
+
+        // Check if the key has a sub-key for object type.
+        if key_type == OBJECT {
+            if key_parts.len() < 2 {
+                panic!("Object filter key must have a sub-key.");
+            }
         }
 
         Self::validate_value(key_type, value);
@@ -123,13 +146,13 @@ impl Filter {
             Metadata::Array(_) | Metadata::Object(_) => {
                 panic!("Unsupported array or object type as value.")
             }
-            // We handle the primitive types below.
+            // We handle the primitive types validation below.
             _ => {}
         }
 
         // Array and object keys are always valid because we will validate
         // the value type when performing the filter.
-        let always_valid_key_types = vec!["array", "object"];
+        let always_valid_key_types = vec![ARRAY, OBJECT];
         if always_valid_key_types.contains(&key_type) {
             return;
         }
@@ -142,22 +165,22 @@ impl Filter {
         // we need to validate the value type.
         match value {
             Metadata::Text(_) => {
-                if key_type != "text" {
+                if key_type != TEXT {
                     panic();
                 }
             }
             Metadata::Integer(_) => {
-                if key_type != "integer" {
+                if key_type != INTEGER {
                     panic();
                 }
             }
             Metadata::Float(_) => {
-                if key_type != "float" {
+                if key_type != FLOAT {
                     panic();
                 }
             }
             Metadata::Boolean(_) => {
-                if key_type != "boolean" {
+                if key_type != BOOLEAN {
                     panic();
                 }
             }
@@ -171,7 +194,7 @@ impl Filter {
         match operator {
             // Contains operator is only valid for text, array, and object types.
             FilterOperator::Contains => {
-                let valid_types = vec!["text", "array", "object"];
+                let valid_types = vec![TEXT, ARRAY, OBJECT];
                 if !valid_types.contains(&key_type) {
                     panic!("Invalid CONTAINS operator for key: {key_type}");
                 }
@@ -181,7 +204,7 @@ impl Filter {
             | FilterOperator::GreaterThanOrEqual
             | FilterOperator::LessThan
             | FilterOperator::LessThanOrEqual => {
-                let invalid_types = vec!["text", "boolean"];
+                let invalid_types = vec![TEXT, BOOLEAN];
                 if invalid_types.contains(&key_type) {
                     panic!("Invalid numeric operator for key type: {key_type}");
                 }
