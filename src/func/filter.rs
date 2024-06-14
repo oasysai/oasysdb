@@ -14,6 +14,10 @@ pub enum Filters {
 
 impl From<&str> for Filters {
     fn from(filters: &str) -> Self {
+        if filters.is_empty() {
+            return Filters::AND(vec![]);
+        }
+
         // Check which join operator is used.
         let or_count = filters.matches(OR).count();
         let and_count = filters.matches(AND).count();
@@ -204,6 +208,10 @@ impl Filter {
 
 impl From<&str> for Filter {
     fn from(filter: &str) -> Self {
+        if filter.is_empty() {
+            panic!("Filter string cannot be empty.");
+        }
+
         // Split the filter string into EXACTLY 3 parts.
         let parts: Vec<&str> = filter.splitn(3, ' ').collect();
         let parts: Vec<&str> = parts.into_iter().map(|p| p.trim()).collect();
