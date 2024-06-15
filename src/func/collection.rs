@@ -166,10 +166,10 @@ impl Collection {
     #[pyo3(name = "filter")]
     fn py_filter(
         &self,
-        filter: &PyAny,
+        filters: &str,
     ) -> Result<HashMap<VectorID, Record>, Error> {
-        let filter = Metadata::from(filter);
-        self.filter(&filter)
+        let filters = Filters::from(filters);
+        self.filter(&filters)
     }
 
     #[getter(config)]
@@ -645,34 +645,26 @@ impl Collection {
     }
 
     /// Filters the collection metadata to get matching vector records.
-    /// * `filter`: Metadata filter to apply to the records.
-    ///
-    /// Supported filters:
-    /// * Text: Contains the filter text.
-    /// * Integer: Equals to the filter integer.
-    /// * Float: Equals to the filter float.
-    /// * Object: Matches all key-value pairs in the filter object.
+    /// * `filters`: Filters to apply to the metadata.
     pub fn filter(
         &self,
-        filter: &Metadata,
+        filters: &Filters,
     ) -> Result<HashMap<VectorID, Record>, Error> {
-        // Get the IDs of the records that match the filter.
-        let data_iter = self.data.par_iter();
-        let ids: Vec<VectorID> = data_iter
-            .filter_map(|(id, data)| match data.match_filter(filter) {
-                true => Some(*id),
-                false => None,
-            })
-            .collect();
-
-        // Use this with .collect() to convert the tuple to a HashMap.
-        let map_result = |id: &VectorID| {
+        // Map the metadata HashMap to vector records HashMap.
+        let create_record_map = |(id, data): (&VectorID, &Metadata)| {
             let vector = self.vectors[id].clone();
-            let data = self.data[id].clone();
-            (*id, Record::new(&vector, &data))
+            let record = Record::new(&vector, data);
+            (*id, record)
         };
 
-        Ok(ids.par_iter().map(map_result).collect())
+        let records = self
+            .data
+            .par_iter()
+            .filter(|(_, data)| filters.match_metadata(data))
+            .map(create_record_map)
+            .collect();
+
+        Ok(records)
     }
 
     /// Returns the configured vector dimension of the collection.
