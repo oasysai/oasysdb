@@ -129,3 +129,23 @@ fn collection_object_filter() {
     let result = collection.filter(&filters).unwrap();
     assert_eq!(result.len(), 0);
 }
+
+#[test]
+fn collection_object_search_with_filters() {
+    let collection = create_collection_multitype_metadata();
+
+    // Search the collection with filters.
+    let filters = Filters::from("object.number < 25");
+    let vector = Vector::random(DIMENSION);
+    let result = collection.search_with_filters(&vector, 1, &filters).unwrap();
+
+    // This must match the data we created in
+    // create_collection_multitype_metadata function above.
+    let expected_data = json!({
+        "key": "value",
+        "number": 10,
+    });
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].data, expected_data.into());
+}
