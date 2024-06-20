@@ -10,18 +10,18 @@ pub enum Filters {
     AND(Vec<Filter>),
     /// Results must match at least one filter.
     OR(Vec<Filter>),
+    /// No filters to apply.
+    NONE,
 }
 
 impl Filters {
     /// Matches the collection metadata against the filters.
     pub fn match_metadata(&self, metadata: &Metadata) -> bool {
+        let evaluate = |f: &Filter| f.match_metadata(metadata);
         match self {
-            Filters::AND(filters) => {
-                filters.iter().all(|f| f.match_metadata(metadata))
-            }
-            Filters::OR(filters) => {
-                filters.iter().any(|f| f.match_metadata(metadata))
-            }
+            Filters::AND(filters) => filters.iter().all(evaluate),
+            Filters::OR(filters) => filters.iter().any(evaluate),
+            Filters::NONE => true,
         }
     }
 }
@@ -29,7 +29,7 @@ impl Filters {
 impl From<&str> for Filters {
     fn from(filters: &str) -> Self {
         if filters.is_empty() {
-            return Filters::AND(vec![]);
+            return Filters::NONE;
         }
 
         // Check which join operator is used.

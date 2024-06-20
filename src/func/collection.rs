@@ -172,6 +172,28 @@ impl Collection {
         self.filter(&filters)
     }
 
+    #[pyo3(name = "search_with_filters")]
+    fn py_search_with_filters(
+        &self,
+        vector: &Vector,
+        n: usize,
+        filters: &str,
+    ) -> Result<Vec<SearchResult>, Error> {
+        let filters = Filters::from(filters);
+        self.search_with_filters(vector, n, &filters)
+    }
+
+    #[pyo3(name = "true_search_with_filters")]
+    fn py_true_search_with_filters(
+        &self,
+        vector: &Vector,
+        n: usize,
+        filters: &str,
+    ) -> Result<Vec<SearchResult>, Error> {
+        let filters = Filters::from(filters);
+        self.true_search_with_filters(vector, n, &filters)
+    }
+
     #[getter(config)]
     fn py_config(&self) -> Config {
         self.config.clone()
@@ -204,6 +226,19 @@ impl Collection {
 // - py/oasysdb/collection.pyi
 #[cfg_attr(feature = "py", pymethods)]
 impl Collection {
+    /// Rebuilds the collection index from the current data.
+    pub fn rebuild(&self) -> Result<Self, Error> {
+        let data_to_record = |(id, data): (&VectorID, &Metadata)| {
+            let vector = &self.vectors[id];
+            Record::new(vector, data)
+        };
+
+        let records: Vec<Record> =
+            self.data.par_iter().map(data_to_record).collect();
+
+        Self::build(&self.config, &records)
+    }
+
     /// Inserts a vector record into the collection, and return `VectorID` if success.
     /// * `record`: Vector record to insert.
     pub fn insert(&mut self, record: &Record) -> Result<VectorID, Error> {
@@ -329,8 +364,6 @@ impl Collection {
         vector: &Vector,
         n: usize,
     ) -> Result<Vec<SearchResult>, Error> {
-        let mut search = Search::new(0, self.config.distance);
-
         // Early return if the collection is empty.
         if self.vectors.is_empty() {
             return Ok(vec![]);
@@ -339,45 +372,8 @@ impl Collection {
         // Ensure the vector dimension matches the collection dimension.
         self.validate_dimension(vector)?;
 
-        // Find the first valid vector ID from the slots.
-        let slots_iter = self.slots.as_slice().into_par_iter();
-        let vector_id = match slots_iter.find_first(|id| id.is_valid()) {
-            Some(id) => id,
-            None => {
-                let kind = ErrorKind::CollectionError;
-                let message = "Unable to initiate search.";
-                return Err(Error::new(&kind, message));
-            }
-        };
-
-        search.visited.resize_capacity(self.vectors.len());
-        search.push(vector_id, vector, &self.vectors);
-
-        for layer in LayerID(self.upper_layers.len()).descend() {
-            search.ef = self.config.ef_search;
-
-            if layer.0 == 0 {
-                let layer = self.base_layer.as_slice();
-                search.search(layer, vector, &self.vectors, M * 2);
-            } else {
-                let layer = self.upper_layers[layer.0 - 1].as_slice();
-                search.search(layer, vector, &self.vectors, M);
-                search.cull();
-            }
-        }
-
-        let map_result = |candidate: Candidate| {
-            let id = candidate.vector_id.0;
-            let distance = candidate.distance.0;
-            let data = self.data[&candidate.vector_id].clone();
-            SearchResult { id, distance, data }
-        };
-
-        // Truncate the list based on the relevancy score.
-        let res = search.iter().map(map_result).collect();
-        let mut relevant = self.truncate_irrelevant_result(res);
-        relevant.truncate(n);
-        Ok(relevant)
+        let entrypoint = self.select_search_entrypoint();
+        self.search_from_layers(vector, &entrypoint, &self.vectors, n)
     }
 
     /// Searches the collection for the true nearest neighbors.
@@ -388,32 +384,8 @@ impl Collection {
         vector: &Vector,
         n: usize,
     ) -> Result<Vec<SearchResult>, Error> {
-        let mut nearest = Vec::with_capacity(self.vectors.len());
-
-        // Ensure the vector dimension matches the collection dimension.
-        self.validate_dimension(vector)?;
-
-        // Calculate the distance between the query and each record.
-        // Then, create a search result for each record.
-        for (id, vec) in self.vectors.iter() {
-            let distance = self.config.distance.calculate(vector, vec);
-            let data = self.data[id].clone();
-            let res = SearchResult { id: id.0, distance, data };
-            nearest.push(res);
-        }
-
-        // Sort the results by distance in ascending order.
-        // The closest the distance, the better the match.
-        let sort_ascending = |a: &SearchResult, b: &SearchResult| {
-            a.distance.partial_cmp(&b.distance).unwrap()
-        };
-
-        nearest.par_sort_by(sort_ascending);
-
-        // Remove irrelevant results and truncate the list.
-        let mut res = self.truncate_irrelevant_result(nearest);
-        res.truncate(n);
-        Ok(res)
+        let filters = Filters::NONE;
+        self.true_search_with_filters(vector, n, &filters)
     }
 
     /// Returns the number of vector records in the collection.
@@ -667,6 +639,113 @@ impl Collection {
         Ok(records)
     }
 
+    /// Searches the collection for the nearest neighbors with filters.
+    /// * `vector`: Vector to search.
+    /// * `n`: Number of neighbors to return.
+    /// * `filters`: Filters to apply to the metadata.
+    pub fn search_with_filters(
+        &self,
+        vector: &Vector,
+        n: usize,
+        filters: &Filters,
+    ) -> Result<Vec<SearchResult>, Error> {
+        // Early return if the collection is empty.
+        if self.vectors.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Ensure the vector dimension matches the collection dimension.
+        self.validate_dimension(vector)?;
+
+        // Filter the vectors based on the metadata if filters are provided.
+        let vectors = if filters == &Filters::NONE {
+            self.vectors.clone()
+        } else {
+            self.data
+                .par_iter()
+                .filter(|(_, data)| filters.match_metadata(data))
+                .map(|(id, _)| (*id, self.vectors[id].clone()))
+                .collect()
+        };
+
+        // Collect the vector IDs from the layers.
+        let vector_ids_in_layer: Vec<VectorID> =
+            if !self.upper_layers.is_empty() {
+                let top_layer = LayerID(self.upper_layers.len() - 1);
+                let nodes = &self.upper_layers[top_layer.0];
+                nodes.iter().map(|node| node.0[0]).collect()
+            } else {
+                self.base_layer.iter().map(|node| node.0[0]).collect()
+            };
+
+        // Collection vector IDs in the filtered vector data.
+        let filtered_vector_ids: Vec<VectorID> =
+            vectors.keys().cloned().collect();
+
+        // Get the intersection of the vector IDs.
+        let vectors_ids: Vec<VectorID> = filtered_vector_ids
+            .into_par_iter()
+            .filter(|id| vector_ids_in_layer.contains(id))
+            .collect();
+
+        let entrypoint = if vectors_ids.is_empty() {
+            self.select_search_entrypoint()
+        } else {
+            vectors_ids[random::<usize>() % vectors_ids.len()]
+        };
+
+        self.search_from_layers(vector, &entrypoint, &vectors, n)
+    }
+
+    /// Searches the collection for the true nearest neighbors with filters.
+    /// * `vector`: Vector to search.
+    /// * `n`: Number of neighbors to return.
+    /// * `filters`: Filters to apply to the metadata.
+    pub fn true_search_with_filters(
+        &self,
+        vector: &Vector,
+        n: usize,
+        filters: &Filters,
+    ) -> Result<Vec<SearchResult>, Error> {
+        let mut nearest = Vec::with_capacity(self.vectors.len());
+
+        // Ensure the vector dimension matches the collection dimension.
+        self.validate_dimension(vector)?;
+
+        // Filter the vectors based on the metadata if filters are provided.
+        let vectors = if filters == &Filters::NONE {
+            self.vectors.clone()
+        } else {
+            self.data
+                .par_iter()
+                .filter(|(_, data)| filters.match_metadata(data))
+                .map(|(id, _)| (*id, self.vectors[id].clone()))
+                .collect()
+        };
+
+        // Calculate the distance between the query and each record.
+        // Then, create a search result for each record.
+        for (id, vec) in vectors.iter() {
+            let distance = self.config.distance.calculate(vector, vec);
+            let data = self.data[id].clone();
+            let res = SearchResult { id: id.0, distance, data };
+            nearest.push(res);
+        }
+
+        // Sort the results by distance in ascending order.
+        // The closest the distance, the better the match.
+        let sort_ascending = |a: &SearchResult, b: &SearchResult| {
+            a.distance.partial_cmp(&b.distance).unwrap()
+        };
+
+        nearest.par_sort_by(sort_ascending);
+
+        // Remove irrelevant results and truncate the list.
+        let mut res = self.truncate_irrelevant_result(nearest);
+        res.truncate(n);
+        Ok(res)
+    }
+
     /// Returns the configured vector dimension of the collection.
     pub fn dimension(&self) -> usize {
         self.dimension
@@ -772,6 +851,44 @@ impl Collection {
         }
     }
 
+    fn search_from_layers(
+        &self,
+        vector: &Vector,
+        entrypoint: &VectorID,
+        vectors: &HashMap<VectorID, Vector>,
+        n: usize,
+    ) -> Result<Vec<SearchResult>, Error> {
+        let mut search = Search::new(0, self.config.distance);
+        search.visited.resize_capacity(vectors.len());
+        search.push(entrypoint, vector, vectors);
+
+        for layer in LayerID(self.upper_layers.len()).descend() {
+            search.ef = self.config.ef_search;
+
+            if layer.is_zero() {
+                let layer = self.base_layer.as_slice();
+                search.search(layer, vector, vectors, M * 2);
+            } else {
+                let layer = self.upper_layers[layer.0 - 1].as_slice();
+                search.search(layer, vector, vectors, M);
+                search.cull();
+            }
+        }
+
+        let map_result = |candidate: Candidate| {
+            let id = candidate.vector_id.0;
+            let distance = candidate.distance.0;
+            let data = self.data[&candidate.vector_id].clone();
+            SearchResult { id, distance, data }
+        };
+
+        // Truncate the list based on the relevancy score.
+        let res = search.iter().map(map_result).collect();
+        let mut relevant = self.truncate_irrelevant_result(res);
+        relevant.truncate(n);
+        Ok(relevant)
+    }
+
     /// Truncates the search result based on the relevancy score.
     fn truncate_irrelevant_result(
         &self,
@@ -786,6 +903,20 @@ impl Collection {
             .into_par_iter()
             .filter(|r| r.distance <= self.relevancy)
             .collect()
+    }
+
+    /// Selects a random vector ID to start the search.
+    fn select_search_entrypoint(&self) -> VectorID {
+        if !self.upper_layers.is_empty() {
+            let top_layer = LayerID(self.upper_layers.len() - 1);
+            let nodes = &self.upper_layers[top_layer.0];
+            let random_node = nodes[random::<usize>() % nodes.len()];
+            random_node.0[0]
+        } else {
+            let index = random::<usize>() % self.base_layer.len();
+            let node = &self.base_layer[index];
+            node.0[0]
+        }
     }
 }
 

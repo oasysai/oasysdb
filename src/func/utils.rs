@@ -98,11 +98,12 @@ impl BaseNode {
 
     /// Inserts a vector ID to the base node at the index.
     pub fn insert(&mut self, index: usize, vector_id: &VectorID) {
+        // Make sure the index is within the limit.
         if index >= self.0.len() {
             return;
         }
 
-        // Shift the vector IDs.
+        // Shift the vector IDs to accommodate the new one at the index.
         if self.0[index].is_valid() {
             let end = M * 2 - 1;
             self.0.copy_within(index..end, index + 1);
@@ -260,16 +261,20 @@ impl Search {
                 }
             }
 
+            // Get related vector ID of the current candidate
+            // and consider them candidates too.
             let layer_iter = layer.nearest_iter(&candidate.vector_id);
             for vector_id in layer_iter.take(links) {
-                self.push(&vector_id, vector, vectors);
+                if vectors.contains_key(&vector_id) {
+                    self.push(&vector_id, vector, vectors);
+                }
             }
 
             self.nearest.truncate(self.ef);
         }
     }
 
-    /// Creates and pushes a candidate to the nearest fieled
+    /// Creates and pushes a candidate to the nearest field
     /// and candidates binary heap fields.
     pub fn push(
         &mut self,
@@ -277,7 +282,7 @@ impl Search {
         vector: &Vector,
         vectors: &HashMap<VectorID, Vector>,
     ) {
-        if !self.visited.insert(vector_id) {
+        if !vectors.contains_key(vector_id) || !self.visited.insert(vector_id) {
             return;
         }
 
@@ -416,15 +421,15 @@ impl<'a> IndexConstruction<'a> {
             }
         }
 
-        // Select the neighbors.
+        // Select the nearest neighbors to the given vector.
         let candidates = {
             let candidates = search.select_simple();
             &candidates[..Ord::min(M, candidates.len())]
         };
 
         for (i, candidate) in candidates.iter().enumerate() {
-            let vid = candidate.vector_id;
-            let current = &self.vectors[&vid];
+            let candidate_id = candidate.vector_id;
+            let current = &self.vectors[&candidate_id];
             let distance = candidate.distance;
 
             // Function to sort the vectors by distance.
@@ -438,12 +443,12 @@ impl<'a> IndexConstruction<'a> {
             };
 
             // Find the correct index to insert at to keep the order.
-            let index = self.base_layer[&vid]
+            let index = self.base_layer[&candidate_id]
                 .read()
                 .binary_search_by(ordering)
                 .unwrap_or_else(|error| error);
 
-            self.base_layer[&vid].write().insert(index, vector_id);
+            self.base_layer[&candidate_id].write().insert(index, vector_id);
             self.base_layer[vector_id].write().set(i, vector_id);
         }
 

@@ -4,6 +4,7 @@
 // query distribution.
 
 use oasysdb::prelude::*;
+use rand::random;
 
 // High-level collection configuration.
 const DIMENSION: usize = 1536;
@@ -17,7 +18,8 @@ const DISTANCE: &str = "euclidean";
 
 // Query configuration.
 const N_QUERIES: usize = 100;
-const K: usize = 3;
+const K: usize = 10;
+const WITH_FILTERS: bool = false;
 
 fn main() {
     // Build a collection.
@@ -29,10 +31,18 @@ fn main() {
     let mut results = Vec::new();
     let mut true_results = Vec::new();
 
+    // Generate random filters.
+    let random_int = random::<usize>();
+    let filters = Filters::from(format!("integer < {random_int}"));
+
     for _ in 0..N_QUERIES {
         let query = Vector::random(DIMENSION);
-        let result = collection.search(&query, K).unwrap();
-        let true_result = collection.true_search(&query, K).unwrap();
+
+        let (result, true_result) = if WITH_FILTERS {
+            search_with_filters(&query, &filters, &collection)
+        } else {
+            search(&query, &collection)
+        };
 
         results.push(result);
         true_results.push(true_result);
@@ -53,4 +63,25 @@ fn main() {
 
     let recall = (100 * correct) as f64 / (N_QUERIES * K) as f64;
     println!("Recall Rate: {recall:.2}%");
+}
+
+fn search(
+    query: &Vector,
+    collection: &Collection,
+) -> (Vec<SearchResult>, Vec<SearchResult>) {
+    (
+        collection.search(query, K).unwrap(),
+        collection.true_search(query, K).unwrap(),
+    )
+}
+
+fn search_with_filters(
+    query: &Vector,
+    filters: &Filters,
+    collection: &Collection,
+) -> (Vec<SearchResult>, Vec<SearchResult>) {
+    (
+        collection.search_with_filters(query, K, filters).unwrap(),
+        collection.true_search_with_filters(query, K, filters).unwrap(),
+    )
 }

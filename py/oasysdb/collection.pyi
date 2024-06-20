@@ -118,6 +118,9 @@ class Collection:
         - records: Records used to build the collection.
         """
 
+    def rebuild(self) -> Collection:
+        """Rebuilds the collection with the current available records."""
+
     def insert(self, record: Record) -> VectorID:
         """Inserts a record into the collection.
 
@@ -178,12 +181,42 @@ class Collection:
         - n: Number of neighbors to return.
         """
 
+    def search_with_filters(
+        self,
+        vector: Vector,
+        n: int,
+        filters: str
+    ) -> List[SearchResult]:
+        """Searches for the nearest neighbors to the given vector
+        with some SQL-like filters matching the metadata.
+
+        Args:
+        - vector: Vector to search.
+        - n: Number of neighbors to return.
+        - filters: Metadata filters.
+        """
+
     def true_search(self, vector: Vector, n: int) -> List[SearchResult]:
         """Searches for the nearest neighbors using brute force.
 
         Args:
         - vector: Vector to search.
         - n: Number of neighbors to return.
+        """
+
+    def true_search_with_filters(
+        self,
+        vector: Vector,
+        n: int,
+        filters: str
+    ) -> List[SearchResult]:
+        """Searches for the nearest neighbors using linear search
+        with some SQL-like filters matching the metadata.
+
+        Args:
+        - vector: Vector to search.
+        - n: Number of neighbors to return.
+        - filters: Metadata filters.
         """
 
     def len(self) -> int:
