@@ -668,6 +668,11 @@ impl Collection {
                 .collect()
         };
 
+        // Perform a brute-force search if the number of vectors is small.
+        if vectors.len() <= self.config.ef_search {
+            return self.true_search_with_filters(vector, n, filters);
+        }
+
         // Collect the vector IDs from the layers.
         let vector_ids_in_layer: Vec<VectorID> =
             if !self.upper_layers.is_empty() {
