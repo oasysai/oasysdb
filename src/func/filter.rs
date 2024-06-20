@@ -113,12 +113,12 @@ impl Filter {
         let key_type = key_parts[0];
 
         match key_type {
-            TEXT => return self.match_text(metadata),
-            INTEGER => return self.match_integer(metadata),
-            FLOAT => return self.match_float(metadata),
-            BOOLEAN => return self.match_boolean(metadata),
-            ARRAY => return self.match_array(metadata),
-            OBJECT => return self.match_object(metadata),
+            TEXT => self.match_text(metadata),
+            INTEGER => self.match_integer(metadata),
+            FLOAT => self.match_float(metadata),
+            BOOLEAN => self.match_boolean(metadata),
+            ARRAY => self.match_array(metadata),
+            OBJECT => self.match_object(metadata),
             // This should never happen because we validate the key type.
             _ => panic!("Unsupported filter key type: {key_type}"),
         }
@@ -217,7 +217,7 @@ impl Filter {
         }
     }
 
-    fn match_array_value(&self, array: &Vec<Metadata>) -> bool {
+    fn match_array_value(&self, array: &[Metadata]) -> bool {
         let key_parts: Vec<&str> = self.key.split('.').collect();
 
         // This has been validated in the `validate_filter` method.
@@ -276,7 +276,7 @@ impl Filter {
         let key_type = key_parts[0];
 
         // Check if the key is valid.
-        let valid_types = vec![TEXT, INTEGER, FLOAT, BOOLEAN, ARRAY, OBJECT];
+        let valid_types = [TEXT, INTEGER, FLOAT, BOOLEAN, ARRAY, OBJECT];
         if !valid_types.contains(&key_type) {
             panic!("Invalid filter key type: {key_type}");
         }
@@ -321,7 +321,7 @@ impl Filter {
 
         // Array and object keys are always valid because we will validate
         // the value type when performing the filter.
-        let always_valid_key_types = vec![ARRAY, OBJECT];
+        let always_valid_key_types = [ARRAY, OBJECT];
         if always_valid_key_types.contains(&key_type) {
             return;
         }
@@ -363,7 +363,7 @@ impl Filter {
         match operator {
             // Contains operator is only valid for text, array, and object types.
             FilterOperator::Contains => {
-                let valid_types = vec![TEXT, ARRAY, OBJECT];
+                let valid_types = [TEXT, ARRAY, OBJECT];
                 if !valid_types.contains(&key_type) {
                     panic!("Invalid CONTAINS operator for key: {key_type}");
                 }
@@ -373,7 +373,7 @@ impl Filter {
             | FilterOperator::GreaterThanOrEqual
             | FilterOperator::LessThan
             | FilterOperator::LessThanOrEqual => {
-                let invalid_types = vec![TEXT, BOOLEAN];
+                let invalid_types = [TEXT, BOOLEAN];
                 if invalid_types.contains(&key_type) {
                     panic!("Invalid numeric operator for key type: {key_type}");
                 }
