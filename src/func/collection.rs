@@ -384,7 +384,7 @@ impl Collection {
             }
         };
 
-        self.search_from_layers(vector, &entrypoint, &self.vectors, n)
+        self.search_from_layers(vector, entrypoint, &self.vectors, n)
     }
 
     /// Searches the collection for the true nearest neighbors.
