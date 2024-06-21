@@ -1,3 +1,11 @@
+# 📣 Announcement
+
+Many thanks to everyone who supported OasysDB to progress this far. After thorough consideration, I have decided to pivot the project to a new direction. I will be focusing OasysDB to be a more robust vector database solution for production workload with ground-up support for hybrid ANN search algorithms.
+
+This will come with a lot of changes to the project structure, API, and functionality. I will be working on this in the coming weeks and months. I will keep you updated on the progress and the new direction of OasysDB.
+
+~ Edwin
+
 ![OasysDB Use Case](https://i.postimg.cc/k4x4Q55k/banner.png)
 
 [![GitHub Stars](https://img.shields.io/github/stars/oasysai/oasysdb?style=for-the-badge&logo=github&logoColor=%23000000&labelColor=%23fcd34d&color=%236b7280)](https://github.com/oasysai/oasysdb)
