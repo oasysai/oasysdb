@@ -372,7 +372,18 @@ impl Collection {
         // Ensure the vector dimension matches the collection dimension.
         self.validate_dimension(vector)?;
 
-        let entrypoint = self.select_search_entrypoint();
+        let entrypoint = {
+            let slots_iter = self.slots.as_slice().into_par_iter();
+            match slots_iter.find_first(|id| id.is_valid()) {
+                Some(id) => id,
+                None => {
+                    let kind = ErrorKind::CollectionError;
+                    let message = "Unable to initiate search.";
+                    return Err(Error::new(&kind, message));
+                }
+            }
+        };
+
         self.search_from_layers(vector, &entrypoint, &self.vectors, n)
     }
 
