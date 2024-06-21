@@ -31,48 +31,19 @@ We try to prioritize features and bug fixes that are on our roadmap or requested
 
 For features, we try to prioritize features that are backed by real-world use cases. If you have a use case for a feature, please include it in the issue. We'd love to hear about it!
 
-# Getting started
+## Getting started
 
-Getting started with OasysDB development is easy.
+Getting started with OasysDB development is pretty straightforward.
 
-You will need to have Rust installed. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor.
+First, you will need to have Rust installed on your machine. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor for a better development experience.
 
-After that, you need to install Maturin, which is a Python library used by OasysDB for building and publishing its Python packages. You can install Maturin using the following command:
-
-```bash
-pip install maturin
-```
-
-After setting up Maturin, fork the repository and clone it to your local machine. Then, in the root directory of the project, you need to set up and activate Python virtual environment for the project with `requirements.txt` as the dependency.
-
-Depending on the features you want to work on, you may need to create a `.env` file in the root directory of the repository. The `.env` file should contain the variables listed in the `.env.example` file with the appropriate values.
-
-Once everything is set, you can run the following commands in the root directory of the repository:
-
-```bash
-# Run Rust tests, add feature flags as needed.
-cargo test
-
-# Install OasysDB as a Python package.
-maturin dev
-
-# Run Python tests.
-pytest
-```
-
-These commands will run the tests to make sure that everything is working as expected before you start working on your changes.
-
-```bash
-cargo bench
-```
-
-This command will run the benchmarks to measure the performance of the vector database. This is useful to make sure that your changes don't introduce any significant performance regressions.
+TODO: Complete the getting started guide.
 
 ## Style guide
 
-We use mostly the default linting and style guide for Rust except for some linting changes listed in rustfmt.toml file. For more information, see the [Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
+We mostly use the default linting and style guide for Rust except for some linting changes listed in rustfmt.toml file. For more information about the code style, see the [Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
 
-For commit messages, we use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format. This allows us to maintain consistency and readability in our commit messages.
+For commit messages, we use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format. This allows us to maintain consistency and readability in our Git commit history.
 
 When commenting your code, please try your best to write comments that are clear and concise with proper English sentence capitalization and punctuation. This will help us and the community understand your code better and keep the codebase maintainable.
 
@@ -80,7 +51,7 @@ When commenting your code, please try your best to write comments that are clear
 
 Once you have made your changes, you can submit a pull request. We will review your pull request and provide feedback. If your pull request is accepted, we will merge it into the main branch.
 
-For organization purposes, we ask that you use the following format for your pull request title in lowercase:
+For organization purposes, we ask that you use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format for your pull request title in lowercase:
 
 ```
 <type>: <description>
@@ -92,8 +63,6 @@ For example:
 feat: add support ...
 fix: fix issue ...
 ```
-
-This is similar to the format used in [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## Conclusion
 
