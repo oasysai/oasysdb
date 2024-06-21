@@ -224,7 +224,7 @@ def test_collection_filter_text():
     id = Collection.insert(collection, record)
 
     # Search for the record using the text filter.
-    results = collection.filter(data)
+    results = collection.filter("text CONTAINS awesome")
     assert results.get(id).data == data
 
 
@@ -244,5 +244,5 @@ def test_collection_filter_object():
     id = Collection.insert(collection, record)
 
     # Filter records with a dict.
-    results = collection.filter({"name": "Justin"})
+    results = collection.filter("object.name = Justin")
     assert results.get(id).data == data
