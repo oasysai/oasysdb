@@ -1,3 +1,4 @@
-use crate::types::error::{Error, ErrorCode};
+use crate::types::error::Error;
+use rayon::prelude::*;
 
-mod collection;
+pub mod collection;
