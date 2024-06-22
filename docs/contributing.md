@@ -41,6 +41,7 @@ OasysDB utilizes many third-party crates to provide its functionality. These are
 
 - [**Apache Arrow**](https://arrow.apache.org): Arrow is a cross-language development platform for in-memory columnar data format for efficient analytic operations.
 - [**Rayon**](https://github.com/rayon-rs/rayon): Rayon is a data parallelism library for Rust that provides a simple and efficient API for parallelizing computation.
+- [**Tonic**](https://github.com/hyperium/tonic): Tonic is a gRPC over HTTP/2 implementation focused on high performance and flexibility built on top of the Tokio asynchronous runtime.
 
 TODO: Complete the getting started guide.
 
