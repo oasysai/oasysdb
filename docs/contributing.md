@@ -37,6 +37,11 @@ Getting started with OasysDB development is pretty straightforward.
 
 First, you will need to have Rust installed on your machine. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor for a better development experience.
 
+OasysDB utilizes many third-party crates to provide its functionality. These are some of the most important ones and the resources you can use to learn more about them:
+
+- [**Apache Arrow**](https://arrow.apache.org): Arrow is a cross-language development platform for in-memory columnar data format for efficient analytic operations.
+- [**Rayon**](https://github.com/rayon-rs/rayon): Rayon is a data parallelism library for Rust that provides a simple and efficient API for parallelizing computation.
+
 TODO: Complete the getting started guide.
 
 ## Style guide
