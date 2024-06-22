@@ -17,6 +17,7 @@ categories = ["database", "algorithms", "data-structures"]
 
 [dependencies]
 arrow = "52.0.0"
+rayon = "1.10.0"
 
 [dev-dependencies]
 
