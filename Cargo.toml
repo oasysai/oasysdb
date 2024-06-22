@@ -16,6 +16,7 @@ keywords = ["vector", "database", "anns", "search", "simd"]
 categories = ["database", "algorithms", "data-structures"]
 
 [dependencies]
+arrow = "52.0.0"
 
 [dev-dependencies]
 
