@@ -1,13 +1,15 @@
 use std::fmt::{Display, Formatter, Result};
 
 // Other error types.
+use arrow::error::ArrowError;
 use std::error::Error as StandardError;
 use std::sync::PoisonError;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
-    StandardError,
-    ConcurrencyError,
+    Standard,
+    Concurrency,
+    Arrow,
 }
 
 #[derive(Debug)]
@@ -36,14 +38,21 @@ impl StandardError for Error {}
 
 impl From<Box<dyn StandardError>> for Error {
     fn from(err: Box<dyn StandardError>) -> Self {
-        let code = ErrorCode::StandardError;
+        let code = ErrorCode::Standard;
         Error::new(&code, &err.to_string())
     }
 }
 
 impl<T> From<PoisonError<T>> for Error {
     fn from(err: PoisonError<T>) -> Self {
-        let code = ErrorCode::ConcurrencyError;
+        let code = ErrorCode::Concurrency;
+        Error::new(&code, &err.to_string())
+    }
+}
+
+impl From<ArrowError> for Error {
+    fn from(err: ArrowError) -> Self {
+        let code = ErrorCode::Arrow;
         Error::new(&code, &err.to_string())
     }
 }
