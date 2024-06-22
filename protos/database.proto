@@ -1,0 +1,13 @@
+syntax = "proto3";
+package database;
+
+import "google/protobuf/empty.proto";
+
+service Database {
+    rpc CreateCollection(CreateCollectionRequest) returns (google.protobuf.Empty);
+}
+
+// region CreateCollection
+    message CreateCollectionRequest {
+        string name = 1;
+    }
