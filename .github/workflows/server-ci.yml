@@ -43,6 +43,11 @@ jobs:
         with:
           components: clippy
 
+      - name: Install Protobuf compiler
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y protobuf-compiler libprotobuf-dev
+
       - name: Run cargo clippy
         run: cargo clippy -- -D warnings
 
@@ -56,6 +61,11 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Protobuf compiler
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y protobuf-compiler libprotobuf-dev
 
       - name: Run cargo test
         run: cargo test --all-features -- --test-threads 1
