@@ -67,6 +67,9 @@ nav:
       - Migrations:
           - 0.4.5 to 0.5.0: migrations/0.4.5_to_0.5.0.md
 
+  - Blog:
+      - blog/index.md
+
 markdown_extensions:
   - attr_list
   - md_in_html
@@ -83,6 +86,14 @@ markdown_extensions:
 
   - toc:
       permalink: "#"
+
+plugins:
+  - blog:
+      post_readtime: true
+      post_excerpt: required
+      authors: true
+      categories_allowed:
+        - Log
 
 exclude_docs: |
   pull_request_template.md
