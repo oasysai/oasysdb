@@ -7,8 +7,9 @@ mod test_collection;
 mod test_database;
 
 const TEST_DIR: &str = "/tmp/oasysdb";
+const TEST_COLLECTION: &str = "collection";
 
-fn create_new_test_database() -> Result<Database, Error> {
+fn create_test_database() -> Result<Database, Error> {
     // Reset the database directory for testing.
     let path = PathBuf::from(TEST_DIR);
     if path.exists() {
@@ -20,5 +21,6 @@ fn create_new_test_database() -> Result<Database, Error> {
     let subdirs = path.read_dir()?;
     assert!(subdirs.count() >= 3);
 
+    db._create_collection(TEST_COLLECTION)?;
     Ok(db)
 }

@@ -1,7 +1,7 @@
 use super::database::Database;
 use super::*;
 use crate::proto::database_server::Database as ProtoDatabase;
-use crate::proto::CreateCollectionRequest;
+use crate::proto::*;
 
 #[tonic::async_trait]
 impl ProtoDatabase for Database {
@@ -11,6 +11,15 @@ impl ProtoDatabase for Database {
     ) -> Result<Response<()>, Status> {
         let request = request.into_inner();
         self._create_collection(&request.name)?;
+        Ok(Response::new(()))
+    }
+
+    async fn delete_collection(
+        &self,
+        request: Request<DeleteCollectionRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.into_inner();
+        self._delete_collection(&request.name)?;
         Ok(Response::new(()))
     }
 }

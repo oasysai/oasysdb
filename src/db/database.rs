@@ -145,6 +145,25 @@ impl Database {
         Ok(())
     }
 
+    pub fn _delete_collection(&self, name: &str) -> Result<(), Error> {
+        let mut state = self.state.write()?;
+        if !state.collection_refs.contains_key(name) {
+            return Ok(());
+        }
+
+        // Delete the collection directory.
+        // We can unwrap here because we checked if the collection exists.
+        let collection_dir = state.collection_refs.remove(name).unwrap();
+        fs::remove_dir_all(&collection_dir)?;
+
+        // Update the database state.
+        *state = state.clone();
+        drop(state);
+
+        self.persist_state()?;
+        Ok(())
+    }
+
     fn validate_collection_name(name: &str) -> Result<(), Error> {
         if name.is_empty() {
             let code = ErrorCode::ClientError;
