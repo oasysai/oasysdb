@@ -3,13 +3,16 @@ use std::fmt::{Display, Formatter, Result};
 // Other error types.
 use arrow::error::ArrowError;
 use std::error::Error as StandardError;
+use std::io::Error as IOError;
 use std::sync::PoisonError;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
-    Standard,
-    Concurrency,
-    Arrow,
+    StandardError,
+    FileError,
+    ConcurrencyError,
+    ArrowError,
 }
 
 #[derive(Debug)]
@@ -38,21 +41,28 @@ impl StandardError for Error {}
 
 impl From<Box<dyn StandardError>> for Error {
     fn from(err: Box<dyn StandardError>) -> Self {
-        let code = ErrorCode::Standard;
+        let code = ErrorCode::StandardError;
         Error::new(&code, &err.to_string())
     }
 }
 
 impl<T> From<PoisonError<T>> for Error {
     fn from(err: PoisonError<T>) -> Self {
-        let code = ErrorCode::Concurrency;
+        let code = ErrorCode::ConcurrencyError;
+        Error::new(&code, &err.to_string())
+    }
+}
+
+impl From<IOError> for Error {
+    fn from(err: IOError) -> Self {
+        let code = ErrorCode::FileError;
         Error::new(&code, &err.to_string())
     }
 }
 
 impl From<ArrowError> for Error {
     fn from(err: ArrowError) -> Self {
-        let code = ErrorCode::Arrow;
+        let code = ErrorCode::ArrowError;
         Error::new(&code, &err.to_string())
     }
 }
