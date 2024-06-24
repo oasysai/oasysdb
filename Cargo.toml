@@ -23,6 +23,7 @@ features = ["macros", "rt-multi-thread"]
 arrow = "52.0.0"
 rayon = "1.10.0"
 regex = "1.10.5"
+uuid = { version = "1.9.1", features = ["v4", "rng"] }
 
 # gRPC stuff.
 prost = "0.12.6"

@@ -1,6 +1,7 @@
 use super::*;
 use regex::Regex;
 use serde::de::DeserializeOwned;
+use uuid::Uuid;
 
 // Database sub-directory structure.
 const COLLECTIONS_DIR: &str = "collections";
@@ -128,15 +129,13 @@ impl Database {
         }
 
         // Create the collection directory.
-        let collection_dir = self.directory.join(COLLECTIONS_DIR).join(name);
+        let uuid = Uuid::new_v4().to_string();
+        let collection_dir = self.directory.join(COLLECTIONS_DIR).join(uuid);
         fs::create_dir(&collection_dir)?;
 
         // Update the database state.
-        *state = {
-            let mut _state = state.clone();
-            _state.collection_refs.insert(name.to_string(), collection_dir);
-            _state
-        };
+        state.collection_refs.insert(name.to_string(), collection_dir);
+        *state = state.clone();
 
         // Drop the lock to prevent deadlocks since
         // persist_state also requires the lock.
