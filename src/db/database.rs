@@ -16,15 +16,9 @@ const STATE_FILE: &str = "dbstate";
 type CollectionName = String;
 type CollectionPath = PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DatabaseState {
     pub collection_refs: HashMap<CollectionName, CollectionPath>,
-}
-
-impl Default for DatabaseState {
-    fn default() -> Self {
-        Self { collection_refs: HashMap::new() }
-    }
 }
 
 pub struct Database {
