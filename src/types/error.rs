@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 // Other error types.
 use arrow::error::ArrowError;
+use bincode::ErrorKind as BincodeError;
 use std::error::Error as StandardError;
 use std::io::Error as IOError;
 use std::sync::PoisonError;
@@ -9,10 +10,11 @@ use std::sync::PoisonError;
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
-    StandardError,
-    FileError,
-    ConcurrencyError,
     ArrowError,
+    ConcurrencyError,
+    FileError,
+    SerializationError,
+    StandardError,
 }
 
 #[derive(Debug)]
@@ -63,6 +65,13 @@ impl From<IOError> for Error {
 impl From<ArrowError> for Error {
     fn from(err: ArrowError) -> Self {
         let code = ErrorCode::ArrowError;
+        Error::new(&code, &err.to_string())
+    }
+}
+
+impl From<Box<BincodeError>> for Error {
+    fn from(err: Box<BincodeError>) -> Self {
+        let code = ErrorCode::SerializationError;
         Error::new(&code, &err.to_string())
     }
 }
