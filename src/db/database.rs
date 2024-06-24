@@ -1,4 +1,5 @@
 use super::*;
+use regex::Regex;
 use serde::de::DeserializeOwned;
 
 // Database sub-directory structure.
@@ -116,9 +117,10 @@ impl Database {
 // We do this to make it easier to test the database logic.
 impl Database {
     pub fn _create_collection(&self, name: &str) -> Result<(), Error> {
-        let mut state = self.state.write()?;
+        Self::validate_collection_name(name)?;
 
         // Check if the collection already exists.
+        let mut state = self.state.write()?;
         if state.collection_refs.contains_key(name) {
             let code = ErrorCode::ClientError;
             let message = format!("Collection already exists: {name}");
@@ -141,6 +143,24 @@ impl Database {
         drop(state);
 
         self.persist_state()?;
+        Ok(())
+    }
+
+    fn validate_collection_name(name: &str) -> Result<(), Error> {
+        if name.is_empty() {
+            let code = ErrorCode::ClientError;
+            let message = "Collection name cannot be empty";
+            return Err(Error::new(&code, message));
+        }
+
+        let re = Regex::new(r"^[a-z_]+$").unwrap();
+        if !re.is_match(name) {
+            let code = ErrorCode::ClientError;
+            let message = "Collection name must be lowercase letters \
+                with underscores.";
+            return Err(Error::new(&code, &message));
+        }
+
         Ok(())
     }
 }

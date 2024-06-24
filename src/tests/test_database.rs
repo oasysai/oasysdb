@@ -3,10 +3,10 @@ use super::*;
 #[test]
 fn test_create_collection() -> Result<(), Error> {
     let db = create_new_test_database()?;
-    db._create_collection("test_collection")?;
+    let name = "collection";
+    db._create_collection(name)?;
 
     let state = db.state()?;
-    assert!(state.collection_refs.contains_key("test_collection"));
-
+    assert!(state.collection_refs.contains_key(name));
     Ok(())
 }

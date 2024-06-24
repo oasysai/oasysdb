@@ -1058,6 +1058,7 @@ dependencies = [
  "bincode",
  "prost",
  "rayon",
+ "regex",
  "serde",
  "tokio",
  "tonic",
