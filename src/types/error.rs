@@ -11,6 +11,7 @@ use std::sync::PoisonError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
     ArrowError,
+    ClientError,
     ConcurrencyError,
     FileError,
     SerializationError,
@@ -37,7 +38,7 @@ impl Display for Error {
     }
 }
 
-// Implement other interoperability to other error types.
+// Implement interoperability FROM other external error types.
 
 impl StandardError for Error {}
 
@@ -73,5 +74,18 @@ impl From<Box<BincodeError>> for Error {
     fn from(err: Box<BincodeError>) -> Self {
         let code = ErrorCode::SerializationError;
         Error::new(&code, &err.to_string())
+    }
+}
+
+// Implement interoperability INTO other external error types.
+
+impl From<Error> for tonic::Status {
+    fn from(err: Error) -> Self {
+        let code = match err.code {
+            ErrorCode::ClientError => tonic::Code::InvalidArgument,
+            _ => tonic::Code::Internal,
+        };
+
+        tonic::Status::new(code, err.message)
     }
 }

@@ -1,7 +1,6 @@
 use super::*;
 use arrow::array::RecordBatch;
 use arrow::datatypes::{Fields, Schema};
-use std::sync::{Arc, RwLock as Lock};
 
 pub struct Collection {
     schema: Lock<Schema>,
