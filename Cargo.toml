@@ -28,7 +28,7 @@ prost = "0.12.6"
 tonic = "0.11.0"
 
 # Serialization.
-serde = "1.0.203"
+serde = { version = "1.0.203", features = ["derive"] }
 bincode = "1.3.3"
 
 [build-dependencies]
