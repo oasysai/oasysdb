@@ -160,7 +160,7 @@ impl Database {
         // Delete the collection directory.
         // We can unwrap here because we checked if the collection exists.
         let collection_dir = state.collection_refs.remove(name).unwrap();
-        fs::remove_dir_all(&collection_dir)?;
+        fs::remove_dir_all(collection_dir)?;
 
         // Update the database state.
         *state = state.clone();
@@ -182,7 +182,7 @@ impl Database {
             let code = ErrorCode::ClientError;
             let message = "Collection name must be lowercase letters \
                 with underscores.";
-            return Err(Error::new(&code, &message));
+            return Err(Error::new(&code, message));
         }
 
         Ok(())
