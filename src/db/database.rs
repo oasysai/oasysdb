@@ -28,12 +28,20 @@ pub struct Database {
 
 impl Database {
     pub fn open(directory: PathBuf) -> Result<Self, Error> {
-        if !directory.try_exists()? {
+        // If it's a new database, we want to initialize everything need.
+        let mut new = false;
+        if !directory.join(STATE_FILE).try_exists()? {
             Self::initialize_directory(&directory)?;
+            new = true;
         }
 
         let state = Lock::new(DatabaseState::default());
         let mut db = Self { directory, state };
+
+        // This creates initial empty state file for new databases.
+        if new {
+            db.persist_state()?;
+        }
 
         db.restore_state()?;
         Ok(db)
@@ -64,14 +72,6 @@ impl Database {
 
     fn restore_state(&mut self) -> Result<(), Error> {
         let state_file = self.directory.join(STATE_FILE);
-
-        // If there are no state file, return early.
-        // This is not an error, as the database may be new.
-        if !state_file.try_exists()? {
-            return Ok(());
-        }
-
-        // Restore the database states.
         self.state = Self::read_binary_file(&state_file)?;
         Ok(())
     }
