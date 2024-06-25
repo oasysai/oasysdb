@@ -244,6 +244,9 @@ name = "arrow-schema"
 version = "52.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32aae6a60458a2389c0da89c9de0b7932427776127da1a738e2efc21d32f3393"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "arrow-select"
@@ -1055,6 +1058,7 @@ name = "oasysdb"
 version = "0.7.0"
 dependencies = [
  "arrow",
+ "arrow-schema",
  "bincode",
  "prost",
  "rayon",

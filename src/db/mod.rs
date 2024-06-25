@@ -11,3 +11,5 @@ use tonic::{Request, Response, Status};
 pub mod collection;
 pub mod database;
 pub mod database_service;
+
+use collection::*;

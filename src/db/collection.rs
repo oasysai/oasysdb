@@ -1,24 +1,38 @@
 use super::*;
 use arrow::array::RecordBatch;
-use arrow::datatypes::{Fields, Schema};
+use arrow::datatypes::Fields;
+use arrow_schema::Schema;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionState {
+    pub schema: Schema,
+    pub count: usize,
+}
+
+impl Default for CollectionState {
+    fn default() -> Self {
+        Self { schema: Schema::empty(), count: 0 }
+    }
+}
 
 pub struct Collection {
-    schema: Lock<Schema>,
     data: Lock<Vec<RecordBatch>>,
-    count: Lock<usize>,
+    state: Lock<CollectionState>,
 }
 
 impl Collection {
-    pub fn new() -> Self {
-        let schema = Lock::new(Schema::empty());
+    pub fn new() -> Result<Self, Error> {
         let data = Lock::new(vec![]);
-        let count = Lock::new(0);
-        Self { schema, data, count }
+        let state = Lock::new(CollectionState::default());
+        let collection = Self { data, state };
+        Ok(collection)
     }
 
     pub fn add_fields(&self, fields: impl Into<Fields>) -> Result<(), Error> {
+        let mut state = self.state.write()?;
+
         // Create a new schema with the new field.
-        let mut schema = self.schema.write()?;
+        let schema = &state.schema;
         let schemas = vec![schema.clone(), Schema::new(fields)];
         let new_schema = Schema::try_merge(schemas)?;
 
@@ -34,19 +48,15 @@ impl Collection {
         let mut data = self.data.write()?;
         let migrated_data = data.par_iter().map(migrate_data).collect();
 
-        // Update the schema and data.
-        *schema = new_schema;
+        // Update the state and data.
+        state.schema = new_schema;
+        *state = state.clone();
         *data = migrated_data;
 
         Ok(())
     }
 
-    pub fn count(&self) -> usize {
-        *self.count.read().unwrap()
-    }
-
-    pub fn schema(&self) -> Result<Schema, Error> {
-        let schema = self.schema.read()?;
-        Ok(schema.clone())
+    pub fn state(&self) -> Result<CollectionState, Error> {
+        Ok(self.state.read()?.clone())
     }
 }

@@ -10,7 +10,8 @@ const TMP_DIR: &str = "tmp";
 const SUBDIRS: [&str; 3] = [COLLECTIONS_DIR, INDICES_DIR, TMP_DIR];
 
 // This is where the serialized database states are stored.
-const STATE_FILE: &str = "dbstate";
+const DB_STATE_FILE: &str = "dbstate";
+const COLLECTION_STATE_FILE: &str = "cstate";
 
 // Type aliases for improved readability.
 type CollectionName = String;
@@ -30,7 +31,7 @@ impl Database {
     pub fn open(directory: PathBuf) -> Result<Self, Error> {
         // If it's a new database, we want to initialize everything need.
         let mut new = false;
-        if !directory.join(STATE_FILE).try_exists()? {
+        if !directory.join(DB_STATE_FILE).try_exists()? {
             Self::initialize_directory(&directory)?;
             new = true;
         }
@@ -49,7 +50,7 @@ impl Database {
 
     pub fn persist_state(&self) -> Result<(), Error> {
         let state = self.state.read()?.clone();
-        let state_file = self.directory.join(STATE_FILE);
+        let state_file = self.directory.join(DB_STATE_FILE);
         self.write_binary_file(&state, &state_file)
     }
 
@@ -71,7 +72,7 @@ impl Database {
     }
 
     fn restore_state(&mut self) -> Result<(), Error> {
-        let state_file = self.directory.join(STATE_FILE);
+        let state_file = self.directory.join(DB_STATE_FILE);
         self.state = Self::read_binary_file(&state_file)?;
         Ok(())
     }
@@ -132,6 +133,11 @@ impl Database {
         let uuid = Uuid::new_v4().to_string();
         let collection_dir = self.directory.join(COLLECTIONS_DIR).join(uuid);
         fs::create_dir(&collection_dir)?;
+
+        // Initialize the collection state.
+        let collection_state = CollectionState::default();
+        let collection_state_file = collection_dir.join(COLLECTION_STATE_FILE);
+        self.write_binary_file(&collection_state, &collection_state_file)?;
 
         // Update the database state.
         state.collection_refs.insert(name.to_string(), collection_dir);
