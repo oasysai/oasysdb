@@ -7,7 +7,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-use db::database::Database;
+use db::*;
 use proto::database_server::DatabaseServer;
 use std::path::PathBuf;
 use tonic::transport::Server;
@@ -19,7 +19,7 @@ const PORT: u16 = 2525;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = format!("{HOST}:{PORT}").parse()?;
 
-    let path = PathBuf::from("/tmp/oasysdb");
+    let path = PathBuf::from("odb_data");
     let database = Database::open(path)?;
 
     Server::builder()

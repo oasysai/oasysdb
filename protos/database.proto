@@ -6,6 +6,8 @@ import "google/protobuf/empty.proto";
 service Database {
     rpc CreateCollection(CreateCollectionRequest) returns (google.protobuf.Empty);
     rpc DeleteCollection(DeleteCollectionRequest) returns (google.protobuf.Empty);
+
+    rpc AddFields(AddFieldsRequest) returns (google.protobuf.Empty);
 }
 
 // region CreateCollection
@@ -16,4 +18,16 @@ service Database {
 // region DeleteCollection
     message DeleteCollectionRequest {
         string name = 1;
+    }
+
+// region AddFields
+    message Field {
+        string name = 1;
+        string datatype = 2;
+        bool nullable = 3;
+    }
+
+    message AddFieldsRequest {
+        string collection_name = 1;
+        repeated Field fields = 2;
     }

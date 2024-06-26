@@ -12,6 +12,7 @@ use std::sync::PoisonError;
 pub enum ErrorCode {
     ArrowError,
     ClientError,
+    CollectionError,
     ConcurrencyError,
     FileError,
     SerializationError,
