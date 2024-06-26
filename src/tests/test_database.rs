@@ -24,21 +24,39 @@ fn test_database_delete_collection() -> Result<(), Error> {
 #[test]
 fn test_database_add_fields() -> Result<(), Error> {
     let database = create_test_database()?;
-
     let state = database.state()?;
     let dir = &state.collection_refs[TEST_COLLECTION];
-
-    // The collection has 2 default fields.
-    let collection = Collection::open(dir.clone())?;
-    assert!(collection.state()?.schema.fields().len() == 2);
 
     let field = Field::new("id", DataType::Utf8, false);
     database._add_fields(TEST_COLLECTION, vec![field])?;
 
-    // The collection should have 3 fields now.
     let collection = Collection::open(dir.clone())?;
     let schema = collection.state()?.schema;
-    assert!(schema.fields().len() == 3);
+    assert!(schema.fields().find("id").is_some());
+
+    Ok(())
+}
+
+#[test]
+#[should_panic]
+fn test_database_remove_default_fields() {
+    let database = create_test_database().unwrap();
+    let fields = ["internal_id".to_string()];
+    database._remove_fields(TEST_COLLECTION, &fields).unwrap();
+}
+
+#[test]
+fn test_database_remove_fields() -> Result<(), Error> {
+    let database = create_test_database()?;
+    let state = database.state()?;
+    let dir = &state.collection_refs[TEST_COLLECTION];
+
+    let fields = ["title".to_string()];
+    database._remove_fields(TEST_COLLECTION, &fields)?;
+
+    let collection = Collection::open(dir.clone())?;
+    let schema = collection.state()?.schema;
+    assert!(schema.fields().find("title").is_none());
 
     Ok(())
 }

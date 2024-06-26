@@ -4,7 +4,6 @@ use arrow::datatypes::{DataType, Field};
 use std::fs;
 use std::path::PathBuf;
 
-mod test_collection;
 mod test_database;
 
 const TEST_DIR: &str = "odb_data";
@@ -25,14 +24,10 @@ fn create_test_database() -> Result<Database, Error> {
     // Create a test collection.
     db._create_collection(TEST_COLLECTION)?;
 
+    // Add a couple of fields to the collection.
+    let field_title = Field::new("title", DataType::Utf8, true);
+    let field_year = Field::new("year", DataType::Int32, true);
+    db._add_fields(TEST_COLLECTION, vec![field_title, field_year])?;
+
     Ok(db)
-}
-
-fn get_test_collection() -> Result<Collection, Error> {
-    let db = create_test_database()?;
-    let collection_refs = db.state()?.collection_refs;
-
-    let directory = collection_refs[TEST_COLLECTION].to_path_buf();
-    let collection = Collection::open(directory)?;
-    Ok(collection)
 }

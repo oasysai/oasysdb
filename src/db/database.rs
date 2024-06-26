@@ -1,5 +1,4 @@
 use super::*;
-use regex::Regex;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -49,7 +48,7 @@ impl Database {
 // We do this to make it easier to test the database logic.
 impl Database {
     pub fn _create_collection(&self, name: &str) -> Result<(), Error> {
-        Self::validate_collection_name(name)?;
+        Collection::validate_name(name)?;
 
         // Check if the collection already exists.
         let mut state = self.state.write()?;
@@ -102,37 +101,33 @@ impl Database {
         collection_name: &str,
         fields: impl Into<Fields>,
     ) -> Result<(), Error> {
-        let state = self.state.read()?;
-        let dir = match state.collection_refs.get(collection_name) {
-            Some(dir) => dir,
-            None => {
-                let code = ErrorCode::ClientError;
-                let message = format!("No collection name: {collection_name}");
-                return Err(Error::new(&code, &message));
-            }
-        };
-
-        let collection = Collection::open(dir.to_path_buf())?;
+        let dir = self.get_collection_dir(collection_name)?;
+        let collection = Collection::open(dir)?;
         collection.add_fields(fields)?;
         Ok(())
     }
 
-    fn validate_collection_name(name: &str) -> Result<(), Error> {
-        if name.is_empty() {
-            let code = ErrorCode::ClientError;
-            let message = "Collection name cannot be empty";
-            return Err(Error::new(&code, message));
-        }
-
-        let re = Regex::new(r"^[a-z_]+$").unwrap();
-        if !re.is_match(name) {
-            let code = ErrorCode::ClientError;
-            let message = "Collection name must be lowercase letters \
-                with underscores.";
-            return Err(Error::new(&code, message));
-        }
-
+    pub fn _remove_fields(
+        &self,
+        collection_name: &str,
+        field_names: &[String],
+    ) -> Result<(), Error> {
+        let dir = self.get_collection_dir(collection_name)?;
+        let collection = Collection::open(dir)?;
+        collection.remove_fields(field_names)?;
         Ok(())
+    }
+
+    fn get_collection_dir(&self, name: &str) -> Result<PathBuf, Error> {
+        let state = self.state.read()?;
+        match state.collection_refs.get(name) {
+            Some(dir) => Ok(dir.clone()),
+            None => {
+                let code = ErrorCode::ClientError;
+                let message = format!("No collection name: {name}");
+                Err(Error::new(&code, &message))
+            }
+        }
     }
 }
 

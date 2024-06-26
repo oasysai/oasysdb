@@ -41,4 +41,13 @@ impl ProtoDatabase for Database {
         self._add_fields(&request.collection_name, fields)?;
         Ok(Response::new(()))
     }
+
+    async fn remove_fields(
+        &self,
+        request: Request<proto::RemoveFieldsRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.into_inner();
+        self._remove_fields(&request.collection_name, &request.field_names)?;
+        Ok(Response::new(()))
+    }
 }

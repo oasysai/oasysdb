@@ -1,6 +1,7 @@
 use super::*;
 use arrow::ipc::writer::FileWriter;
 use arrow::record_batch::RecordBatch;
+use regex::Regex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionState {
@@ -105,6 +106,72 @@ impl Collection {
 
         drop(state);
         self.persist_state()?;
+        Ok(())
+    }
+
+    pub fn remove_fields(&self, field_names: &[String]) -> Result<(), Error> {
+        let mut state = self.state.write()?;
+        let schema = &state.schema;
+
+        // Just like adding fields, removing fields from a non-empty
+        // collection is not supported in OasysDB.
+        if state.count > 0 {
+            let code = ErrorCode::ClientError;
+            let message = "Unable to remove fields from a non-empty collection";
+            return Err(Error::new(&code, message));
+        }
+
+        // OasysDB has 2 default fields which can't be removed:
+        // internal_id and vector.
+        let default = ["internal_id", "vector"];
+        if field_names.iter().any(|name| default.contains(&name.as_str())) {
+            let code = ErrorCode::ClientError;
+            let message = "Unable to remove default fields";
+            return Err(Error::new(&code, message));
+        }
+
+        // Check if all the fields to be removed exist in the schema.
+        // Abort if any of the fields do not exist.
+        if field_names.iter().any(|name| schema.fields.find(name).is_none()) {
+            let code = ErrorCode::ClientError;
+            let message = "One or more fields do not exist in the schema.";
+            return Err(Error::new(&code, message));
+        }
+
+        let fields = schema
+            .all_fields()
+            .into_iter()
+            .filter(|field| !field_names.contains(field.name()))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        // Create a new schema without the specified fields.
+        let new_schema = Schema::new(fields);
+
+        // Update the state and data.
+        state.schema = new_schema;
+        *state = state.clone();
+
+        drop(state);
+        self.persist_state()?;
+        Ok(())
+    }
+
+    pub fn validate_name(name: &str) -> Result<(), Error> {
+        if name.is_empty() {
+            let code = ErrorCode::ClientError;
+            let message = "Collection name cannot be empty";
+            return Err(Error::new(&code, message));
+        }
+
+        let re = Regex::new(r"^[a-z_]+$").unwrap();
+        if !re.is_match(name) {
+            let code = ErrorCode::ClientError;
+            let message = "Collection name must be lowercase letters \
+                with underscores.";
+            return Err(Error::new(&code, message));
+        }
+
         Ok(())
     }
 }
