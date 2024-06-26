@@ -110,14 +110,16 @@ impl Collection {
 }
 
 impl StateMachine<CollectionState> for Collection {
-    fn initialize_state(path: &PathBuf) -> Result<CollectionState, Error> {
+    fn initialize_state(
+        path: impl Into<PathBuf>,
+    ) -> Result<CollectionState, Error> {
         let state = CollectionState::new();
-        FileOps::default().write_binary_file(path, &state)?;
+        FileOps::default().write_binary_file(&path.into(), &state)?;
         Ok(state)
     }
 
-    fn read_state(path: &PathBuf) -> Result<CollectionState, Error> {
-        FileOps::default().read_binary_file(path)
+    fn read_state(path: impl Into<PathBuf>) -> Result<CollectionState, Error> {
+        FileOps::default().read_binary_file(&path.into())
     }
 
     fn state(&self) -> Result<CollectionState, Error> {

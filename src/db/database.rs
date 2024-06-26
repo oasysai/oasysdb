@@ -34,9 +34,9 @@ impl Database {
         let state = if !state_file.try_exists()? {
             // Creating a collection directory will create the root directory.
             fs::create_dir_all(&dirs.collections_dir)?;
-            Self::initialize_state(&state_file)?
+            Self::initialize_state(state_file)?
         } else {
-            Self::read_state(&state_file)?
+            Self::read_state(state_file)?
         };
 
         let state = Lock::new(state);
@@ -137,14 +137,16 @@ impl Database {
 }
 
 impl StateMachine<DatabaseState> for Database {
-    fn initialize_state(path: &PathBuf) -> Result<DatabaseState, Error> {
+    fn initialize_state(
+        path: impl Into<PathBuf>,
+    ) -> Result<DatabaseState, Error> {
         let state = DatabaseState::default();
-        FileOps::default().write_binary_file(path, &state)?;
+        FileOps::default().write_binary_file(&path.into(), &state)?;
         Ok(state)
     }
 
-    fn read_state(path: &PathBuf) -> Result<DatabaseState, Error> {
-        FileOps::default().read_binary_file(path)
+    fn read_state(path: impl Into<PathBuf>) -> Result<DatabaseState, Error> {
+        FileOps::default().read_binary_file(&path.into())
     }
 
     fn state(&self) -> Result<DatabaseState, Error> {

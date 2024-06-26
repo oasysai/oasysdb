@@ -38,10 +38,10 @@ impl From<String> for MetadataType {
     }
 }
 
-impl Into<DataType> for MetadataType {
-    fn into(self) -> DataType {
+impl From<MetadataType> for DataType {
+    fn from(value: MetadataType) -> Self {
         let field_float = Field::new("element", DataType::Float32, false);
-        match self {
+        match value {
             MetadataType::Integer => DataType::Int32,
             MetadataType::Float => DataType::Float32,
             MetadataType::String => DataType::Utf8,
