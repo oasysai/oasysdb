@@ -8,11 +8,13 @@ assignees: ""
 
 ### Short description
 
-What is the bug about? Please provide a clear and concise description of what the bug is. If applicable, include the error message that you received.
+What is the bug about? Please provide a clear and concise description of what
+the bug is. If applicable, include the error message that you received.
 
 ### Steps to reproduce
 
-How can the bug be reproduced? Please provide a minimal set of steps to reproduce the behavior.
+How can the bug be reproduced? Please provide a minimal set of steps to
+reproduce the behavior.
 
 Example:
 
@@ -29,4 +31,5 @@ How severe is the bug? Are you using OasysDB in production?
 
 ### Additional context
 
-Add any other context about the problem here. For example, screenshots, screen recordings, or logs.
+Add any other context about the problem here. For example, screenshots, screen
+recordings, or logs.

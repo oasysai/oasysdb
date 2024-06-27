@@ -1,63 +1,108 @@
 # Contributing to OasysDB
 
-First of all, thank you for considering contributing to OasysDB! We welcome contributions from the community, and this document outlines the process for contributing to our project.
+First of all, thank you for considering contributing to OasysDB! We welcome
+contributions from the community, and this document outlines the process for
+contributing to our project.
 
 ## Code of Conduct
 
-We are committed to building an inclusive and welcoming community. We believe that it will lead to a more successful project and a better experience for everyone involved. To achieve that, any participant in our project is expected to act respectfully and to follow the [Code of Conduct](code_of_conduct.md).
+We are committed to building an inclusive and welcoming community. We believe
+that it will lead to a more successful project and a better experience for
+everyone involved. To achieve that, any participant in our project is expected
+to act respectfully and to follow the [Code of Conduct](code_of_conduct.md).
 
 ## Have questions or suggestions?
 
 [![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&labelColor=%235865F2&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
 
-There is no such thing as a stupid question. If you have a question, chances are someone else does too. We encourage you to ask questions on our [Discord](https://discord.gg/bDhQrkqNP4) server. Alternatively, you can open a discussion on [GitHub Discussions](https://github.com/oasysai/oasysdb/discussions) with your question or suggestion.
+There is no such thing as a stupid question. If you have a question, chances are
+someone else does too. We encourage you to ask questions on our
+[Discord](https://discord.gg/bDhQrkqNP4) server. Alternatively, you can open a
+discussion on
+[GitHub Discussions](https://github.com/oasysai/oasysdb/discussions) with your
+question or suggestion.
 
 ## Encounter a bug? Have a feature request?
 
-If you encounter a bug or have a feature request, please open an issue on [GitHub Issues](https://github.com/oasysai/oasysdb/issues). Please include as much information as possible in your issue. This includes:
+If you encounter a bug or have a feature request, please open an issue on
+[GitHub Issues](https://github.com/oasysai/oasysdb/issues). Please include as
+much information as possible in your issue. This includes:
 
 - A description of the bug or feature request.
-- If it's a bug, steps to reproduce the bug. If it's a feature request, include the use case and expected behavior of the feature.
+- If it's a bug, steps to reproduce the bug. If it's a feature request, include
+  the use case and expected behavior of the feature.
 - Screenshots or screen recording, if applicable.
 
 ## Want to contribute code?
 
-**TLDR: Check and open an issue first before forking the repository and submitting a pull request.**
+**TLDR: Check and open an issue first before forking the repository and
+submitting a pull request.**
 
-Before you start working on a pull request, we encourage you to check out the existing issues and pull requests to make sure that
-the feature you want to work on is in our roadmap and is aligned with the project's vision. After all, we don't want you to waste your precious time!
+Before you start working on a pull request, we encourage you to check out the
+existing issues and pull requests to make sure that the feature you want to work
+on is in our roadmap and is aligned with the project's vision. After all, we
+don't want you to waste your precious time!
 
-We try to prioritize features and bug fixes that are on our roadmap or requested a lot by the community. If you want to work on a feature or bug fix that isn't already in the issue tracker, please open an issue first to discuss it with the community.
+We try to prioritize features and bug fixes that are on our roadmap or requested
+a lot by the community. If you want to work on a feature or bug fix that isn't
+already in the issue tracker, please open an issue first to discuss it with the
+community.
 
-For features, we try to prioritize features that are backed by real-world use cases. If you have a use case for a feature, please include it in the issue. We'd love to hear about it!
+For features, we try to prioritize features that are backed by real-world use
+cases. If you have a use case for a feature, please include it in the issue.
+We'd love to hear about it!
 
 ## Getting started
 
 Getting started with OasysDB development is pretty straightforward.
 
-First, you will need to have Rust installed on your machine. We recommend using [rustup](https://www.rust-lang.org/tools/install) to install Rust. We also recommend having rust-analyzer installed for your code editor for a better development experience.
+First, you will need to have Rust installed on your machine. We recommend using
+[rustup](https://www.rust-lang.org/tools/install) to install Rust. We also
+recommend having rust-analyzer installed for your code editor for a better
+development experience.
 
-OasysDB utilizes many third-party crates to provide its functionality. These are some of the most important ones and the resources you can use to learn more about them:
+OasysDB utilizes many third-party crates to provide its functionality. These are
+some of the most important ones and the resources you can use to learn more
+about them:
 
-- [**Apache Arrow**](https://arrow.apache.org): Arrow is a cross-language development platform for in-memory columnar data format for efficient analytic operations.
-- [**Rayon**](https://github.com/rayon-rs/rayon): Rayon is a data parallelism library for Rust that provides a simple and efficient API for parallelizing computation.
-- [**Tonic**](https://github.com/hyperium/tonic): Tonic is a gRPC over HTTP/2 implementation focused on high performance and flexibility built on top of the Tokio asynchronous runtime.
+- [**Apache Arrow**](https://arrow.apache.org): Arrow is a cross-language
+  development platform for in-memory columnar data format for efficient analytic
+  operations.
+- [**Rayon**](https://github.com/rayon-rs/rayon): Rayon is a data parallelism
+  library for Rust that provides a simple and efficient API for parallelizing
+  computation.
+- [**Tonic**](https://github.com/hyperium/tonic): Tonic is a gRPC over HTTP/2
+  implementation focused on high performance and flexibility built on top of the
+  Tokio asynchronous runtime.
 
 TODO: Complete the getting started guide.
 
 ## Style guide
 
-We mostly use the default linting and style guide for Rust except for some linting changes listed in rustfmt.toml file. For more information about the code style, see the [Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
+We mostly use the default linting and style guide for Rust except for some
+linting changes listed in rustfmt.toml file. For more information about the code
+style, see the
+[Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
 
-For commit messages, we use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format. This allows us to maintain consistency and readability in our Git commit history.
+For commit messages, we use the
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format.
+This allows us to maintain consistency and readability in our Git commit
+history.
 
-When commenting your code, please try your best to write comments that are clear and concise with proper English sentence capitalization and punctuation. This will help us and the community understand your code better and keep the codebase maintainable.
+When commenting your code, please try your best to write comments that are clear
+and concise with proper English sentence capitalization and punctuation. This
+will help us and the community understand your code better and keep the codebase
+maintainable.
 
 ## Submitting a pull request
 
-Once you have made your changes, you can submit a pull request. We will review your pull request and provide feedback. If your pull request is accepted, we will merge it into the main branch.
+Once you have made your changes, you can submit a pull request. We will review
+your pull request and provide feedback. If your pull request is accepted, we
+will merge it into the main branch.
 
-For organization purposes, we ask that you use the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format for your pull request title in lowercase:
+For organization purposes, we ask that you use the
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format
+for your pull request title in lowercase:
 
 ```
 <type>: <description>
@@ -72,7 +117,9 @@ fix: fix issue ...
 
 ## Conclusion
 
-Thank you for taking the time to read this documentation. We look forward to your contributions! Another way to support this project is to star this project, share it with your circles, and join us on [Discord](https://discord.gg/bDhQrkqNP4).
+Thank you for taking the time to read this documentation. We look forward to
+your contributions! Another way to support this project is to star this project,
+share it with your circles, and join us on
+[Discord](https://discord.gg/bDhQrkqNP4).
 
-Best regards,<br />
-Edwin Kys
+Best regards,<br /> Edwin Kys
