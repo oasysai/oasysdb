@@ -59,6 +59,7 @@ extra_css:
 nav:
   - Home:
       - Introduction: index.md
+      - Terms: concepts/terms.md
 
   - Other:
       - Changelog: changelog.md
@@ -94,6 +95,7 @@ plugins:
       authors: true
       categories_allowed:
         - Log
+        - Rust
 
 exclude_docs: |
   pull_request_template.md
