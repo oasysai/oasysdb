@@ -71,9 +71,9 @@ about them:
 - [**Rayon**](https://github.com/rayon-rs/rayon): Rayon is a data parallelism
   library for Rust that provides a simple and efficient API for parallelizing
   computation.
-- [**Tonic**](https://github.com/hyperium/tonic): Tonic is a gRPC over HTTP/2
-  implementation focused on high performance and flexibility built on top of the
-  Tokio asynchronous runtime.
+- [**Tonic**](https://github.com/hyperium/tonic): Tonic is a
+  [gRPC](https://grpc.io/docs/) over HTTP/2 implementation focused on high
+  performance and flexibility built on top of the Tokio asynchronous runtime.
 
 TODO: Complete the getting started guide.
 
