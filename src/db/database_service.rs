@@ -2,7 +2,7 @@ use super::*;
 use proto::database_server::Database as ProtoDatabase;
 
 #[tonic::async_trait]
-impl ProtoDatabase for Database {
+impl ProtoDatabase for Arc<Database> {
     async fn create_collection(
         &self,
         request: Request<proto::CreateCollectionRequest>,
@@ -103,9 +103,9 @@ impl ProtoDatabase for Database {
         // Convert records from row format to column format.
         let mut columns = vec![vec![]; field_names.len()];
         for record in records {
-            for i in 0..field_names.len() {
+            for (i, column) in columns.iter_mut().enumerate() {
                 let value = record.data[i].value.clone();
-                columns[i].push(value);
+                column.push(value);
             }
         }
 

@@ -7,7 +7,6 @@ use std::error::Error as StandardError;
 use std::io::Error as IOError;
 use std::sync::PoisonError;
 
-#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
     ArrowError,

@@ -151,7 +151,7 @@ impl ArrayUtils for ListArray {
         let dimension = values
             .clone()
             .into_par_iter()
-            .map(|value| value.unwrap_or(vec![]).len())
+            .map(|value| value.unwrap_or_default().len())
             .max()
             // 1024 is the default capacity for generic array builders.
             .unwrap_or(1024);

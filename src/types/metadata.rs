@@ -1,6 +1,7 @@
 use arrow_schema::{DataType, Field};
 
 /// Data types supported in OasysDB Arrow fields.
+#[derive(Debug, Clone, PartialEq)]
 pub enum MetadataType {
     Integer,
     Float,

@@ -101,12 +101,12 @@ impl FileOps {
 
         let schema = data.schema();
 
-        for i in 0..tmp_paths.len() {
+        for (i, tmp_path) in tmp_paths.iter().enumerate() {
             let file = OpenOptions::new()
                 .write(true)
                 .create(true)
                 .truncate(true)
-                .open(&tmp_paths[i])?;
+                .open(tmp_path)?;
 
             let writer = BufWriter::new(file);
             let mut ipc_writer = FileWriter::try_new(writer, &schema)?;

@@ -7,7 +7,6 @@ pub struct DatabaseState {
 }
 
 struct Directory {
-    pub root: PathBuf,
     pub collections_dir: PathBuf,
     pub state_file: PathBuf,
 }
@@ -16,7 +15,7 @@ impl Directory {
     fn new(root: PathBuf) -> Self {
         let collections_dir = root.join("collections");
         let state_file = root.join("dbstate");
-        Self { root, collections_dir, state_file }
+        Self { collections_dir, state_file }
     }
 }
 
