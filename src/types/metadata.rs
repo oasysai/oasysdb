@@ -38,6 +38,19 @@ impl From<String> for MetadataType {
     }
 }
 
+impl From<DataType> for MetadataType {
+    fn from(value: DataType) -> Self {
+        match value {
+            DataType::Int32 => MetadataType::Integer,
+            DataType::Float32 => MetadataType::Float,
+            DataType::Utf8 => MetadataType::String,
+            DataType::Boolean => MetadataType::Boolean,
+            DataType::List(_) => MetadataType::Vector,
+            _ => panic!("Unsupported data type: {value}"),
+        }
+    }
+}
+
 impl From<MetadataType> for DataType {
     fn from(value: MetadataType) -> Self {
         let field_float = Field::new("element", DataType::Float32, false);

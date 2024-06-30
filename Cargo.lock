@@ -1061,6 +1061,7 @@ dependencies = [
  "arrow-schema",
  "bincode",
  "prost",
+ "rand",
  "rayon",
  "regex",
  "serde",

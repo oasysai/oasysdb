@@ -6,13 +6,13 @@ pub struct DatabaseState {
     pub collection_refs: HashMap<String, PathBuf>,
 }
 
-struct Directories {
+struct Directory {
     pub root: PathBuf,
     pub collections_dir: PathBuf,
     pub state_file: PathBuf,
 }
 
-impl Directories {
+impl Directory {
     fn new(root: PathBuf) -> Self {
         let collections_dir = root.join("collections");
         let state_file = root.join("dbstate");
@@ -21,25 +21,25 @@ impl Directories {
 }
 
 pub struct Database {
-    dirs: Directories,
+    dir: Directory,
     state: Lock<DatabaseState>,
 }
 
 impl Database {
     pub fn open(dir: PathBuf) -> Result<Self, Error> {
-        let dirs = Directories::new(dir);
+        let dir = Directory::new(dir);
 
-        let state_file = &dirs.state_file;
+        let state_file = &dir.state_file;
         let state = if !state_file.try_exists()? {
             // Creating a collection directory will create the root directory.
-            fs::create_dir_all(&dirs.collections_dir)?;
+            fs::create_dir_all(&dir.collections_dir)?;
             Self::initialize_state(state_file)?
         } else {
             Self::read_state(state_file)?
         };
 
         let state = Lock::new(state);
-        let db = Self { dirs, state };
+        let db = Self { dir, state };
         Ok(db)
     }
 }
@@ -60,7 +60,7 @@ impl Database {
 
         // Create the collection directory.
         let uuid = Uuid::new_v4().to_string();
-        let collection_dir = self.dirs.collections_dir.join(uuid);
+        let collection_dir = self.dir.collections_dir.join(uuid);
 
         // Initialize the collection.
         Collection::open(collection_dir.to_path_buf())?;
@@ -77,8 +77,33 @@ impl Database {
         Ok(())
     }
 
+    pub fn _get_collection(&self, name: &str) -> Result<Collection, Error> {
+        let state = self.state.read()?;
+
+        if name.is_empty() {
+            let code = ErrorCode::ClientError;
+            let message = "Collection name cannot be empty";
+            return Err(Error::new(&code, message));
+        }
+
+        // Get the directory where the collection is
+        // persisted from the database state.
+        let dir = match state.collection_refs.get(name) {
+            Some(dir) => dir.clone(),
+            None => {
+                let code = ErrorCode::NotFoundError;
+                let message = format!("Collection not found: {name}");
+                return Err(Error::new(&code, &message));
+            }
+        };
+
+        Collection::open(dir)
+    }
+
     pub fn _delete_collection(&self, name: &str) -> Result<(), Error> {
         let mut state = self.state.write()?;
+
+        // This makes the method idempotent.
         if !state.collection_refs.contains_key(name) {
             return Ok(());
         }
@@ -101,8 +126,7 @@ impl Database {
         collection_name: &str,
         fields: impl Into<Fields>,
     ) -> Result<(), Error> {
-        let dir = self.get_collection_dir(collection_name)?;
-        let collection = Collection::open(dir)?;
+        let collection = self._get_collection(collection_name)?;
         collection.add_fields(fields)?;
         Ok(())
     }
@@ -112,22 +136,20 @@ impl Database {
         collection_name: &str,
         field_names: &[String],
     ) -> Result<(), Error> {
-        let dir = self.get_collection_dir(collection_name)?;
-        let collection = Collection::open(dir)?;
+        let collection = self._get_collection(collection_name)?;
         collection.remove_fields(field_names)?;
         Ok(())
     }
 
-    fn get_collection_dir(&self, name: &str) -> Result<PathBuf, Error> {
-        let state = self.state.read()?;
-        match state.collection_refs.get(name) {
-            Some(dir) => Ok(dir.clone()),
-            None => {
-                let code = ErrorCode::ClientError;
-                let message = format!("No collection name: {name}");
-                Err(Error::new(&code, &message))
-            }
-        }
+    pub fn _insert_records(
+        &self,
+        collection_name: &str,
+        field_names: &[String],
+        records: &[Arc<dyn Array>],
+    ) -> Result<(), Error> {
+        let collection = self._get_collection(collection_name)?;
+        collection.insert_records(field_names, records)?;
+        Ok(())
     }
 }
 
@@ -150,6 +172,6 @@ impl StateMachine<DatabaseState> for Database {
 
     fn persist_state(&self) -> Result<(), Error> {
         let state = self.state.read()?.clone();
-        FileOps::default().write_binary_file(&self.dirs.state_file, &state)
+        FileOps::default().write_binary_file(&self.dir.state_file, &state)
     }
 }

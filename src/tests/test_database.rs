@@ -60,3 +60,31 @@ fn test_database_remove_fields() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn test_database_insert_records() -> Result<(), Error> {
+    let database = create_test_database_with_data()?;
+    let state = database.state()?;
+    let dir = &state.collection_refs[TEST_COLLECTION];
+
+    let fields = ["vector", "title", "year"];
+    let fields: Vec<String> = fields.iter().map(|f| f.to_string()).collect();
+
+    let vectors = generate_random_vectors(128, 2);
+    let titles = vec!["Interstellar", "Avengers: Endgame"];
+    let years = vec![2014, 2019];
+
+    let records = vec![
+        Arc::new(array::ListArray::from_vectors(vectors)) as Arc<dyn Array>,
+        Arc::new(array::StringArray::from(titles)) as Arc<dyn Array>,
+        Arc::new(array::Int32Array::from(years)) as Arc<dyn Array>,
+    ];
+
+    database._insert_records(TEST_COLLECTION, &fields, &records)?;
+
+    let collection = Collection::open(dir.clone())?;
+    let state = collection.state()?;
+    assert_eq!(state.count, 5);
+
+    Ok(())
+}

@@ -1,6 +1,10 @@
 use super::error::{Error, ErrorCode};
+use arrow::array::RecordBatch;
+use arrow::ipc::reader::FileReader;
+use arrow::ipc::writer::FileWriter;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::cmp::min;
 use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{BufReader, BufWriter};
@@ -63,6 +67,69 @@ impl FileOps {
 
         // If the serialization is successful, rename the temporary file.
         fs::rename(&tmp_path, path)?;
+        Ok(())
+    }
+
+    pub fn read_ipc_file(&self, path: &PathBuf) -> Result<RecordBatch, Error> {
+        let file = OpenOptions::new().read(true).open(path)?;
+        let reader = BufReader::new(file);
+        let ipc_reader = FileReader::try_new(reader, None)?;
+        let schema = ipc_reader.schema();
+
+        // In OasyDB, there will be only one record batch per file.
+        let record_batch = match ipc_reader.last() {
+            Some(batch) => batch?,
+            _ => RecordBatch::new_empty(schema),
+        };
+
+        Ok(record_batch)
+    }
+
+    pub fn write_ipc_files(
+        &self,
+        paths: &[PathBuf],
+        data: &RecordBatch,
+        batch_size: usize,
+    ) -> Result<(), Error> {
+        let create_tmp_path = |path: &PathBuf| {
+            let filename = self.parse_file_name(path).unwrap();
+            self.tmp_dir.join(filename)
+        };
+
+        let tmp_paths: Vec<PathBuf> =
+            paths.iter().map(create_tmp_path).collect();
+
+        let schema = data.schema();
+
+        for i in 0..tmp_paths.len() {
+            let file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&tmp_paths[i])?;
+
+            let writer = BufWriter::new(file);
+            let mut ipc_writer = FileWriter::try_new(writer, &schema)?;
+
+            // This attempts to write the record batch in chunks.
+            // This is useful when the record batch is larger than
+            // the predefined batch size.
+            let batch = {
+                let offset = i * batch_size;
+                let length = min(batch_size, data.num_rows() - offset);
+                data.slice(offset, length)
+            };
+
+            // Write the record batch to the file.
+            ipc_writer.write(&batch)?;
+            ipc_writer.finish()?;
+        }
+
+        // If the serialization is successful, rename the temporary file.
+        for i in 0..tmp_paths.len() {
+            fs::rename(&tmp_paths[i], &paths[i])?;
+        }
+
         Ok(())
     }
 

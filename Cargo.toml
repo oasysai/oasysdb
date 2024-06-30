@@ -20,11 +20,12 @@ version = "1.38.0"
 features = ["macros", "rt-multi-thread"]
 
 [dependencies]
-arrow = "52.0.0"
+uuid = { version = "1.9.1", features = ["v4", "rng"] }
 arrow-schema = { version = "52.0.0", features = ["serde"] }
+arrow = "52.0.0"
 rayon = "1.10.0"
 regex = "1.10.5"
-uuid = { version = "1.9.1", features = ["v4", "rng"] }
+rand = "0.8.5"
 
 # gRPC stuff.
 prost = "0.12.6"

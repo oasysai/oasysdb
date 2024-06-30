@@ -11,12 +11,14 @@ use std::sync::PoisonError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
     ArrowError,
-    ClientError,
-    CollectionError,
     ConcurrencyError,
     FileError,
     SerializationError,
     StandardError,
+
+    // Tonic-related error codes.
+    ClientError,
+    NotFoundError,
 }
 
 #[derive(Debug)]
@@ -84,6 +86,7 @@ impl From<Error> for tonic::Status {
     fn from(err: Error) -> Self {
         let code = match err.code {
             ErrorCode::ClientError => tonic::Code::InvalidArgument,
+            ErrorCode::NotFoundError => tonic::Code::NotFound,
             _ => tonic::Code::Internal,
         };
 
