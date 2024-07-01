@@ -8,7 +8,8 @@ assignees: ""
 
 ### Description
 
-What is the chore about? Please provide a clear and concise description of what the chore is.
+What is the chore about? Please provide a clear and concise description of what
+the chore is.
 
 Chore examples:
 
@@ -18,4 +19,5 @@ Chore examples:
 
 ### Why is this beneficial?
 
-Why do you think this chore is needed? Is it related to a problem that you encounter that are not related to a bug or a feature request?
+Why do you think this chore is needed? Is it related to a problem that you
+encounter that are not related to a bug or a feature request?

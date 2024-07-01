@@ -1,7 +1,2 @@
-pytest==8.0.2
-black==24.3.0
-flake8==7.0.0
-asyncio==3.4.3
-
 # Documentation website.
 mkdocs-material==9.5.26

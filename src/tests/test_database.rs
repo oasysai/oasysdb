@@ -1,67 +1,90 @@
 use super::*;
-use futures::executor;
 
 #[test]
-fn new() {
-    let db = Database::new("data/rs").unwrap();
-    assert_eq!(db.len(), 0);
+fn test_database_create_collection() -> Result<(), Error> {
+    let db = create_test_database()?;
+    let name = "new_collection";
+    db._create_collection(name)?;
+
+    let state = db.state()?;
+    assert!(state.collection_refs.contains_key(name));
+    Ok(())
 }
 
 #[test]
-fn get_collection() {
-    let db = create_test_database();
-    let collection = db.get_collection(NAME).unwrap();
-    assert_eq!(collection.len(), LEN);
+fn test_database_delete_collection() -> Result<(), Error> {
+    let db = create_test_database()?;
+    db._delete_collection(TEST_COLLECTION)?;
+
+    let state = db.state()?;
+    assert!(!state.collection_refs.contains_key(TEST_COLLECTION));
+    Ok(())
 }
 
 #[test]
-fn save_collection_new() {
-    let mut db = Database::new("data/rs").unwrap();
-    let len = db.len();
+fn test_database_add_fields() -> Result<(), Error> {
+    let database = create_test_database()?;
+    let state = database.state()?;
+    let dir = &state.collection_refs[TEST_COLLECTION];
 
-    // Create a collection from scratch.
-    let config = Config::default();
-    let mut collection = Collection::new(&config);
+    let field = Field::new("id", DataType::Utf8, false);
+    database._add_fields(TEST_COLLECTION, vec![field])?;
 
-    // Insert a random record.
-    let record = Record::random(DIMENSION);
-    collection.insert(&record).unwrap();
+    let collection = Collection::open(dir.clone())?;
+    let schema = collection.state()?.schema;
+    assert!(schema.fields().find("id").is_some());
 
-    db.save_collection("new", &collection).unwrap();
-    assert_eq!(collection.len(), 1);
-    assert_eq!(db.len(), len + 1);
+    Ok(())
 }
 
 #[test]
-fn save_collection_update() {
-    let mut db = create_test_database();
-
-    // Update the collection.
-    let mut collection = db.get_collection(NAME).unwrap();
-    collection.insert(&Record::random(DIMENSION)).unwrap();
-
-    db.save_collection(NAME, &collection).unwrap();
-    assert_eq!(collection.len(), LEN + 1);
-    assert_eq!(db.len(), 1);
+#[should_panic]
+fn test_database_remove_default_fields() {
+    let database = create_test_database().unwrap();
+    let fields = ["internal_id".to_string()];
+    database._remove_fields(TEST_COLLECTION, &fields).unwrap();
 }
 
 #[test]
-fn delete_collection() {
-    let mut db = create_test_database();
-    db.delete_collection(NAME).unwrap();
-    assert_eq!(db.len(), 0);
+fn test_database_remove_fields() -> Result<(), Error> {
+    let database = create_test_database()?;
+    let state = database.state()?;
+    let dir = &state.collection_refs[TEST_COLLECTION];
+
+    let fields = ["title".to_string()];
+    database._remove_fields(TEST_COLLECTION, &fields)?;
+
+    let collection = Collection::open(dir.clone())?;
+    let schema = collection.state()?.schema;
+    assert!(schema.fields().find("title").is_none());
+
+    Ok(())
 }
 
 #[test]
-fn flush() {
-    let db = create_test_database();
-    let bytes = db.flush().unwrap();
-    assert!(bytes > 0);
-}
+fn test_database_insert_records() -> Result<(), Error> {
+    let database = create_test_database_with_data()?;
+    let state = database.state()?;
+    let dir = &state.collection_refs[TEST_COLLECTION];
 
-#[test]
-fn async_flush() {
-    let db = create_test_database();
-    let bytes = executor::block_on(db.async_flush()).unwrap();
-    assert!(bytes > 0);
+    let fields = ["vector", "title", "year"];
+    let fields: Vec<String> = fields.iter().map(|f| f.to_string()).collect();
+
+    let vectors = generate_random_vectors(128, 2);
+    let titles = vec!["Interstellar", "Avengers: Endgame"];
+    let years = vec![2014, 2019];
+
+    let records = vec![
+        Arc::new(array::ListArray::from_vectors(vectors)) as Arc<dyn Array>,
+        Arc::new(array::StringArray::from(titles)) as Arc<dyn Array>,
+        Arc::new(array::Int32Array::from(years)) as Arc<dyn Array>,
+    ];
+
+    database._insert_records(TEST_COLLECTION, &fields, &records)?;
+
+    let collection = Collection::open(dir.clone())?;
+    let state = collection.state()?;
+    assert_eq!(state.count, 5);
+
+    Ok(())
 }

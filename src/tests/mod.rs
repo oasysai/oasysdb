@@ -1,46 +1,67 @@
-mod test_collection;
+use crate::db::*;
+use crate::types::*;
+use arrow::array::{self, Array};
+use arrow::datatypes::{DataType, Field};
+use rand::random;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+mod stress_test_database;
 mod test_database;
-mod test_distance;
-mod test_metadata;
 
-// This test requires the JSON feature to be enabled to make our life
-// easier allowing conversion from JSON Value type to the Metadata enum.
-#[cfg(feature = "json")]
-mod test_filter;
+const TEST_DIR: &str = "odb_data";
+const TEST_COLLECTION: &str = "collection";
 
-#[cfg(feature = "gen")]
-mod test_vectorgen;
+fn create_test_database() -> Result<Database, Error> {
+    // Reset the database directory for testing.
+    let path = PathBuf::from(TEST_DIR);
+    if path.exists() {
+        fs::remove_dir_all(&path)?;
+    }
 
-use crate::prelude::*;
-use rayon::prelude::*;
-use std::collections::HashMap;
+    // The database should have some subdirectories.
+    let db = Database::open(path.clone())?;
+    let content = path.read_dir()?;
+    assert!(content.count() == 2);
 
-const DIMENSION: usize = 128;
-const LEN: usize = 100;
+    // Create a test collection.
+    db._create_collection(TEST_COLLECTION)?;
 
-/// The test database initial collection name.
-const NAME: &str = "vectors";
+    // Add a couple of fields to the collection.
+    let field_title = Field::new("title", DataType::Utf8, true);
+    let field_year = Field::new("year", DataType::Int32, true);
+    db._add_fields(TEST_COLLECTION, vec![field_title, field_year])?;
 
-fn create_test_database() -> Database {
-    let mut db = Database::new("data/rs").unwrap();
-    let collection = create_collection();
-    db.save_collection(NAME, &collection).unwrap();
-    db
+    Ok(db)
 }
 
-fn create_collection() -> Collection {
-    let all_records = Record::many_random(DIMENSION, LEN);
+fn create_test_database_with_data() -> Result<Database, Error> {
+    let db = create_test_database()?;
+    populate_database(db)
+}
 
-    // Split the records into two halves.
-    // The first half is used to build the collection.
-    // The second half is used to insert.
-    let mid = LEN / 2;
-    let first_half = &all_records[0..mid];
-    let second_half = &all_records[mid..LEN];
+fn generate_random_vectors(dimension: usize, len: usize) -> Vec<Vec<f32>> {
+    (0..len)
+        .map(|_| (0..dimension).map(|_| random::<f32>()).collect())
+        .collect()
+}
 
-    let config = Config::default();
-    let mut collection = Collection::build(&config, first_half).unwrap();
+fn populate_database(database: Database) -> Result<Database, Error> {
+    let fields = ["vector", "title", "year"];
+    let field_names: Vec<String> =
+        fields.iter().map(|f| f.to_string()).collect();
 
-    collection.insert_many(second_half).unwrap();
-    collection
+    let vectors = generate_random_vectors(128, 3);
+    let titles = vec!["The Matrix", "Avatar", "Inception"];
+    let years = vec![1999, 2009, 2010];
+
+    let records = vec![
+        Arc::new(array::ListArray::from_vectors(vectors)) as Arc<dyn Array>,
+        Arc::new(array::StringArray::from(titles)) as Arc<dyn Array>,
+        Arc::new(array::Int32Array::from(years)) as Arc<dyn Array>,
+    ];
+
+    database._insert_records(TEST_COLLECTION, &field_names, &records)?;
+    Ok(database)
 }

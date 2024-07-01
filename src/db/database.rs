@@ -1,279 +1,176 @@
 use super::*;
+use uuid::Uuid;
 
-/// The directory where collections are stored in the database.
-const COLLECTIONS_DIR: &str = "collections";
-
-/// The directory to store temporary files.
-const TMP_DIR: &str = "tmp";
-
-/// The database record for the persisted vector collection.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct CollectionRecord {
-    /// Name of the collection.
-    pub name: String,
-    /// File path where the collection is stored.
-    pub path: String,
-    /// Number of vector records in the collection.
-    pub count: usize,
-    /// Timestamp when the collection was created.
-    pub created_at: usize,
-    /// Timestamp when the collection was last updated.
-    pub updated_at: usize,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DatabaseState {
+    pub collection_refs: HashMap<String, PathBuf>,
 }
 
-/// The database storing vector collections.
-#[cfg_attr(feature = "py", pyclass(module = "oasysdb.database"))]
+struct Directory {
+    pub collections_dir: PathBuf,
+    pub state_file: PathBuf,
+}
+
+impl Directory {
+    fn new(root: PathBuf) -> Self {
+        let collections_dir = root.join("collections");
+        let state_file = root.join("dbstate");
+        Self { collections_dir, state_file }
+    }
+}
+
 pub struct Database {
-    collections: Db,
-    count: usize,
-    path: String,
+    dir: Directory,
+    state: Lock<DatabaseState>,
 }
 
-/// Python only methods.
-#[cfg(feature = "py")]
-#[pymethods]
 impl Database {
-    #[staticmethod]
-    #[pyo3(name = "new")]
-    fn py_new(path: &str) -> PyResult<Self> {
-        Self::new(path).map_err(|e| e.into())
-    }
+    pub fn open(dir: PathBuf) -> Result<Self, Error> {
+        let dir = Directory::new(dir);
 
-    #[new]
-    fn py_open(path: &str) -> PyResult<Self> {
-        Self::open(path).map_err(|e| e.into())
-    }
-
-    fn __len__(&self) -> usize {
-        self.len()
-    }
-}
-
-// Mixed Rust and Python methods.
-#[cfg_attr(feature = "py", pymethods)]
-impl Database {
-    /// Gets a collection from the database.
-    /// * `name`: Name of the collection.
-    pub fn get_collection(&self, name: &str) -> Result<Collection, Error> {
-        // Retrieve the collection record from the database.
-        let record: CollectionRecord = match self.collections.get(name)? {
-            Some(value) => bincode::deserialize(&value)?,
-            None => return Err(Error::collection_not_found()),
-        };
-
-        self.read_from_file(&record.path)
-    }
-
-    /// Saves new or update existing collection to the database.
-    /// * `name`: Name of the collection.
-    /// * `collection`: Vector collection to save.
-    pub fn save_collection(
-        &mut self,
-        name: &str,
-        collection: &Collection,
-    ) -> Result<(), Error> {
-        // This variable is required since some operations require
-        // the write_to_file method to succeed.
-        let mut new = false;
-
-        let mut record: CollectionRecord;
-        let path: String;
-
-        // Check if it's a new collection.
-        if !self.collections.contains_key(name)? {
-            new = true;
-            path = self.create_new_collection_path(name)?;
-
-            // Create a new collection record.
-            let timestamp = self.get_timestamp();
-            record = CollectionRecord {
-                name: name.to_string(),
-                path: path.clone(),
-                count: collection.len(),
-                created_at: timestamp,
-                updated_at: timestamp,
-            };
+        let state_file = &dir.state_file;
+        let state = if !state_file.try_exists()? {
+            // Creating a collection directory will create the root directory.
+            fs::create_dir_all(&dir.collections_dir)?;
+            Self::initialize_state(state_file)?
         } else {
-            let bytes = self.collections.get(name)?.unwrap().to_vec();
-            record = bincode::deserialize(&bytes)?;
-            path = record.path.clone();
-
-            // Update the record values.
-            record.count = collection.len();
-            record.updated_at = self.get_timestamp();
-        }
-
-        // Write the collection to a file.
-        self.write_to_file(&path, collection)?;
-
-        // Insert or update the collection record in the database.
-        let bytes = bincode::serialize(&record)?;
-        self.collections.insert(name, bytes)?;
-
-        // If it's a new collection, update the count.
-        if new {
-            self.count += 1;
-        }
-
-        Ok(())
-    }
-
-    /// Deletes a collection from the database.
-    /// * `name`: Collection name to delete.
-    pub fn delete_collection(&mut self, name: &str) -> Result<(), Error> {
-        let record: CollectionRecord = match self.collections.get(name)? {
-            Some(value) => bincode::deserialize(&value)?,
-            None => return Err(Error::collection_not_found()),
+            Self::read_state(state_file)?
         };
 
-        // Delete the collection file first before removing
-        // the reference from the database.
-        self.delete_file(&record.path)?;
-
-        self.collections.remove(name)?;
-        self.count -= 1;
-        Ok(())
-    }
-
-    /// Returns the number of collections in the database.
-    pub fn len(&self) -> usize {
-        self.count
-    }
-
-    /// Returns true if the database is empty.
-    pub fn is_empty(&self) -> bool {
-        self.count == 0
-    }
-
-    /// Flushes dirty IO buffers and syncs the data to disk.
-    /// Returns bytes flushed.
-    pub fn flush(&self) -> Result<usize, Error> {
-        let bytes = self.collections.flush()?;
-        Ok(bytes)
-    }
-
-    /// Asynchronously performs flush operation.
-    pub async fn async_flush(&self) -> Result<usize, Error> {
-        let bytes = self.collections.flush_async().await?;
-        Ok(bytes)
+        let state = Lock::new(state);
+        let db = Self { dir, state };
+        Ok(db)
     }
 }
 
+// This implementation block contains methods used by the gRPC server.
+// We do this to make it easier to test the database logic.
 impl Database {
-    /// Re-creates and opens the database at the given path.
-    /// This method will delete the database if it exists.
-    /// * `path`: Directory to store the database.
-    pub fn new(path: &str) -> Result<Self, Error> {
-        // Remove the database dir if it exists.
-        if Path::new(path).exists() {
-            fs::remove_dir_all(path)?;
+    pub fn _create_collection(&self, name: &str) -> Result<(), Error> {
+        Collection::validate_name(name)?;
+
+        // Check if the collection already exists.
+        let mut state = self.state.write()?;
+        if state.collection_refs.contains_key(name) {
+            let code = ErrorCode::ClientError;
+            let message = format!("Collection already exists: {name}");
+            return Err(Error::new(&code, &message));
         }
 
-        // Setup the directory where collections will be stored.
-        Self::setup_collections_dir(path)?;
+        // Create the collection directory.
+        let uuid = Uuid::new_v4().to_string();
+        let collection_dir = self.dir.collections_dir.join(uuid);
 
-        // Using sled::Config to prevent name collisions
-        // with collection's Config.
-        let config = sled::Config::new().path(path);
-        let collections = config.open()?;
-        Ok(Self { collections, count: 0, path: path.to_string() })
+        // Initialize the collection.
+        Collection::open(collection_dir.to_path_buf())?;
+
+        // Update the database state.
+        state.collection_refs.insert(name.to_string(), collection_dir);
+        *state = state.clone();
+
+        // Drop the lock to prevent deadlocks since
+        // persist_state also requires the lock.
+        drop(state);
+
+        self.persist_state()?;
+        Ok(())
     }
 
-    /// Opens existing or creates new database.
-    /// If the database doesn't exist, it will be created.
-    /// * `path`: Directory to store the database.
-    pub fn open(path: &str) -> Result<Self, Error> {
-        let collections = sled::open(path)?;
-        let count = collections.len();
-        Self::setup_collections_dir(path)?;
-        Ok(Self { collections, count, path: path.to_string() })
+    pub fn _get_collection(&self, name: &str) -> Result<Collection, Error> {
+        let state = self.state.read()?;
+
+        if name.is_empty() {
+            let code = ErrorCode::ClientError;
+            let message = "Collection name cannot be empty";
+            return Err(Error::new(&code, message));
+        }
+
+        // Get the directory where the collection is
+        // persisted from the database state.
+        let dir = match state.collection_refs.get(name) {
+            Some(dir) => dir.clone(),
+            None => {
+                let code = ErrorCode::NotFoundError;
+                let message = format!("Collection not found: {name}");
+                return Err(Error::new(&code, &message));
+            }
+        };
+
+        Collection::open(dir)
     }
 
-    /// Serializes and writes the collection to a file.
-    /// * `path`: File path to write the collection to.
-    /// * `collection`: Vector collection to write.
-    fn write_to_file(
+    pub fn _delete_collection(&self, name: &str) -> Result<(), Error> {
+        let mut state = self.state.write()?;
+
+        // This makes the method idempotent.
+        if !state.collection_refs.contains_key(name) {
+            return Ok(());
+        }
+
+        // Delete the collection directory.
+        // We can unwrap here because we checked if the collection exists.
+        let collection_dir = state.collection_refs.remove(name).unwrap();
+        fs::remove_dir_all(collection_dir)?;
+
+        // Update the database state.
+        *state = state.clone();
+        drop(state);
+
+        self.persist_state()?;
+        Ok(())
+    }
+
+    pub fn _add_fields(
         &self,
-        path: &str,
-        collection: &Collection,
+        collection_name: &str,
+        fields: impl Into<Fields>,
     ) -> Result<(), Error> {
-        // Get the file name from the path.
-        let filename = Path::new(path).file_name().ok_or(Error {
-            kind: ErrorKind::IOError,
-            message: format!("Unable to retrieve file name: {path}"),
-        })?;
-
-        // Write the collection to a temporary file first.
-        // This is to prevent data corruption if the process is interrupted.
-        let temp_path = Path::new(&self.path).join(TMP_DIR).join(filename);
-        let file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&temp_path)?;
-
-        let writer = BufWriter::new(file);
-        bincode::serialize_into(writer, collection)?;
-
-        // Rename the temporary file to the original path.
-        // This operation is atomic and will replace the original file.
-        fs::rename(&temp_path, path)?;
-
+        let collection = self._get_collection(collection_name)?;
+        collection.add_fields(fields)?;
         Ok(())
     }
 
-    /// Reads and deserializes the collection from a file.
-    /// * `path`: File path to read the collection from.
-    fn read_from_file(&self, path: &str) -> Result<Collection, Error> {
-        let file = OpenOptions::new().read(true).open(path)?;
-        let reader = BufReader::new(file);
-
-        // Deserialize the collection.
-        let collection = bincode::deserialize_from(reader)?;
-        Ok(collection)
-    }
-
-    /// Deletes a file at the given path.
-    fn delete_file(&self, path: &str) -> Result<(), Error> {
-        fs::remove_file(path)?;
+    pub fn _remove_fields(
+        &self,
+        collection_name: &str,
+        field_names: &[String],
+    ) -> Result<(), Error> {
+        let collection = self._get_collection(collection_name)?;
+        collection.remove_fields(field_names)?;
         Ok(())
     }
 
-    /// Returns the path where the collection will be stored.
-    /// * `name`: Name of the collection.
-    fn create_new_collection_path(&self, name: &str) -> Result<String, Error> {
-        // Hash the collection name to create a unique filename.
-        let mut hasher = DefaultHasher::new();
-        name.hash(&mut hasher);
-        let filename = hasher.finish();
-
-        let path = Path::new(&self.path)
-            .join(COLLECTIONS_DIR)
-            .join(filename.to_string())
-            .to_str()
-            .unwrap()
-            .to_string();
-
-        Ok(path)
-    }
-
-    /// Creates the collections directory on the path if it doesn't exist.
-    fn setup_collections_dir(path: &str) -> Result<(), Error> {
-        let collections_dir = Path::new(path).join(COLLECTIONS_DIR);
-        let temp_dir = Path::new(path).join(TMP_DIR);
-        if !collections_dir.exists() {
-            fs::create_dir_all(collections_dir)?;
-            fs::create_dir_all(temp_dir)?;
-        }
-
+    pub fn _insert_records(
+        &self,
+        collection_name: &str,
+        field_names: &[String],
+        records: &[Arc<dyn Array>],
+    ) -> Result<(), Error> {
+        let collection = self._get_collection(collection_name)?;
+        collection.insert_records(field_names, records)?;
         Ok(())
     }
+}
 
-    /// Returns the UNIX timestamp in milliseconds.
-    fn get_timestamp(&self) -> usize {
-        let now = SystemTime::now();
-        // We can unwrap safely since UNIX_EPOCH is always valid.
-        let timestamp = now.duration_since(UNIX_EPOCH).unwrap();
-        timestamp.as_millis() as usize
+impl StateMachine<DatabaseState> for Database {
+    fn initialize_state(
+        path: impl Into<PathBuf>,
+    ) -> Result<DatabaseState, Error> {
+        let state = DatabaseState::default();
+        FileOps::default().write_binary_file(&path.into(), &state)?;
+        Ok(state)
+    }
+
+    fn read_state(path: impl Into<PathBuf>) -> Result<DatabaseState, Error> {
+        FileOps::default().read_binary_file(&path.into())
+    }
+
+    fn state(&self) -> Result<DatabaseState, Error> {
+        Ok(self.state.read()?.clone())
+    }
+
+    fn persist_state(&self) -> Result<(), Error> {
+        let state = self.state.read()?.clone();
+        FileOps::default().write_binary_file(&self.dir.state_file, &state)
     }
 }

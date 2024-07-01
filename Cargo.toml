@@ -1,77 +1,44 @@
 [package]
 name = "oasysdb"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2021"
 license = "Apache-2.0"
 readme = "readme.md"
 
 # Information.
 authors = ["Edwin Kys", "Oasys"]
-description = "Fast & flexible embedded vector database with incremental HNSW indexing."
+description = "Fast & scalable vector store with ground-up hybrid ANN search support."
 homepage = "https://docs.oasysdb.com"
 repository = "https://github.com/oasysai/oasysdb"
 
 # Metadata.
-keywords = ["embedded", "vector", "database", "hnsw", "ann"]
-categories = ["database", "algorithms", "embedded"]
+keywords = ["vector", "database", "anns", "search", "simd"]
+categories = ["database", "algorithms", "data-structures"]
 
-# For PyO3 and Maturin.
-[lib]
-name = "oasysdb"
-crate-type = ["lib", "cdylib"]
+[dependencies.tokio]
+version = "1.38.0"
+features = ["macros", "rt-multi-thread"]
 
 [dependencies]
-sled = "0.34.7"
-
-# Utilities.
-rayon = "1.8.0"
-parking_lot = "0.12.1"
-ordered-float = "4.2.0"
+uuid = { version = "1.9.1", features = ["v4", "rng"] }
+arrow-schema = { version = "52.0.0", features = ["serde"] }
+arrow = "52.0.0"
+rayon = "1.10.0"
+regex = "1.10.5"
 rand = "0.8.5"
-simsimd = "4.3.1"
+
+# gRPC stuff.
+prost = "0.12.6"
+tonic = "0.11.0"
 
 # Serialization.
-serde = { version = "1.0.193", features = ["derive"] }
-serde-big-array = "0.5.1"
+serde = { version = "1.0.203", features = ["derive"] }
 bincode = "1.3.3"
 
-# Interoperability.
-serde_json = { version = "1.0.116", optional = true }
-
-# Other optionals.
-[dependencies.reqwest]
-version = "0.12.4"
-features = ["blocking", "json"]
-optional = true
-
-# Python bindings tool.
-[dependencies.pyo3]
-version = "0.21.2"
-features = ["experimental-async", "gil-refs", "multiple-pymethods"]
-optional = true
-
-[dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports"] }
-dotenv = "0.15.0"
-
-# Memory management.
-jemallocator = "0.5.4"
-jemalloc-ctl = "0.5.4"
-
-# Async handling.
-futures = "0.3.30"
-
-[features]
-gen = ["dep:reqwest", "json"]
-json = ["dep:serde_json"]
-py = ["dep:pyo3"]
+[build-dependencies]
+tonic-build = "0.11.0"
 
 [profile.release]
 lto = true
 opt-level = "z"
 codegen-units = 1
-
-[[bench]]
-name = "benchmark"
-path = "bench/main.rs"
-harness = false
