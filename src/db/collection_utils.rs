@@ -13,7 +13,7 @@ impl Collection {
 
         // We only allow lowercase letters and underscores in the names.
         // Also, we can unwrap here because the regex pattern is hardcoded.
-        let re = Regex::new(r"^[a-z_]+$").unwrap();
+        let re = Regex::new(r"^[a-z0-9_]+$").unwrap();
         if !re.is_match(name) {
             return Err(Error::new(
                 &ErrorCode::ClientError,

@@ -7,6 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+mod stress_test_database;
 mod test_database;
 
 const TEST_DIR: &str = "odb_data";
