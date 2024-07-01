@@ -14,7 +14,9 @@ pub struct CollectionState {
 }
 
 impl CollectionState {
-    fn new(dir: PathBuf) -> Result<Self, Error> {
+    /// Creates a new collection state.
+    /// - `root`: Root directory for the collection.
+    fn new(root: PathBuf) -> Result<Self, Error> {
         let field_id = Field::new("internal_id", DataType::Int32, false);
 
         let vector_type = MetadataType::Vector.into();
@@ -22,7 +24,7 @@ impl CollectionState {
 
         let mut state = Self {
             schema: Schema::new(vec![field_id, field_vector]),
-            dir: Directory::new(dir),
+            dir: Directory::new(root),
             batch_size: 1000,
             count: 0,
             dimension: 0,
@@ -322,9 +324,9 @@ impl Collection {
 
 impl StateMachine<CollectionState> for Collection {
     fn initialize_state(
-        root: impl Into<PathBuf>,
+        path: impl Into<PathBuf>,
     ) -> Result<CollectionState, Error> {
-        let state = CollectionState::new(root.into())?;
+        let state = CollectionState::new(path.into())?;
         FileOps::default().write_binary_file(&state.dir.state_file, &state)?;
         Ok(state)
     }
