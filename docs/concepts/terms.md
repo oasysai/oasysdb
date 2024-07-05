@@ -75,19 +75,21 @@ points based on the distances between their embeddings:
 4 -> 3, 2
 ```
 
-### ANNS
+## ANNS
 
 ANNS is a technique for efficiently finding the nearest data points to a given
 query, albeit approximately. While it may not always return the exact nearest
 data points, ANNS provides results that are close enough. This probabilistic
 approach balances accuracy with efficiency.
 
-Imagine we have a query with specific constraints:
+Let's take the index we have created in the previous section as an example.
+Imagine we have a query with these specific constraints:
 
 - Find the closest data to [0.0, 0.9].
 - Calculate a maximum of 2 distances using the Euclidean distance formula.
 
-Here's how we utilize the index created above to find the closest data point:
+Here's how we can utilize the index to find the closest data point based on this
+constraint:
 
 1. We start at a random data point, say 4, which is linked to 3 and 2.
 2. We calculate the distances and find that 2 is closer to [0.0, 0.9] than 3.

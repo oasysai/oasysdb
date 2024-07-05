@@ -1,5 +1,5 @@
 ---
-name: 🐞 Report a bug
+name: 🐞 Report Bug
 about: Report an unexpected behavior or a malfunctioning feature.
 title: "BUG:"
 labels: bug

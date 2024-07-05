@@ -1,4 +1,4 @@
-name: CI checks for the server
+name: Test Database
 
 on:
   workflow_dispatch:

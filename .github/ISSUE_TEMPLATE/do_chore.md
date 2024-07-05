@@ -1,5 +1,5 @@
 ---
-name: 🧹 Do a chore
+name: 🧹 Do Chore
 about: Documentation updates, code refactoring, or other chores.
 title: "CHORE:"
 labels: chore

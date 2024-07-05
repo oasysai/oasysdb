@@ -13,20 +13,18 @@ to act respectfully and to follow the [Code of Conduct](code_of_conduct.md).
 
 ## Have questions or suggestions?
 
-[![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&labelColor=%235865F2&style=for-the-badge)](https://discord.gg/bDhQrkqNP4)
+[![Discord](https://img.shields.io/discord/1182432298382131200?logo=discord&logoColor=%23ffffff&label=Discord&labelColor=%235865F2&style=for-the-badge)][discord]
 
 There is no such thing as a stupid question. If you have a question, chances are
 someone else does too. We encourage you to ask questions on our
-[Discord](https://discord.gg/bDhQrkqNP4) server. Alternatively, you can open a
-discussion on
-[GitHub Discussions](https://github.com/oasysai/oasysdb/discussions) with your
-question or suggestion.
+[Discord][discord] server. Alternatively, you can open a discussion on [GitHub
+Discussions][gh_discussions] with your question or suggestion.
 
 ## Encounter a bug? Have a feature request?
 
 If you encounter a bug or have a feature request, please open an issue on
-[GitHub Issues](https://github.com/oasysai/oasysdb/issues). Please include as
-much information as possible in your issue. This includes:
+[GitHub Issues][gh_issues]. Please include as much information as possible in
+your issue. This includes:
 
 - A description of the bug or feature request.
 - If it's a bug, steps to reproduce the bug. If it's a feature request, include
@@ -57,23 +55,8 @@ We'd love to hear about it!
 Getting started with OasysDB development is pretty straightforward.
 
 First, you will need to have Rust installed on your machine. We recommend using
-[rustup](https://www.rust-lang.org/tools/install) to install Rust. We also
-recommend having rust-analyzer installed for your code editor for a better
-development experience.
-
-OasysDB utilizes many third-party crates to provide its functionality. These are
-some of the most important ones and the resources you can use to learn more
-about them:
-
-- [**Apache Arrow**](https://arrow.apache.org): Arrow is a cross-language
-  development platform for in-memory columnar data format for efficient analytic
-  operations.
-- [**Rayon**](https://github.com/rayon-rs/rayon): Rayon is a data parallelism
-  library for Rust that provides a simple and efficient API for parallelizing
-  computation.
-- [**Tonic**](https://github.com/hyperium/tonic): Tonic is a
-  [gRPC](https://grpc.io/docs/) over HTTP/2 implementation focused on high
-  performance and flexibility built on top of the Tokio asynchronous runtime.
+[rustup][rustup] to install Rust. We also recommend having rust-analyzer
+installed for your code editor for a better development experience.
 
 TODO: Complete the getting started guide.
 
@@ -81,12 +64,10 @@ TODO: Complete the getting started guide.
 
 We mostly use the default linting and style guide for Rust except for some
 linting changes listed in rustfmt.toml file. For more information about the code
-style, see the
-[Rust Style Guide](https://doc.rust-lang.org/beta/style-guide/index.html).
+style, see the [Rust Style Guide][style_guide].
 
-For commit messages, we use the
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format.
-This allows us to maintain consistency and readability in our Git commit
+For commit messages, we use the [Conventional Commits][conventional_commits]
+format. This allows us to maintain consistency and readability in our Git commit
 history.
 
 When commenting your code, please try your best to write comments that are clear
@@ -100,9 +81,8 @@ Once you have made your changes, you can submit a pull request. We will review
 your pull request and provide feedback. If your pull request is accepted, we
 will merge it into the main branch.
 
-For organization purposes, we ask that you use the
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format
-for your pull request title in lowercase:
+For organization purposes, we ask that you use the [Conventional
+Commits][conventional_commits] format for your pull request title in lowercase:
 
 ```
 <type>: <description>
@@ -119,7 +99,13 @@ fix: fix issue ...
 
 Thank you for taking the time to read this documentation. We look forward to
 your contributions! Another way to support this project is to star this project,
-share it with your circles, and join us on
-[Discord](https://discord.gg/bDhQrkqNP4).
+share it with your circles, and join us on [Discord][discord].
 
 Best regards,<br /> Edwin Kys
+
+[discord]: https://discord.gg/bDhQrkqNP4
+[gh_issues]: https://github.com/oasysai/oasysdb/issues
+[gh_discussions]: https://github.com/oasysai/oasysdb/discussions
+[rustup]: https://www.rust-lang.org/tools/install
+[style_guide]: https://doc.rust-lang.org/beta/style-guide/index.html
+[conventional_commits]: https://www.conventionalcommits.org/en/v1.0.0/
