@@ -59,7 +59,6 @@ extra_css:
 nav:
   - Home:
       - Introduction: index.md
-      - Terms: concepts/terms.md
 
   - Other:
       - Changelog: changelog.md
