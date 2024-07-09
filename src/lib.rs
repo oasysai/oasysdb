@@ -9,6 +9,8 @@ mod tests;
 
 /// Primary module for vector database operations.
 pub mod db;
+/// Module for managing database indices and related types.
+pub mod indices;
 /// Convenience re-exports of the public APIs.
 pub mod prelude;
 /// Database utility types and functions.

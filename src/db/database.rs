@@ -35,8 +35,9 @@ impl Database {
         source_url: Option<impl Into<String>>,
     ) -> Result<Database, Error> {
         let root_dir: PathBuf = root.into();
-        if !root_dir.try_exists()? {
-            fs::create_dir_all(&root_dir)?;
+        let indices_dir = root_dir.join("indices");
+        if !indices_dir.try_exists()? {
+            fs::create_dir_all(&indices_dir)?;
         }
 
         let state_file = root_dir.join("odbstate");
@@ -61,17 +62,28 @@ impl Database {
         Ok(Self { root: root_dir, state, conn })
     }
 
+    /// Creates a new index in the database.
+    /// - `name`: Name of the index.
+    /// - `config`: Index data source configuration.
+    pub fn create_index(
+        &mut self,
+        name: impl Into<String>,
+        config: SourceConfig,
+    ) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     /// Returns the state object of the database.
-    pub fn state(&self) -> DatabaseState {
-        self.state.clone()
+    pub fn state(&self) -> &DatabaseState {
+        &self.state
     }
 }
 
 /// The state of the vector database.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DatabaseState {
     source: DatabaseURL,
-    indices: HashMap<IndexName, IndexFile>,
+    indices: HashMap<IndexName, IndexRef>,
 }
 
 impl DatabaseState {
@@ -119,4 +131,11 @@ impl DatabaseState {
 
         Ok(())
     }
+}
+
+/// Details about the index and where it is stored.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IndexRef {
+    algorithm: IndexAlgorithm,
+    file: IndexFile,
 }

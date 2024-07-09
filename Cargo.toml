@@ -16,7 +16,8 @@ keywords = ["vector", "database", "anns", "search", "simd"]
 categories = ["database", "algorithms", "data-structures"]
 
 [dependencies]
-uuid = { version = "1.9.1", features = ["v4", "fast-rng"] }
+uuid = { version = "1.9.1", features = ["v4", "fast-rng", "serde"] }
+half = { version = "2.4.1", features = ["serde"] }
 url = "2.5.2"
 
 # Serialization.

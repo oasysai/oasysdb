@@ -7,9 +7,9 @@ use std::error::Error as StandardError;
 use std::io::Error as IOError;
 
 #[allow(missing_docs)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ErrorCode {
-    // Native error types.
+    // Data source related.
     InvalidSource,
     MissingSource,
 
