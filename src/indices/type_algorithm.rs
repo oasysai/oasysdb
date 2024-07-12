@@ -5,7 +5,7 @@ use super::*;
 #[derive(Debug, PartialEq, Eq)]
 #[derive(Serialize, Deserialize)]
 pub enum IndexAlgorithm {
-    BruteForce,
+    BruteForce, // -> IndexBruteForce
 }
 
 impl IndexAlgorithm {

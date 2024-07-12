@@ -122,6 +122,14 @@ impl Database {
         )
     }
 
+    /// Returns an index reference by name.
+    ///
+    /// This method is useful for deserializing and accessing
+    /// the index directly from the file based on the algorithm type.
+    pub fn get_index(&self, name: impl AsRef<str>) -> Option<&IndexRef> {
+        self.state.indices.get(name.as_ref())
+    }
+
     /// Returns the state object of the database.
     pub fn state(&self) -> &DatabaseState {
         &self.state
@@ -205,9 +213,20 @@ pub struct IndexRef {
     file: IndexFile,
 }
 
+impl IndexRef {
+    pub fn algorithm(&self) -> &IndexAlgorithm {
+        &self.algorithm
+    }
+
+    pub fn file(&self) -> &IndexFile {
+        &self.file
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::RecordID;
     use sqlx::{Executor, Row};
 
     #[test]
@@ -217,15 +236,13 @@ mod tests {
 
     #[test]
     fn test_database_create_index() {
-        let mut db = create_test_database().unwrap();
+        let db = create_test_database().unwrap();
+        let index_ref = db.get_index("test_index").unwrap();
+        let index = IndexBruteForce::load(&index_ref.file()).unwrap();
 
-        let name = "test_index";
-        let algorithm = IndexAlgorithm::BruteForce;
-        let metric = DistanceMetric::Euclidean;
-        let config = SourceConfig::new("embeddings", "id", "vector")
-            .with_metadata(vec!["data"]);
-
-        assert!(db.create_index(name, algorithm, metric, config).is_ok());
+        let metadata = index.metadata();
+        assert_eq!(metadata.count, 100);
+        assert_eq!(metadata.last_inserted, Some(RecordID(100)));
     }
 
     fn create_test_database() -> Result<Database, Error> {
@@ -237,12 +254,29 @@ mod tests {
         let db_path = file::get_tmp_dir()?.join("sqlite.db");
         let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
 
-        let db = Database::open(path, Some(db_url.clone()))?;
+        let mut db = Database::open(path, Some(db_url.clone()))?;
         let state = db.state();
         assert_eq!(state.source_type(), SourceType::SQLITE);
 
-        executor::block_on(setup_test_source(db_url)).unwrap();
+        executor::block_on(setup_test_source(db_url))?;
+        create_test_index(&mut db)?;
         Ok(db)
+    }
+
+    fn create_test_index(db: &mut Database) -> Result<(), Error> {
+        let config = SourceConfig::new("embeddings", "id", "vector")
+            .with_metadata(vec!["data"]);
+
+        db.create_index(
+            "test_index",
+            IndexAlgorithm::BruteForce,
+            DistanceMetric::Euclidean,
+            config,
+        )?;
+
+        let index = db.get_index("test_index").unwrap();
+        assert_eq!(index.algorithm(), &IndexAlgorithm::BruteForce);
+        Ok(())
     }
 
     async fn setup_test_source(url: impl Into<String>) -> Result<(), Error> {

@@ -35,6 +35,16 @@ impl Vector {
     pub fn to_vec(&self) -> Vec<f32> {
         self.0.clone().into_iter().map(f16::to_f32).collect()
     }
+
+    /// Returns the dimension of the vector.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Checks if the vector is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl From<Vec<f32>> for Vector {
