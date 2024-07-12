@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 // External error types.
 use bincode::Error as BincodeError;
+use serde_json::Error as JSONError;
 use sqlx::Error as SQLError;
 use std::error::Error as StandardError;
 use std::io::Error as IOError;
@@ -12,6 +13,14 @@ pub enum ErrorCode {
     // Data source related.
     InvalidSource,
     MissingSource,
+
+    // Data type related.
+    InvalidID,
+    InvalidVector,
+    InvalidMetadata,
+
+    // Other generic errors.
+    InternalError,
 
     // External error types.
     FileError,
@@ -62,6 +71,13 @@ impl From<BincodeError> for Error {
 impl From<SQLError> for Error {
     fn from(err: SQLError) -> Self {
         let code = ErrorCode::SQLError;
+        Error::new(code, err.to_string())
+    }
+}
+
+impl From<JSONError> for Error {
+    fn from(err: JSONError) -> Self {
+        let code = ErrorCode::SerializationError;
         Error::new(code, err.to_string())
     }
 }

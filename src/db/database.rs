@@ -1,8 +1,10 @@
 use super::*;
+use futures::executor;
+use futures::stream::StreamExt;
 use sqlx::any::install_default_drivers;
-use sqlx::{AnyConnection as SourceConnection, Connection};
-use tokio::runtime::Runtime;
+use sqlx::Acquire;
 use url::Url;
+use uuid::Uuid;
 
 type DatabaseURL = String;
 type IndexName = String;
@@ -62,20 +64,68 @@ impl Database {
         Ok(Self { root: root_dir, state, conn })
     }
 
-    /// Creates a new index in the database.
+    /// Creates a new index in the database asynchronously.
     /// - `name`: Name of the index.
     /// - `config`: Index data source configuration.
-    pub fn create_index(
+    pub async fn async_create_index(
         &mut self,
         name: impl Into<String>,
+        algorithm: IndexAlgorithm,
+        metric: DistanceMetric,
         config: SourceConfig,
     ) -> Result<(), Error> {
-        unimplemented!()
+        let state_file = self.state_file();
+
+        // Create a new file where the index will be stored.
+        let index_file = {
+            let uuid = Uuid::new_v4().to_string();
+            self.indices_dir().join(uuid)
+        };
+
+        let query = config.to_query();
+        let conn = self.conn.acquire().await?;
+        let mut stream = sqlx::query(&query).fetch(conn);
+
+        let mut records = HashMap::new();
+        while let Some(row) = stream.next().await {
+            let row = row?;
+            let (id, record) = config.to_record(&row)?;
+            records.insert(id, record);
+        }
+
+        let mut index = algorithm.initialize(config, metric);
+        index.fit(records)?;
+
+        // Persist the index to the file.
+        algorithm.persist_index(&index_file, index)?;
+
+        // Update db state with the new index.
+        let index_ref = IndexRef { algorithm, file: index_file.clone() };
+        self.state.indices.insert(name.into(), index_ref);
+        file::write_binary_file(&state_file, &self.state)?;
+
+        Ok(())
     }
 
     /// Returns the state object of the database.
     pub fn state(&self) -> &DatabaseState {
         &self.state
+    }
+
+    /// Persists the state of the database to the state file.
+    pub fn persist_state(&self) -> Result<(), Error> {
+        file::write_binary_file(self.state_file(), &self.state)
+    }
+}
+
+// Write internal database methods here.
+impl Database {
+    fn state_file(&self) -> PathBuf {
+        self.root.join("odbstate")
+    }
+
+    fn indices_dir(&self) -> PathBuf {
+        self.root.join("indices")
     }
 }
 
@@ -95,18 +145,18 @@ impl DatabaseState {
 
     /// Connects to the source SQL database.
     pub fn connect(&self) -> Result<SourceConnection, Error> {
-        Runtime::new()?.block_on(self.async_connect())
+        executor::block_on(self.async_connect())
     }
 
     /// Returns the type of the source database.
     /// - sqlite
     /// - mysql
     /// - postgresql
-    pub fn source_type(&self) -> String {
+    pub fn source_type(&self) -> SourceType {
         // We can safely unwrap here because
         // we have already validated the source URL.
         let url = self.source.parse::<Url>().unwrap();
-        url.scheme().to_owned()
+        url.scheme().into()
     }
 
     /// Validates the data source URL.
@@ -138,4 +188,27 @@ impl DatabaseState {
 pub struct IndexRef {
     algorithm: IndexAlgorithm,
     file: IndexFile,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_database() -> Result<Database, Error> {
+        let path = PathBuf::from("odb_data");
+        let source_url = {
+            let db_path = file::get_tmp_dir()?.join("sqlite.db");
+            Some(format!("sqlite://{}?mode=rwc", db_path.display()))
+        };
+
+        let db = Database::open(path, source_url)?;
+        let state = db.state();
+        assert_eq!(state.source_type(), SourceType::SQLITE);
+        Ok(db)
+    }
+
+    #[test]
+    fn test_database_open() {
+        assert!(create_test_database().is_ok());
+    }
 }
