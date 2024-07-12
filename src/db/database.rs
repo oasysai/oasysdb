@@ -66,6 +66,8 @@ impl Database {
 
     /// Creates a new index in the database asynchronously.
     /// - `name`: Name of the index.
+    /// - `algorithm`: Indexing algorithm to use.
+    /// - `metric`: Distance metric for the index.
     /// - `config`: Index data source configuration.
     pub async fn async_create_index(
         &mut self,
@@ -105,6 +107,19 @@ impl Database {
         file::write_binary_file(&state_file, &self.state)?;
 
         Ok(())
+    }
+
+    /// Creates a new index in the database synchronously.
+    pub fn create_index(
+        &mut self,
+        name: impl Into<String>,
+        algorithm: IndexAlgorithm,
+        metric: DistanceMetric,
+        config: SourceConfig,
+    ) -> Result<(), Error> {
+        executor::block_on(
+            self.async_create_index(name, algorithm, metric, config),
+        )
     }
 
     /// Returns the state object of the database.
@@ -193,22 +208,77 @@ pub struct IndexRef {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn create_test_database() -> Result<Database, Error> {
-        let path = PathBuf::from("odb_data");
-        let source_url = {
-            let db_path = file::get_tmp_dir()?.join("sqlite.db");
-            Some(format!("sqlite://{}?mode=rwc", db_path.display()))
-        };
-
-        let db = Database::open(path, source_url)?;
-        let state = db.state();
-        assert_eq!(state.source_type(), SourceType::SQLITE);
-        Ok(db)
-    }
+    use sqlx::{Executor, Row};
 
     #[test]
     fn test_database_open() {
         assert!(create_test_database().is_ok());
+    }
+
+    #[test]
+    fn test_database_create_index() {
+        let mut db = create_test_database().unwrap();
+
+        let name = "test_index";
+        let algorithm = IndexAlgorithm::BruteForce;
+        let metric = DistanceMetric::Euclidean;
+        let config = SourceConfig::new("embeddings", "id", "vector")
+            .with_metadata(vec!["data"]);
+
+        assert!(db.create_index(name, algorithm, metric, config).is_ok());
+    }
+
+    fn create_test_database() -> Result<Database, Error> {
+        let path = PathBuf::from("odb_data");
+        if path.try_exists().is_ok() {
+            fs::remove_dir_all(&path)?;
+        }
+
+        let db_path = file::get_tmp_dir()?.join("sqlite.db");
+        let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+
+        let db = Database::open(path, Some(db_url.clone()))?;
+        let state = db.state();
+        assert_eq!(state.source_type(), SourceType::SQLITE);
+
+        executor::block_on(setup_test_source(db_url)).unwrap();
+        Ok(db)
+    }
+
+    async fn setup_test_source(url: impl Into<String>) -> Result<(), Error> {
+        let url: String = url.into();
+        let mut conn = SourceConnection::connect(&url).await?;
+
+        let create_table = "CREATE TABLE IF NOT EXISTS embeddings (
+            id INTEGER PRIMARY KEY,
+            vector JSON NOT NULL,
+            data INTEGER NOT NULL
+        )";
+
+        let mut values = vec![];
+        for i in 0..100 {
+            let vector = vec![i as f32; 128];
+            let vector = serde_json::to_string(&vector)?;
+            let data = 1000 + i;
+            values.push(format!("({vector:?}, {data})"));
+        }
+
+        let values = values.join(",\n");
+        let insert_records = format!(
+            "INSERT INTO embeddings (vector, data)
+            VALUES {values}"
+        );
+
+        conn.execute("DROP TABLE IF EXISTS embeddings").await?;
+        conn.execute(create_table).await?;
+        conn.execute(insert_records.as_str()).await?;
+
+        let count = conn
+            .fetch_one("SELECT COUNT(*) FROM embeddings")
+            .await?
+            .get::<i64, usize>(0);
+
+        assert_eq!(count, 100);
+        Ok(())
     }
 }
