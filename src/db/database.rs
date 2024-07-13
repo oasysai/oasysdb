@@ -3,6 +3,7 @@ use futures::executor;
 use futures::stream::StreamExt;
 use sqlx::any::install_default_drivers;
 use sqlx::Acquire;
+use sqlx::Executor;
 use url::Url;
 use uuid::Uuid;
 
@@ -126,8 +127,71 @@ impl Database {
     ///
     /// This method is useful for deserializing and accessing
     /// the index directly from the file based on the algorithm type.
-    pub fn get_index(&self, name: impl AsRef<str>) -> Option<&IndexRef> {
+    pub fn get_index_ref(&self, name: impl AsRef<str>) -> Option<&IndexRef> {
         self.state.indices.get(name.as_ref())
+    }
+
+    /// Retrieves an index from the file and returns it as a trait object.
+    /// - `name`: Index name.
+    pub fn get_index(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Option<Box<dyn VectorIndex>> {
+        let IndexRef { algorithm, file } = self.get_index_ref(name)?;
+        algorithm.load_index(file).ok()
+    }
+
+    /// Updates the index with new records from the source asynchronously.
+    /// - `name`: Index name.
+    ///
+    /// This method checks the index for the last inserted record and queries
+    /// the source database for new records after that checkpoint. It then
+    /// updates the index with the new records.
+    pub async fn async_refresh_index(
+        &mut self,
+        name: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        let name = name.as_ref();
+        let index_ref = self.get_index_ref(name).ok_or_else(|| {
+            let code = ErrorCode::NotFound;
+            let message = format!("Index not found: {name}.");
+            Error::new(code, message)
+        })?;
+
+        // Cloning is necessary here to avoid borrowing issues.
+        let IndexRef { algorithm, file } = index_ref.to_owned();
+
+        // It's safe to unwrap here because we validated that index exists by
+        // calling get_index_ref method above.
+        let mut index = self.get_index(name).unwrap();
+
+        let query = {
+            let meta = index.metadata();
+            let checkpoint = meta.last_inserted.unwrap_or_default();
+            index.config().to_query_after(&checkpoint)
+        };
+
+        let conn = self.conn.acquire().await?;
+        let mut stream = sqlx::query(&query).fetch(conn);
+
+        let mut records = HashMap::new();
+        while let Some(row) = stream.next().await {
+            let row = row?;
+            let (id, record) = index.config().to_record(&row)?;
+            records.insert(id, record);
+        }
+
+        index.fit(records)?;
+        algorithm.persist_index(file, index)?;
+        Ok(())
+    }
+
+    /// Updates the index with new records from the source synchronously.
+    pub fn refresh_index(
+        &mut self,
+        name: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        executor::block_on(self.async_refresh_index(name))
     }
 
     /// Returns the state object of the database.
@@ -149,6 +213,16 @@ impl Database {
 
     fn indices_dir(&self) -> PathBuf {
         self.root.join("indices")
+    }
+
+    #[allow(dead_code)]
+    async fn async_execute_sql(
+        &mut self,
+        query: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        let conn = self.conn.acquire().await?;
+        conn.execute(query.as_ref()).await?;
+        Ok(())
     }
 }
 
@@ -207,7 +281,7 @@ impl DatabaseState {
 }
 
 /// Details about the index and where it is stored.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexRef {
     algorithm: IndexAlgorithm,
     file: IndexFile,
@@ -229,6 +303,9 @@ mod tests {
     use crate::prelude::RecordID;
     use sqlx::{Executor, Row};
 
+    const TABLE: &str = "embeddings";
+    const TEST_INDEX: &str = "test_index";
+
     #[test]
     fn test_database_open() {
         assert!(create_test_database().is_ok());
@@ -237,12 +314,27 @@ mod tests {
     #[test]
     fn test_database_create_index() {
         let db = create_test_database().unwrap();
-        let index_ref = db.get_index("test_index").unwrap();
-        let index = IndexBruteForce::load(&index_ref.file()).unwrap();
 
+        let index = db.get_index(TEST_INDEX).unwrap();
         let metadata = index.metadata();
+
         assert_eq!(metadata.count, 100);
         assert_eq!(metadata.last_inserted, Some(RecordID(100)));
+    }
+
+    #[test]
+    fn test_database_refresh_index() {
+        let mut db = create_test_database().unwrap();
+        let query = generate_insert_query(100, 10);
+        executor::block_on(db.async_execute_sql(query)).unwrap();
+
+        db.refresh_index(TEST_INDEX).unwrap();
+
+        let index = db.get_index(TEST_INDEX).unwrap();
+        let metadata = index.metadata();
+
+        assert_eq!(metadata.count, 110);
+        assert_eq!(metadata.last_inserted, Some(RecordID(110)));
     }
 
     fn create_test_database() -> Result<Database, Error> {
@@ -264,47 +356,55 @@ mod tests {
     }
 
     fn create_test_index(db: &mut Database) -> Result<(), Error> {
-        let config = SourceConfig::new("embeddings", "id", "vector")
+        let config = SourceConfig::new(TABLE, "id", "vector")
             .with_metadata(vec!["data"]);
 
         db.create_index(
-            "test_index",
+            TEST_INDEX,
             IndexAlgorithm::BruteForce,
             DistanceMetric::Euclidean,
             config,
         )?;
 
-        let index = db.get_index("test_index").unwrap();
-        assert_eq!(index.algorithm(), &IndexAlgorithm::BruteForce);
+        let index_ref = db.get_index_ref(TEST_INDEX).unwrap();
+        assert_eq!(index_ref.algorithm(), &IndexAlgorithm::BruteForce);
         Ok(())
+    }
+
+    fn generate_insert_query(start: u8, count: u8) -> String {
+        let start = start as u16;
+        let end = start + count as u16;
+
+        let mut values = vec![];
+        for i in start..end {
+            let vector = vec![i as f32; 128];
+            let vector = serde_json::to_string(&vector).unwrap();
+            let data = 1000 + i;
+            values.push(format!("({vector:?}, {data})"));
+        }
+
+        let values = values.join(",\n");
+        format!(
+            "INSERT INTO {TABLE} (vector, data)
+            VALUES {values}"
+        )
     }
 
     async fn setup_test_source(url: impl Into<String>) -> Result<(), Error> {
         let url: String = url.into();
         let mut conn = SourceConnection::connect(&url).await?;
 
-        let create_table = "CREATE TABLE IF NOT EXISTS embeddings (
+        let create_table = format!(
+            "CREATE TABLE IF NOT EXISTS {TABLE} (
             id INTEGER PRIMARY KEY,
             vector JSON NOT NULL,
-            data INTEGER NOT NULL
-        )";
-
-        let mut values = vec![];
-        for i in 0..100 {
-            let vector = vec![i as f32; 128];
-            let vector = serde_json::to_string(&vector)?;
-            let data = 1000 + i;
-            values.push(format!("({vector:?}, {data})"));
-        }
-
-        let values = values.join(",\n");
-        let insert_records = format!(
-            "INSERT INTO embeddings (vector, data)
-            VALUES {values}"
+            data INTEGER NOT NULL)"
         );
 
+        let insert_records = generate_insert_query(0, 100);
+
         conn.execute("DROP TABLE IF EXISTS embeddings").await?;
-        conn.execute(create_table).await?;
+        conn.execute(create_table.as_str()).await?;
         conn.execute(insert_records.as_str()).await?;
 
         let count = conn

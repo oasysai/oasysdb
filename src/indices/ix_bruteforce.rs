@@ -23,7 +23,9 @@ impl IndexOps for IndexBruteForce {
             data: HashMap::new(),
         }
     }
+}
 
+impl VectorIndex for IndexBruteForce {
     fn config(&self) -> &SourceConfig {
         &self.config
     }
@@ -35,9 +37,7 @@ impl IndexOps for IndexBruteForce {
     fn metadata(&self) -> &IndexMetadata {
         &self.metadata
     }
-}
 
-impl VectorIndex for IndexBruteForce {
     fn fit(&mut self, records: HashMap<RecordID, Record>) -> Result<(), Error> {
         if records.is_empty() {
             return Ok(());

@@ -135,6 +135,23 @@ impl SourceConfig {
         query.trim().to_string()
     }
 
+    /// Generates a SQL query string based on the configuration and checkpoint.
+    /// Instead of returning a query to fetch all records, this method returns
+    /// a query to fetch records from a specific RecordID.
+    /// - `checkpoint`: Record ID to start the query from.
+    pub(crate) fn to_query_after(&self, checkpoint: &RecordID) -> String {
+        let table = &self.table;
+        let columns = self.columns().join(", ");
+
+        let mut filter = format!("WHERE id > {}", checkpoint.0);
+        if let Some(string) = &self.filter {
+            filter.push_str(&format!(" AND ({string})"));
+        }
+
+        let query = format!("SELECT {columns} FROM {table} {filter}");
+        query.trim().to_string()
+    }
+
     /// Creates a tuple of record ID and record data from a row.
     pub(crate) fn to_record(
         &self,
@@ -216,15 +233,6 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
     fn persist(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         file::write_binary_file(path, self)
     }
-
-    /// Returns the configuration of the index.
-    fn config(&self) -> &SourceConfig;
-
-    /// Returns the distance metric used by the index.
-    fn metric(&self) -> &DistanceMetric;
-
-    /// Returns metadata about the index.
-    fn metadata(&self) -> &IndexMetadata;
 }
 
 /// Trait for vector index implementations.
@@ -243,6 +251,15 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
 /// }
 /// ```
 pub trait VectorIndex: Debug {
+    /// Returns the configuration of the index.
+    fn config(&self) -> &SourceConfig;
+
+    /// Returns the distance metric used by the index.
+    fn metric(&self) -> &DistanceMetric;
+
+    /// Returns metadata about the index.
+    fn metadata(&self) -> &IndexMetadata;
+
     /// Trains the index based on the new records.
     ///
     /// If the index has been trained and not empty, this method

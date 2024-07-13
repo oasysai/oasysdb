@@ -13,7 +13,7 @@ pub type ColumnName = String;
 /// ID type for records in the index from the data source.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct RecordID(pub u32);
 
 /// Record type stored in the index based on the

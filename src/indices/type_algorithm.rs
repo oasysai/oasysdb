@@ -2,7 +2,7 @@ use super::*;
 
 /// Algorithm options used to index and search vectors.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[derive(Serialize, Deserialize)]
 pub enum IndexAlgorithm {
     BruteForce, // -> IndexBruteForce
@@ -22,6 +22,18 @@ impl IndexAlgorithm {
         Box::new(index)
     }
 
+    pub(crate) fn load_index(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<Box<dyn VectorIndex>, Error> {
+        match self {
+            IndexAlgorithm::BruteForce => {
+                let index = Self::_load_index::<IndexBruteForce>(path)?;
+                Ok(Box::new(index))
+            }
+        }
+    }
+
     /// Persists the index to a file based on the algorithm.
     /// - `path`: Path to the file where the index will be stored.
     /// - `index`: Index to persist as a trait object.
@@ -35,6 +47,13 @@ impl IndexAlgorithm {
                 Self::_persist_index::<IndexBruteForce>(path, index)
             }
         }
+    }
+
+    fn _load_index<T: VectorIndex + IndexOps + 'static>(
+        path: impl AsRef<Path>,
+    ) -> Result<T, Error> {
+        let index = T::load(path)?;
+        Ok(index)
     }
 
     fn _persist_index<T: VectorIndex + IndexOps + 'static>(

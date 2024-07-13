@@ -21,6 +21,7 @@ pub enum ErrorCode {
 
     // Other generic errors.
     InternalError,
+    NotFound,
 
     // External error types.
     FileError,
