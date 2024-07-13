@@ -141,6 +141,21 @@ impl Database {
         algorithm.load_index(file).ok()
     }
 
+    /// Retrieves an index from the file and if found, returns it as a
+    /// trait object. Otherwise, returns a not found error.
+    /// - `name`: Index name.
+    pub fn try_get_index(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Box<dyn VectorIndex>, Error> {
+        let name = name.as_ref();
+        self.get_index(name).ok_or_else(|| {
+            let code = ErrorCode::NotFound;
+            let message = format!("Index not found in database: {name}.");
+            Error::new(code, message)
+        })
+    }
+
     /// Updates the index with new records from the source asynchronously.
     /// - `name`: Index name.
     ///
@@ -192,6 +207,20 @@ impl Database {
         name: impl AsRef<str>,
     ) -> Result<(), Error> {
         executor::block_on(self.async_refresh_index(name))
+    }
+
+    /// Searches the index for the nearest vectors to the query vector.
+    /// - `name`: Index name.
+    /// - `query`: Query vector.
+    /// - `k`: Number of nearest neighbors to return.
+    pub fn search_index(
+        &self,
+        name: impl AsRef<str>,
+        query: impl Into<Vector>,
+        k: usize,
+    ) -> Result<Vec<SearchResult>, Error> {
+        let index = self.try_get_index(name)?;
+        index.search(query.into(), k)
     }
 
     /// Returns the state object of the database.
@@ -335,6 +364,17 @@ mod tests {
 
         assert_eq!(metadata.count, 110);
         assert_eq!(metadata.last_inserted, Some(RecordID(110)));
+    }
+
+    #[test]
+    fn test_database_search_index() {
+        let db = create_test_database().unwrap();
+        let query = vec![0.0; 128];
+        let results = db.search_index(TEST_INDEX, query, 5).unwrap();
+
+        assert_eq!(results.len(), 5);
+        assert_eq!(results[0].id, RecordID(1));
+        assert_eq!(results[0].distance, 0.0);
     }
 
     fn create_test_database() -> Result<Database, Error> {

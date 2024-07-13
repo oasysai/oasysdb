@@ -2,6 +2,7 @@ use crate::indices::*;
 use crate::types::conn::*;
 use crate::types::err::*;
 use crate::types::file;
+use crate::types::record::Vector;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
