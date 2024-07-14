@@ -2,10 +2,9 @@ use crate::types::err::{Error, ErrorCode};
 use half::f16;
 use serde::{Deserialize, Serialize};
 use sqlx::any::AnyRow;
-use sqlx::database::HasValueRef;
-use sqlx::{Database, Decode, Row, Type};
+use sqlx::postgres::any::AnyTypeInfoKind as SQLType;
+use sqlx::{Row, ValueRef};
 use std::collections::HashMap;
-use std::error::Error as StandardError;
 
 /// Column name of the SQL data source table.
 pub type ColumnName = String;
@@ -59,7 +58,7 @@ impl From<Vec<f32>> for Vector {
 pub enum RecordData {
     Boolean(bool),
     Float(f32),
-    Integer(usize),
+    Integer(isize),
     String(String),
 }
 
@@ -75,7 +74,7 @@ impl From<&str> for RecordData {
     fn from(value: &str) -> Self {
         // Parsing integer must be done before float.
         // Since integer can be parsed as float but not vice versa.
-        if let Ok(integer) = value.parse::<usize>() {
+        if let Ok(integer) = value.parse::<isize>() {
             return integer.into();
         }
 
@@ -97,8 +96,8 @@ impl From<f32> for RecordData {
     }
 }
 
-impl From<usize> for RecordData {
-    fn from(value: usize) -> Self {
+impl From<isize> for RecordData {
+    fn from(value: isize) -> Self {
         RecordData::Integer(value)
     }
 }
@@ -135,65 +134,38 @@ impl RowOps for RecordID {
     }
 }
 
-impl<'r, DB: Database> Decode<'r, DB> for Vector
-where
-    &'r str: Decode<'r, DB>,
-{
-    fn decode(
-        value: <DB as HasValueRef<'r>>::ValueRef,
-    ) -> Result<Vector, Box<dyn StandardError + Send + Sync + 'static>> {
-        let value = <&str as Decode<DB>>::decode(value)?;
-        let vector: Vec<f32> = serde_json::from_str(value)?;
-        Ok(Vector(vector.into_iter().map(f16::from_f32).collect()))
-    }
-}
-
-impl<DB> Type<DB> for Vector
-where
-    DB: Database,
-    &'static str: Type<DB>,
-{
-    fn type_info() -> DB::TypeInfo {
-        <&str as Type<DB>>::type_info()
-    }
-}
-
 impl RowOps for Vector {
     fn from_row(
         column_name: impl Into<String>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
         let column: String = column_name.into();
-        let vector = row.try_get::<Self, &str>(&column).map_err(|_| {
+        let value = row.try_get_raw::<&str>(&column)?;
+        let value_type = value.type_info().kind();
+
+        if value_type == SQLType::Null {
             let code = ErrorCode::InvalidVector;
-            let message = "Unable to get vector from the row.";
-            Error::new(code, message)
-        })?;
+            let message = "Vector must not be empty or null.";
+            return Err(Error::new(code, message));
+        }
 
-        Ok(vector)
-    }
-}
-
-impl<'r, DB: Database> Decode<'r, DB> for RecordData
-where
-    &'r str: Decode<'r, DB>,
-{
-    fn decode(
-        value: <DB as HasValueRef<'r>>::ValueRef,
-    ) -> Result<RecordData, Box<dyn StandardError + Send + Sync + 'static>>
-    {
-        let value = <&str as Decode<DB>>::decode(value)?;
-        Ok(RecordData::from(value))
-    }
-}
-
-impl<DB> Type<DB> for RecordData
-where
-    DB: Database,
-    &'static str: Type<DB>,
-{
-    fn type_info() -> DB::TypeInfo {
-        <&str as Type<DB>>::type_info()
+        match value_type {
+            SQLType::Text => {
+                let value = row.try_get::<String, &str>(&column)?;
+                let vector: Vec<f32> = serde_json::from_str(&value)?;
+                Ok(Vector::from(vector))
+            }
+            SQLType::Blob => {
+                let value = row.try_get::<Vec<u8>, &str>(&column)?;
+                let vector: Vec<f32> = bincode::deserialize(&value)?;
+                Ok(Vector::from(vector))
+            }
+            _ => {
+                let code = ErrorCode::InvalidVector;
+                let message = "Vector must be stored as JSON string or blob.";
+                Err(Error::new(code, message))
+            }
+        }
     }
 }
 
@@ -203,6 +175,44 @@ impl RowOps for Option<RecordData> {
         row: &AnyRow,
     ) -> Result<Self, Error> {
         let column: String = column_name.into();
-        Ok(row.try_get::<Self, &str>(&column).unwrap_or_default())
+        let value = row.try_get_raw::<&str>(&column)?;
+        let value_type = value.type_info().kind();
+
+        if value_type == SQLType::Null {
+            return Ok(None);
+        }
+
+        if value_type.is_integer() {
+            let value: i64 = row.try_get::<i64, &str>(&column)?;
+            return Ok(Some(RecordData::Integer(value as isize)));
+        }
+
+        // Handle types other than null and integer below.
+
+        let data = match value_type {
+            SQLType::Text => {
+                let value = row.try_get::<String, &str>(&column)?;
+                RecordData::String(value.to_string())
+            }
+            SQLType::Bool => {
+                let value: bool = row.try_get::<bool, &str>(&column)?;
+                RecordData::Boolean(value)
+            }
+            SQLType::Real => {
+                let value: f32 = row.try_get::<f32, &str>(&column)?;
+                RecordData::Float(value)
+            }
+            SQLType::Double => {
+                let value: f64 = row.try_get::<f64, &str>(&column)?;
+                RecordData::Float(value as f32)
+            }
+            _ => {
+                let code = ErrorCode::InvalidMetadata;
+                let message = "Unsupported type for OasysDB metadata.";
+                return Err(Error::new(code, message));
+            }
+        };
+
+        Ok(Some(data))
     }
 }

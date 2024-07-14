@@ -223,6 +223,22 @@ impl Database {
         index.search(query.into(), k)
     }
 
+    /// Searches the index for nearest neighbors with post-search filters.
+    /// - `name`: Index name.
+    /// - `query`: Query vector.
+    /// - `k`: Number of nearest neighbors to return.
+    /// - `filters`: SQL-like filters to apply.
+    pub fn search_index_with_filters(
+        &self,
+        name: impl AsRef<str>,
+        query: impl Into<Vector>,
+        k: usize,
+        filters: impl Into<Filters>,
+    ) -> Result<Vec<SearchResult>, Error> {
+        let index = self.try_get_index(name)?;
+        index.search_with_filters(query.into(), k, filters.into())
+    }
+
     /// Returns the state object of the database.
     pub fn state(&self) -> &DatabaseState {
         &self.state
@@ -375,6 +391,19 @@ mod tests {
         assert_eq!(results.len(), 5);
         assert_eq!(results[0].id, RecordID(1));
         assert_eq!(results[0].distance, 0.0);
+    }
+
+    #[test]
+    fn test_database_search_index_with_filters() {
+        let db = create_test_database().unwrap();
+        let query = vec![0.0; 128];
+        let filters = Filters::from("data >= 1050");
+        let results = db
+            .search_index_with_filters(TEST_INDEX, query, 5, filters)
+            .unwrap();
+
+        assert_eq!(results.len(), 5);
+        assert_eq!(results[0].id, RecordID(51));
     }
 
     fn create_test_database() -> Result<Database, Error> {
