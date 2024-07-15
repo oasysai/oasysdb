@@ -239,6 +239,26 @@ impl Database {
         index.search_with_filters(query.into(), k, filters.into())
     }
 
+    /// Rebuilds the index from the existing records in the index.
+    /// - `name`: Index name.
+    ///
+    /// Some indexing algorithms may not support perfect incremental updates.
+    /// This method can be useful to rebalance the index.
+    pub fn rebuild_index(
+        &mut self,
+        name: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        let name = name.as_ref();
+        let mut index = self.try_get_index(name)?;
+        index.refit()?;
+
+        // Unwrap is safe here because we validated that the index exists above.
+        let IndexRef { algorithm, file } = self.get_index_ref(name).unwrap();
+        algorithm.persist_index(file, index)?;
+
+        Ok(())
+    }
+
     /// Returns the state object of the database.
     pub fn state(&self) -> &DatabaseState {
         &self.state
@@ -404,6 +424,15 @@ mod tests {
 
         assert_eq!(results.len(), 5);
         assert_eq!(results[0].id, RecordID(51));
+    }
+
+    #[test]
+    fn test_database_rebuild_index() {
+        let mut db = create_test_database().unwrap();
+        db.rebuild_index(TEST_INDEX).unwrap();
+
+        let index = db.get_index(TEST_INDEX).unwrap();
+        assert_eq!(index.metadata().count, 100);
     }
 
     fn create_test_database() -> Result<Database, Error> {
