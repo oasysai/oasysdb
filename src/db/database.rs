@@ -259,6 +259,19 @@ impl Database {
         Ok(())
     }
 
+    /// Deletes an index from the database given its name.
+    pub fn delete_index(&mut self, name: impl AsRef<str>) -> Result<(), Error> {
+        let name = name.as_ref();
+        let index_ref = self.state.indices.remove(name).ok_or_else(|| {
+            let code = ErrorCode::NotFound;
+            let message = format!("Index doesn't exist: {name}.");
+            Error::new(code, message)
+        })?;
+
+        fs::remove_file(index_ref.file())?;
+        file::write_binary_file(self.state_file(), &self.state)
+    }
+
     /// Returns the state object of the database.
     pub fn state(&self) -> &DatabaseState {
         &self.state
@@ -433,6 +446,15 @@ mod tests {
 
         let index = db.get_index(TEST_INDEX).unwrap();
         assert_eq!(index.metadata().count, 100);
+    }
+
+    #[test]
+    fn test_database_delete_index() {
+        let mut db = create_test_database().unwrap();
+        db.delete_index(TEST_INDEX).unwrap();
+
+        let state = db.state();
+        assert!(!state.indices.contains_key(TEST_INDEX));
     }
 
     fn create_test_database() -> Result<Database, Error> {
