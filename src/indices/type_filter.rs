@@ -124,7 +124,7 @@ impl From<&str> for Filter {
         let parts: Vec<&str> = value.splitn(3, ' ').collect();
         let parts: Vec<&str> = parts.into_iter().map(|p| p.trim()).collect();
 
-        let column = parts[0].to_string();
+        let column = parts[0].into();
         let operator = FilterOperator::from(parts[1]);
         let value = RecordData::from(parts[2]);
         Filter { column, value, operator }
@@ -178,7 +178,7 @@ mod tests {
 
         let mut data = HashMap::new();
         for (column, value) in columns.into_iter().zip(values.into_iter()) {
-            data.insert(column.to_string(), Some(value));
+            data.insert(column.into(), Some(value));
         }
 
         data
@@ -188,7 +188,7 @@ mod tests {
     fn test_filters_from_string() {
         let filters = Filters::from("name CONTAINS Ada");
         let expected = Filters::AND(vec![Filter {
-            column: "name".to_string(),
+            column: "name".into(),
             value: "Ada".into(),
             operator: FilterOperator::Contain,
         }]);
@@ -198,13 +198,13 @@ mod tests {
         let filters = Filters::from("gpa >= 3.0 OR age < 21");
         let expected = {
             let filter_gpa = Filter {
-                column: "gpa".to_string(),
+                column: "gpa".into(),
                 value: RecordData::Float(3.0),
                 operator: FilterOperator::GreaterThanOrEqual,
             };
 
             let filter_age = Filter {
-                column: "age".to_string(),
+                column: "age".into(),
                 value: RecordData::Integer(21),
                 operator: FilterOperator::LessThan,
             };

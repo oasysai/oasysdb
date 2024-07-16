@@ -3,8 +3,7 @@ use futures::executor;
 use futures::stream::StreamExt;
 use sqlx::any::install_default_drivers;
 use sqlx::Acquire;
-use sqlx::Executor;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use url::Url;
 use uuid::Uuid;
 
@@ -12,8 +11,8 @@ type DatabaseURL = String;
 type IndexName = String;
 type IndexFile = PathBuf;
 
-/// A pool of indices loaded to the database memory.
-type IndicesPool = HashMap<IndexName, Box<dyn VectorIndex>>;
+type Index = Arc<Mutex<Box<dyn VectorIndex>>>;
+type IndicesPool = Mutex<HashMap<IndexName, Index>>;
 
 /// The vector database interface.
 pub struct Database {
@@ -39,7 +38,7 @@ impl Database {
     /// ```
     pub fn open(
         root: impl Into<PathBuf>,
-        source_url: Option<impl Into<String>>,
+        source_url: Option<impl Into<DatabaseURL>>,
     ) -> Result<Database, Error> {
         let root_dir: PathBuf = root.into();
         let indices_dir = root_dir.join("indices");
@@ -57,7 +56,7 @@ impl Database {
                 Error::new(code, message)
             })?;
 
-            let source: String = source.into();
+            let source = source.into();
             DatabaseState::validate_source(&source)?;
 
             let state = DatabaseState { source, indices: HashMap::new() };
@@ -67,7 +66,7 @@ impl Database {
 
         state.validate_connection()?;
         let state = Mutex::new(state);
-        let pool: IndicesPool = HashMap::new();
+        let pool: IndicesPool = Mutex::new(HashMap::new());
         Ok(Self { root: root_dir, state, pool })
     }
 
@@ -78,7 +77,7 @@ impl Database {
     /// - `config`: Index data source configuration.
     pub async fn async_create_index(
         &self,
-        name: impl Into<String>,
+        name: impl Into<IndexName>,
         algorithm: IndexAlgorithm,
         metric: DistanceMetric,
         config: SourceConfig,
@@ -104,12 +103,16 @@ impl Database {
         index.fit(records)?;
 
         // Persist the index to the file.
-        algorithm.persist_index(&index_file, index)?;
+        algorithm.persist_index(&index_file, index.as_ref())?;
+
+        let index_name: IndexName = name.into();
+        let mut pool = self.pool.lock()?;
+        pool.insert(index_name.clone(), Arc::new(Mutex::new(index)));
 
         // Update db state with the new index.
-        let index_ref = IndexRef { algorithm, file: index_file.clone() };
+        let index_ref = IndexRef { algorithm, file: index_file };
         let mut state = self.state.lock()?;
-        state.indices.insert(name.into(), index_ref);
+        state.indices.insert(index_name, index_ref);
 
         drop(state);
         self.persist_state()?;
@@ -120,7 +123,7 @@ impl Database {
     /// Creates a new index in the database synchronously.
     pub fn create_index(
         &self,
-        name: impl Into<String>,
+        name: impl Into<IndexName>,
         algorithm: IndexAlgorithm,
         metric: DistanceMetric,
         config: SourceConfig,
@@ -140,23 +143,31 @@ impl Database {
         Some(index_ref.to_owned())
     }
 
-    /// Retrieves an index from the file and returns it as a trait object.
+    /// Retrieves an index and returns it as a trait object.
     /// - `name`: Index name.
-    pub fn get_index(
-        &self,
-        name: impl AsRef<str>,
-    ) -> Option<Box<dyn VectorIndex>> {
+    ///
+    /// This method will return the index from the pool if it exists.
+    /// Otherwise, it will load the index from the file and store it
+    /// in the pool for future access.
+    pub fn get_index(&self, name: impl AsRef<str>) -> Option<Index> {
+        let name = name.as_ref();
         let IndexRef { algorithm, file } = self.get_index_ref(name)?;
-        algorithm.load_index(file).ok()
+
+        let mut pool = self.pool.lock().ok()?;
+        if let Some(index) = pool.get(name).cloned() {
+            return Some(index);
+        }
+
+        let index = algorithm.load_index(file).ok()?;
+        let index: Index = Arc::new(Mutex::new(index));
+        pool.insert(name.into(), index.clone());
+        Some(index)
     }
 
-    /// Retrieves an index from the file and if found, returns it as a
-    /// trait object. Otherwise, returns a not found error.
+    /// Retrieves an index and if found, returns it as a trait object.
+    /// Otherwise, returns a not found error.
     /// - `name`: Index name.
-    pub fn try_get_index(
-        &self,
-        name: impl AsRef<str>,
-    ) -> Result<Box<dyn VectorIndex>, Error> {
+    pub fn try_get_index(&self, name: impl AsRef<str>) -> Result<Index, Error> {
         let name = name.as_ref();
         self.get_index(name).ok_or_else(|| {
             let code = ErrorCode::NotFound;
@@ -187,12 +198,15 @@ impl Database {
 
         // It's safe to unwrap here because we validated that index exists by
         // calling get_index_ref method above.
-        let mut index = self.get_index(name).unwrap();
+        let index: Index = self.get_index(name).unwrap();
 
-        let query = {
+        let (config, query) = {
+            let index = index.lock()?;
             let meta = index.metadata();
+            let config = index.config();
+
             let checkpoint = meta.last_inserted.unwrap_or_default();
-            index.config().to_query_after(&checkpoint)
+            (config.to_owned(), config.to_query_after(&checkpoint))
         };
 
         let mut conn = self.state()?.async_connect().await?;
@@ -201,12 +215,13 @@ impl Database {
         let mut records = HashMap::new();
         while let Some(row) = stream.next().await {
             let row = row?;
-            let (id, record) = index.config().to_record(&row)?;
+            let (id, record) = config.to_record(&row)?;
             records.insert(id, record);
         }
 
+        let mut index = index.lock()?;
         index.fit(records)?;
-        algorithm.persist_index(file, index)?;
+        algorithm.persist_index(file, index.as_ref())?;
         Ok(())
     }
 
@@ -225,7 +240,8 @@ impl Database {
         query: impl Into<Vector>,
         k: usize,
     ) -> Result<Vec<SearchResult>, Error> {
-        let index = self.try_get_index(name)?;
+        let index: Index = self.try_get_index(name)?;
+        let index = index.lock()?;
         index.search(query.into(), k)
     }
 
@@ -241,7 +257,8 @@ impl Database {
         k: usize,
         filters: impl Into<Filters>,
     ) -> Result<Vec<SearchResult>, Error> {
-        let index = self.try_get_index(name)?;
+        let index: Index = self.try_get_index(name)?;
+        let index = index.lock()?;
         index.search_with_filters(query.into(), k, filters.into())
     }
 
@@ -252,12 +269,13 @@ impl Database {
     /// This method can be useful to rebalance the index.
     pub fn rebuild_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         let name = name.as_ref();
-        let mut index = self.try_get_index(name)?;
+        let index: Index = self.try_get_index(name)?;
+        let mut index = index.lock()?;
         index.refit()?;
 
         // Unwrap is safe here because we validated that the index exists above.
         let IndexRef { algorithm, file } = self.get_index_ref(name).unwrap();
-        algorithm.persist_index(file, index)?;
+        algorithm.persist_index(file, index.as_ref())?;
 
         Ok(())
     }
@@ -277,10 +295,52 @@ impl Database {
         self.persist_state()
     }
 
+    /// Loads indices to the pool if they are not already loaded.
+    /// - `names`: Names of the indices.
+    pub fn load_indices(
+        &self,
+        names: Vec<impl AsRef<str>>,
+    ) -> Result<(), Error> {
+        let state = self.state()?;
+        if names.iter().any(|name| !state.indices.contains_key(name.as_ref())) {
+            let code = ErrorCode::NotFound;
+            let message = "Some indices are not found in the database.";
+            return Err(Error::new(code, message));
+        }
+
+        for name in names {
+            self.get_index(name);
+        }
+
+        Ok(())
+    }
+
+    /// Releases indices from the pool.
+    /// - `names`: Names of the indices.
+    ///
+    /// This method can free up memory by removing indices from the pool.
+    /// After the indices are released, when they need to be accessed again,
+    /// they will be loaded from the file.
+    ///
+    /// Loading indices from the file might take some time. Therefore,
+    /// it's recommended to keep the frequently used indices in the pool.
+    pub fn release_indices(
+        &self,
+        names: Vec<impl AsRef<str>>,
+    ) -> Result<(), Error> {
+        for name in names {
+            let name = name.as_ref();
+            let mut pool = self.pool.lock()?;
+            pool.remove(name);
+        }
+
+        Ok(())
+    }
+
     /// Returns the state object of the database.
     pub fn state(&self) -> Result<DatabaseState, Error> {
         let state = self.state.lock()?;
-        Ok(state.clone())
+        Ok(state.to_owned())
     }
 
     /// Persists the state of the database to the state file.
@@ -302,16 +362,6 @@ impl Database {
 
     fn indices_dir(&self) -> PathBuf {
         self.root.join("indices")
-    }
-
-    #[allow(dead_code)]
-    async fn async_execute_sql(
-        &self,
-        query: impl AsRef<str>,
-    ) -> Result<(), Error> {
-        let mut conn = self.state()?.async_connect().await?;
-        conn.execute(query.as_ref()).await?;
-        Ok(())
     }
 }
 
@@ -362,8 +412,8 @@ impl DatabaseState {
     }
 
     /// Validates the data source URL.
-    pub fn validate_source(url: impl Into<String>) -> Result<(), Error> {
-        let url: String = url.into();
+    pub fn validate_source(url: impl Into<DatabaseURL>) -> Result<(), Error> {
+        let url = url.into();
         let url = url.parse::<Url>().map_err(|_| {
             let code = ErrorCode::InvalidSource;
             let message = "Invalid database source URL.";
@@ -407,6 +457,7 @@ mod tests {
     use super::*;
     use crate::prelude::RecordID;
     use sqlx::{Executor, Row};
+    use std::sync::MutexGuard;
 
     const TABLE: &str = "embeddings";
     const TEST_INDEX: &str = "test_index";
@@ -417,29 +468,33 @@ mod tests {
     }
 
     #[test]
-    fn test_database_create_index() {
-        let db = create_test_database().unwrap();
+    fn test_database_create_index() -> Result<(), Error> {
+        let db = create_test_database()?;
 
-        let index = db.get_index(TEST_INDEX).unwrap();
+        let index: Index = db.try_get_index(TEST_INDEX)?;
+        let index = index.lock()?;
         let metadata = index.metadata();
 
         assert_eq!(metadata.count, 100);
         assert_eq!(metadata.last_inserted, Some(RecordID(100)));
+        Ok(())
     }
 
     #[test]
-    fn test_database_refresh_index() {
-        let db = create_test_database().unwrap();
+    fn test_database_refresh_index() -> Result<(), Error> {
+        let db = create_test_database()?;
         let query = generate_insert_query(100, 10);
-        executor::block_on(db.async_execute_sql(query)).unwrap();
+        executor::block_on(db.async_execute_sql(query))?;
 
         db.refresh_index(TEST_INDEX).unwrap();
 
-        let index = db.get_index(TEST_INDEX).unwrap();
+        let index: Index = db.try_get_index(TEST_INDEX)?;
+        let index = index.lock()?;
         let metadata = index.metadata();
 
         assert_eq!(metadata.count, 110);
         assert_eq!(metadata.last_inserted, Some(RecordID(110)));
+        Ok(())
     }
 
     #[test]
@@ -467,12 +522,14 @@ mod tests {
     }
 
     #[test]
-    fn test_database_rebuild_index() {
-        let db = create_test_database().unwrap();
-        db.rebuild_index(TEST_INDEX).unwrap();
+    fn test_database_rebuild_index() -> Result<(), Error> {
+        let db = create_test_database()?;
+        db.rebuild_index(TEST_INDEX)?;
 
-        let index = db.get_index(TEST_INDEX).unwrap();
+        let index: Index = db.try_get_index(TEST_INDEX)?;
+        let index = index.lock()?;
         assert_eq!(index.metadata().count, 100);
+        Ok(())
     }
 
     #[test]
@@ -484,20 +541,39 @@ mod tests {
         assert!(!state.indices.contains_key(TEST_INDEX));
     }
 
+    #[test]
+    fn test_database_indices_pool() -> Result<(), Error> {
+        let db = create_test_database()?;
+
+        {
+            db.release_indices(vec![TEST_INDEX])?;
+            let pool = db.pool()?;
+            assert!(!pool.contains_key(TEST_INDEX));
+        }
+
+        {
+            db.load_indices(vec![TEST_INDEX])?;
+            let pool = db.pool()?;
+            assert!(pool.contains_key(TEST_INDEX));
+        }
+
+        Ok(())
+    }
+
     fn create_test_database() -> Result<Database, Error> {
         let path = PathBuf::from("odb_data");
-        if path.try_exists().is_ok() {
+        if path.try_exists()? {
             fs::remove_dir_all(&path)?;
         }
 
         let db_path = file::get_tmp_dir()?.join("sqlite.db");
         let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
 
-        let mut db = Database::open(path, Some(db_url.clone()))?;
+        let mut db = Database::open(path, Some(db_url.to_owned()))?;
         let state = db.state()?;
         assert_eq!(state.source_type(), SourceType::SQLITE);
 
-        executor::block_on(setup_test_source(db_url))?;
+        executor::block_on(setup_test_source(&db_url))?;
         create_test_index(&mut db)?;
         Ok(db)
     }
@@ -537,8 +613,10 @@ mod tests {
         )
     }
 
-    async fn setup_test_source(url: impl Into<String>) -> Result<(), Error> {
-        let url: String = url.into();
+    async fn setup_test_source(
+        url: impl Into<DatabaseURL>,
+    ) -> Result<(), Error> {
+        let url = url.into();
         let mut conn = SourceConnection::connect(&url).await?;
 
         let create_table = format!(
@@ -561,5 +639,20 @@ mod tests {
 
         assert_eq!(count, 100);
         Ok(())
+    }
+
+    impl Database {
+        fn pool(&self) -> Result<MutexGuard<HashMap<IndexName, Index>>, Error> {
+            Ok(self.pool.lock()?)
+        }
+
+        async fn async_execute_sql(
+            &self,
+            query: impl AsRef<str>,
+        ) -> Result<(), Error> {
+            let mut conn = self.state()?.async_connect().await?;
+            conn.execute(query.as_ref()).await?;
+            Ok(())
+        }
     }
 }

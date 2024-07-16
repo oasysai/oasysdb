@@ -10,7 +10,6 @@ use std::collections::HashMap;
 pub type ColumnName = String;
 
 /// ID type for records in the index from the data source.
-#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct RecordID(pub u32);
@@ -27,12 +26,12 @@ pub struct Record {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Vector data type stored in the index.
-pub struct Vector(pub Vec<f16>);
+pub struct Vector(pub Box<[f16]>);
 
 impl Vector {
     /// Returns the vector data as a vector of f32.
     pub fn to_vec(&self) -> Vec<f32> {
-        self.0.clone().into_iter().map(f16::to_f32).collect()
+        self.0.iter().map(|v| v.to_f32()).collect()
     }
 
     /// Returns the dimension of the vector.
@@ -111,7 +110,7 @@ impl From<bool> for RecordData {
 pub(crate) trait RowOps {
     /// Retrieves data from the row based on the column name.
     fn from_row(
-        column_name: impl Into<String>,
+        column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error>
     where
@@ -120,10 +119,10 @@ pub(crate) trait RowOps {
 
 impl RowOps for RecordID {
     fn from_row(
-        column_name: impl Into<String>,
+        column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
-        let column_name: String = column_name.into();
+        let column_name = column_name.into();
         let id = row.try_get::<i32, &str>(&column_name).map_err(|_| {
             let code = ErrorCode::InvalidID;
             let message = "Unable to get integer ID from the row.";
@@ -136,10 +135,10 @@ impl RowOps for RecordID {
 
 impl RowOps for Vector {
     fn from_row(
-        column_name: impl Into<String>,
+        column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
-        let column: String = column_name.into();
+        let column = column_name.into();
         let value = row.try_get_raw::<&str>(&column)?;
         let value_type = value.type_info().kind();
 
@@ -171,10 +170,10 @@ impl RowOps for Vector {
 
 impl RowOps for Option<RecordData> {
     fn from_row(
-        column_name: impl Into<String>,
+        column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
-        let column: String = column_name.into();
+        let column = column_name.into();
         let value = row.try_get_raw::<&str>(&column)?;
         let value_type = value.type_info().kind();
 

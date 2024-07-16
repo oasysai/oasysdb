@@ -43,7 +43,7 @@ impl From<&str> for SourceType {
 }
 
 /// Data source configuration for a vector index.
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceConfig {
     /// Name of the SQL table to use as data source.
     pub table: TableName,
@@ -57,6 +57,18 @@ pub struct SourceConfig {
     pub filter: Option<String>,
 }
 
+impl Default for SourceConfig {
+    fn default() -> Self {
+        SourceConfig {
+            table: "table".into(),
+            primary_key: "id".into(),
+            vector: "vector".into(),
+            metadata: None,
+            filter: None,
+        }
+    }
+}
+
 impl SourceConfig {
     /// Creates a source configuration with mostly default values.
     /// - `primary_key`: Column name of the primary key in the data source.
@@ -66,9 +78,9 @@ impl SourceConfig {
     /// - No metadata columns.
     /// - No query filter.
     pub fn new(
-        table: impl Into<String>,
-        primary_key: impl Into<String>,
-        vector: impl Into<String>,
+        table: impl Into<TableName>,
+        primary_key: impl Into<ColumnName>,
+        vector: impl Into<ColumnName>,
     ) -> Self {
         SourceConfig {
             table: table.into(),
@@ -87,7 +99,10 @@ impl SourceConfig {
     /// - Integer
     /// - Float
     /// - Boolean
-    pub fn with_metadata(mut self, metadata: Vec<impl Into<String>>) -> Self {
+    pub fn with_metadata(
+        mut self,
+        metadata: Vec<impl Into<ColumnName>>,
+    ) -> Self {
         self.metadata = Some(metadata.into_iter().map(|s| s.into()).collect());
         self
     }
@@ -112,7 +127,7 @@ impl SourceConfig {
             columns.extend(metadata.iter());
         }
 
-        columns.into_iter().map(|s| s.to_string()).collect()
+        columns.into_iter().map(|s| s.to_owned()).collect()
     }
 
     /// Generates a SQL query string based on the configuration.
@@ -163,7 +178,7 @@ impl SourceConfig {
         let mut metadata = HashMap::new();
         if let Some(metadata_columns) = &self.metadata {
             for column in metadata_columns {
-                let value = RowOps::from_row(column, row)?;
+                let value = RowOps::from_row(column.to_owned(), row)?;
                 metadata.insert(column.to_owned(), value);
             }
         }
@@ -250,7 +265,7 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
 ///     // Other fields...
 /// }
 /// ```
-pub trait VectorIndex: Debug {
+pub trait VectorIndex: Debug + Send + Sync {
     /// Returns the configuration of the index.
     fn config(&self) -> &SourceConfig;
 
@@ -337,7 +352,7 @@ mod index_tests {
             let id = RecordID(i as u32);
             let vector = Vector::from(vec![i as f32; 128]);
             let data = HashMap::from([(
-                "number".to_string(),
+                "number".into(),
                 Some(RecordData::Integer(1000 + i)),
             )]);
 

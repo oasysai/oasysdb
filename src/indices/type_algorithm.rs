@@ -40,7 +40,7 @@ impl IndexAlgorithm {
     pub(crate) fn persist_index(
         &self,
         path: impl AsRef<Path>,
-        index: Box<dyn VectorIndex>,
+        index: &dyn VectorIndex,
     ) -> Result<(), Error> {
         match self {
             IndexAlgorithm::BruteForce => {
@@ -58,7 +58,7 @@ impl IndexAlgorithm {
 
     fn _persist_index<T: VectorIndex + IndexOps + 'static>(
         path: impl AsRef<Path>,
-        index: Box<dyn VectorIndex>,
+        index: &dyn VectorIndex,
     ) -> Result<(), Error> {
         let index = index.as_any().downcast_ref::<T>().ok_or_else(|| {
             let code = ErrorCode::InternalError;
