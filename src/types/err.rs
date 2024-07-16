@@ -6,6 +6,7 @@ use serde_json::Error as JSONError;
 use sqlx::Error as SQLError;
 use std::error::Error as StandardError;
 use std::io::Error as IOError;
+use std::sync::PoisonError;
 
 #[allow(missing_docs)]
 #[derive(Debug, Eq, PartialEq)]
@@ -16,14 +17,15 @@ pub enum ErrorCode {
 
     // Data type related.
     InvalidID,
-    InvalidVector,
     InvalidMetadata,
+    InvalidVector,
 
     // Other generic errors.
     InternalError,
     NotFound,
 
     // External error types.
+    ConcurrencyError,
     FileError,
     SerializationError,
     SQLError,
@@ -79,6 +81,13 @@ impl From<SQLError> for Error {
 impl From<JSONError> for Error {
     fn from(err: JSONError) -> Self {
         let code = ErrorCode::SerializationError;
+        Error::new(code, err.to_string())
+    }
+}
+
+impl<T> From<PoisonError<T>> for Error {
+    fn from(err: PoisonError<T>) -> Self {
+        let code = ErrorCode::ConcurrencyError;
         Error::new(code, err.to_string())
     }
 }

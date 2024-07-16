@@ -4,6 +4,7 @@ use futures::stream::StreamExt;
 use sqlx::any::install_default_drivers;
 use sqlx::Acquire;
 use sqlx::Executor;
+use std::sync::Mutex;
 use url::Url;
 use uuid::Uuid;
 
@@ -11,11 +12,14 @@ type DatabaseURL = String;
 type IndexName = String;
 type IndexFile = PathBuf;
 
+/// A pool of indices loaded to the database memory.
+type IndicesPool = HashMap<IndexName, Box<dyn VectorIndex>>;
+
 /// The vector database interface.
 pub struct Database {
     root: PathBuf,
-    state: DatabaseState,
-    conn: SourceConnection,
+    state: Mutex<DatabaseState>,
+    pool: IndicesPool,
 }
 
 impl Database {
@@ -61,8 +65,10 @@ impl Database {
             state
         };
 
-        let conn: SourceConnection = state.connect()?;
-        Ok(Self { root: root_dir, state, conn })
+        state.validate_connection()?;
+        let state = Mutex::new(state);
+        let pool: IndicesPool = HashMap::new();
+        Ok(Self { root: root_dir, state, pool })
     }
 
     /// Creates a new index in the database asynchronously.
@@ -71,14 +77,12 @@ impl Database {
     /// - `metric`: Distance metric for the index.
     /// - `config`: Index data source configuration.
     pub async fn async_create_index(
-        &mut self,
+        &self,
         name: impl Into<String>,
         algorithm: IndexAlgorithm,
         metric: DistanceMetric,
         config: SourceConfig,
     ) -> Result<(), Error> {
-        let state_file = self.state_file();
-
         // Create a new file where the index will be stored.
         let index_file = {
             let uuid = Uuid::new_v4().to_string();
@@ -86,8 +90,8 @@ impl Database {
         };
 
         let query = config.to_query();
-        let conn = self.conn.acquire().await?;
-        let mut stream = sqlx::query(&query).fetch(conn);
+        let mut conn = self.state()?.async_connect().await?;
+        let mut stream = sqlx::query(&query).fetch(conn.acquire().await?);
 
         let mut records = HashMap::new();
         while let Some(row) = stream.next().await {
@@ -104,15 +108,18 @@ impl Database {
 
         // Update db state with the new index.
         let index_ref = IndexRef { algorithm, file: index_file.clone() };
-        self.state.indices.insert(name.into(), index_ref);
-        file::write_binary_file(&state_file, &self.state)?;
+        let mut state = self.state.lock()?;
+        state.indices.insert(name.into(), index_ref);
+
+        drop(state);
+        self.persist_state()?;
 
         Ok(())
     }
 
     /// Creates a new index in the database synchronously.
     pub fn create_index(
-        &mut self,
+        &self,
         name: impl Into<String>,
         algorithm: IndexAlgorithm,
         metric: DistanceMetric,
@@ -127,8 +134,10 @@ impl Database {
     ///
     /// This method is useful for deserializing and accessing
     /// the index directly from the file based on the algorithm type.
-    pub fn get_index_ref(&self, name: impl AsRef<str>) -> Option<&IndexRef> {
-        self.state.indices.get(name.as_ref())
+    pub fn get_index_ref(&self, name: impl AsRef<str>) -> Option<IndexRef> {
+        let state = self.state.lock().ok()?;
+        let index_ref = state.indices.get(name.as_ref())?;
+        Some(index_ref.to_owned())
     }
 
     /// Retrieves an index from the file and returns it as a trait object.
@@ -163,7 +172,7 @@ impl Database {
     /// the source database for new records after that checkpoint. It then
     /// updates the index with the new records.
     pub async fn async_refresh_index(
-        &mut self,
+        &self,
         name: impl AsRef<str>,
     ) -> Result<(), Error> {
         let name = name.as_ref();
@@ -186,8 +195,8 @@ impl Database {
             index.config().to_query_after(&checkpoint)
         };
 
-        let conn = self.conn.acquire().await?;
-        let mut stream = sqlx::query(&query).fetch(conn);
+        let mut conn = self.state()?.async_connect().await?;
+        let mut stream = sqlx::query(&query).fetch(conn.acquire().await?);
 
         let mut records = HashMap::new();
         while let Some(row) = stream.next().await {
@@ -202,10 +211,7 @@ impl Database {
     }
 
     /// Updates the index with new records from the source synchronously.
-    pub fn refresh_index(
-        &mut self,
-        name: impl AsRef<str>,
-    ) -> Result<(), Error> {
+    pub fn refresh_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         executor::block_on(self.async_refresh_index(name))
     }
 
@@ -244,10 +250,7 @@ impl Database {
     ///
     /// Some indexing algorithms may not support perfect incremental updates.
     /// This method can be useful to rebalance the index.
-    pub fn rebuild_index(
-        &mut self,
-        name: impl AsRef<str>,
-    ) -> Result<(), Error> {
+    pub fn rebuild_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         let name = name.as_ref();
         let mut index = self.try_get_index(name)?;
         index.refit()?;
@@ -260,26 +263,34 @@ impl Database {
     }
 
     /// Deletes an index from the database given its name.
-    pub fn delete_index(&mut self, name: impl AsRef<str>) -> Result<(), Error> {
+    pub fn delete_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         let name = name.as_ref();
-        let index_ref = self.state.indices.remove(name).ok_or_else(|| {
+        let mut state = self.state.lock()?;
+        let index_ref = state.indices.remove(name).ok_or_else(|| {
             let code = ErrorCode::NotFound;
             let message = format!("Index doesn't exist: {name}.");
             Error::new(code, message)
         })?;
 
+        drop(state);
         fs::remove_file(index_ref.file())?;
-        file::write_binary_file(self.state_file(), &self.state)
+        self.persist_state()
     }
 
     /// Returns the state object of the database.
-    pub fn state(&self) -> &DatabaseState {
-        &self.state
+    pub fn state(&self) -> Result<DatabaseState, Error> {
+        let state = self.state.lock()?;
+        Ok(state.clone())
     }
 
     /// Persists the state of the database to the state file.
+    ///
+    /// This method requires a Mutex lock to be available.
+    /// If the lock is not available, this method will be suspended.
+    /// When running this method with other state lock, drop
+    /// the lock before calling this method.
     pub fn persist_state(&self) -> Result<(), Error> {
-        file::write_binary_file(self.state_file(), &self.state)
+        file::write_binary_file(self.state_file(), &self.state()?)
     }
 }
 
@@ -295,17 +306,17 @@ impl Database {
 
     #[allow(dead_code)]
     async fn async_execute_sql(
-        &mut self,
+        &self,
         query: impl AsRef<str>,
     ) -> Result<(), Error> {
-        let conn = self.conn.acquire().await?;
+        let mut conn = self.state()?.async_connect().await?;
         conn.execute(query.as_ref()).await?;
         Ok(())
     }
 }
 
 /// The state of the vector database.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseState {
     source: DatabaseURL,
     indices: HashMap<IndexName, IndexRef>,
@@ -321,6 +332,22 @@ impl DatabaseState {
     /// Connects to the source SQL database.
     pub fn connect(&self) -> Result<SourceConnection, Error> {
         executor::block_on(self.async_connect())
+    }
+
+    /// Disconnects from the source SQL database asynchronously.
+    pub async fn async_disconnect(conn: SourceConnection) -> Result<(), Error> {
+        Ok(conn.close().await?)
+    }
+
+    /// Disconnects from the source SQL database.
+    pub fn disconnect(conn: SourceConnection) -> Result<(), Error> {
+        executor::block_on(Self::async_disconnect(conn))
+    }
+
+    /// Validates the connection to the source database successful.
+    pub fn validate_connection(&self) -> Result<(), Error> {
+        let conn = self.connect()?;
+        DatabaseState::disconnect(conn)
     }
 
     /// Returns the type of the source database.
@@ -402,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_database_refresh_index() {
-        let mut db = create_test_database().unwrap();
+        let db = create_test_database().unwrap();
         let query = generate_insert_query(100, 10);
         executor::block_on(db.async_execute_sql(query)).unwrap();
 
@@ -441,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_database_rebuild_index() {
-        let mut db = create_test_database().unwrap();
+        let db = create_test_database().unwrap();
         db.rebuild_index(TEST_INDEX).unwrap();
 
         let index = db.get_index(TEST_INDEX).unwrap();
@@ -450,10 +477,10 @@ mod tests {
 
     #[test]
     fn test_database_delete_index() {
-        let mut db = create_test_database().unwrap();
+        let db = create_test_database().unwrap();
         db.delete_index(TEST_INDEX).unwrap();
 
-        let state = db.state();
+        let state = db.state().unwrap();
         assert!(!state.indices.contains_key(TEST_INDEX));
     }
 
@@ -467,7 +494,7 @@ mod tests {
         let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
 
         let mut db = Database::open(path, Some(db_url.clone()))?;
-        let state = db.state();
+        let state = db.state()?;
         assert_eq!(state.source_type(), SourceType::SQLITE);
 
         executor::block_on(setup_test_source(db_url))?;
