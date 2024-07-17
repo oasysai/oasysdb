@@ -584,13 +584,13 @@ mod tests {
 
         db.create_index(
             TEST_INDEX,
-            IndexAlgorithm::BruteForce,
+            IndexAlgorithm::Flat,
             DistanceMetric::Euclidean,
             config,
         )?;
 
         let index_ref = db.get_index_ref(TEST_INDEX).unwrap();
-        assert_eq!(index_ref.algorithm(), &IndexAlgorithm::BruteForce);
+        assert_eq!(index_ref.algorithm(), &IndexAlgorithm::Flat);
         Ok(())
     }
 

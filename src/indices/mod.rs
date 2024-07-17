@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::Path;
 
-mod idx_bruteforce;
+mod idx_flat;
 
-pub use idx_bruteforce::IndexBruteForce;
+pub use idx_flat::IndexFlat;
 
 pub use crate::types::distance::DistanceMetric;
 pub use crate::types::filter::*;
@@ -190,7 +190,7 @@ impl SourceConfig {
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[derive(Serialize, Deserialize)]
 pub enum IndexAlgorithm {
-    BruteForce, // -> IndexBruteForce
+    Flat, // -> IndexFlat
 }
 
 impl IndexAlgorithm {
@@ -201,7 +201,7 @@ impl IndexAlgorithm {
         metric: DistanceMetric,
     ) -> Box<dyn VectorIndex> {
         let index = match self {
-            IndexAlgorithm::BruteForce => IndexBruteForce::new(config, metric),
+            IndexAlgorithm::Flat => IndexFlat::new(config, metric),
         };
 
         Box::new(index)
@@ -212,8 +212,8 @@ impl IndexAlgorithm {
         path: impl AsRef<Path>,
     ) -> Result<Box<dyn VectorIndex>, Error> {
         match self {
-            IndexAlgorithm::BruteForce => {
-                let index = Self::_load_index::<IndexBruteForce>(path)?;
+            IndexAlgorithm::Flat => {
+                let index = Self::_load_index::<IndexFlat>(path)?;
                 Ok(Box::new(index))
             }
         }
@@ -228,8 +228,8 @@ impl IndexAlgorithm {
         index: &dyn VectorIndex,
     ) -> Result<(), Error> {
         match self {
-            IndexAlgorithm::BruteForce => {
-                Self::_persist_index::<IndexBruteForce>(path, index)
+            IndexAlgorithm::Flat => {
+                Self::_persist_index::<IndexFlat>(path, index)
             }
         }
     }

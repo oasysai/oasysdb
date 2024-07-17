@@ -1,20 +1,20 @@
 use super::*;
 use std::collections::BinaryHeap;
 
-/// Brute force index implementation.
+/// Flat index implementation.
 ///
 /// This index stores all records in memory and performs a linear search
 /// for the nearest neighbors. It is great for small datasets of less than
 /// 10,000 records due to perfect recall and precision.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct IndexBruteForce {
+pub struct IndexFlat {
     config: SourceConfig,
     metric: DistanceMetric,
     metadata: IndexMetadata,
     data: HashMap<RecordID, Record>,
 }
 
-impl IndexOps for IndexBruteForce {
+impl IndexOps for IndexFlat {
     fn new(config: SourceConfig, metric: DistanceMetric) -> Self {
         Self {
             config,
@@ -25,7 +25,7 @@ impl IndexOps for IndexBruteForce {
     }
 }
 
-impl VectorIndex for IndexBruteForce {
+impl VectorIndex for IndexFlat {
     fn config(&self) -> &SourceConfig {
         &self.config
     }
@@ -50,8 +50,8 @@ impl VectorIndex for IndexBruteForce {
         Ok(())
     }
 
-    /// Refitting doesn't do anything for the brute force index
-    /// as incremental insertion or deletion will directly update
+    /// Refitting doesn't do anything for the flat index as
+    /// incremental insertion or deletion will directly update
     /// the data store accordingly guaranteeing the index optimal state.
     fn refit(&mut self) -> Result<(), Error> {
         Ok(())
@@ -124,10 +124,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bruteforce_index() {
+    fn test_flat_index() {
         let config = SourceConfig::default();
         let metric = DistanceMetric::Euclidean;
-        let mut index = IndexBruteForce::new(config, metric);
+        let mut index = IndexFlat::new(config, metric);
         index_tests::populate_index(&mut index);
         index_tests::test_search(&index);
         index_tests::test_search_with_filters(&index);
