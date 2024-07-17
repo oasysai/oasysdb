@@ -1,4 +1,5 @@
-use super::*;
+use crate::types::record::Vector;
+use serde::{Deserialize, Serialize};
 use simsimd::SpatialSimilarity;
 
 /// Distance metric used to compare vectors in the index.

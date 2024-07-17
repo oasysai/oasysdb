@@ -1,4 +1,4 @@
-use super::err::{Error, ErrorCode};
+use crate::types::err::{Error, ErrorCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::env;

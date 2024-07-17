@@ -1,9 +1,9 @@
 use crate::indices::*;
-use crate::types::conn::*;
 use crate::types::err::*;
-use crate::types::file;
 use crate::types::record::Vector;
+use crate::utils::file;
 use serde::{Deserialize, Serialize};
+use sqlx::{AnyConnection as SourceConnection, Connection};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

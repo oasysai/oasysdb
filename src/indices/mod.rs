@@ -1,6 +1,6 @@
 use crate::types::err::*;
-use crate::types::file;
 use crate::types::record::*;
+use crate::utils::file;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -10,15 +10,12 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::Path;
 
-mod ix_bruteforce;
-mod type_algorithm;
-mod type_distance;
-mod type_filter;
+mod idx_bruteforce;
 
-pub use ix_bruteforce::IndexBruteForce;
-pub use type_algorithm::IndexAlgorithm;
-pub use type_distance::DistanceMetric;
-pub use type_filter::*;
+pub use idx_bruteforce::IndexBruteForce;
+
+pub use crate::types::distance::DistanceMetric;
+pub use crate::types::filter::*;
 
 type TableName = String;
 
@@ -188,6 +185,77 @@ impl SourceConfig {
     }
 }
 
+/// Algorithm options used to index and search vectors.
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize)]
+pub enum IndexAlgorithm {
+    BruteForce, // -> IndexBruteForce
+}
+
+impl IndexAlgorithm {
+    /// Initializes a new index based on the algorithm and configuration.
+    pub(crate) fn initialize(
+        &self,
+        config: SourceConfig,
+        metric: DistanceMetric,
+    ) -> Box<dyn VectorIndex> {
+        let index = match self {
+            IndexAlgorithm::BruteForce => IndexBruteForce::new(config, metric),
+        };
+
+        Box::new(index)
+    }
+
+    pub(crate) fn load_index(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<Box<dyn VectorIndex>, Error> {
+        match self {
+            IndexAlgorithm::BruteForce => {
+                let index = Self::_load_index::<IndexBruteForce>(path)?;
+                Ok(Box::new(index))
+            }
+        }
+    }
+
+    /// Persists the index to a file based on the algorithm.
+    /// - `path`: Path to the file where the index will be stored.
+    /// - `index`: Index to persist as a trait object.
+    pub(crate) fn persist_index(
+        &self,
+        path: impl AsRef<Path>,
+        index: &dyn VectorIndex,
+    ) -> Result<(), Error> {
+        match self {
+            IndexAlgorithm::BruteForce => {
+                Self::_persist_index::<IndexBruteForce>(path, index)
+            }
+        }
+    }
+
+    fn _load_index<T: VectorIndex + IndexOps + 'static>(
+        path: impl AsRef<Path>,
+    ) -> Result<T, Error> {
+        let index = T::load(path)?;
+        Ok(index)
+    }
+
+    fn _persist_index<T: VectorIndex + IndexOps + 'static>(
+        path: impl AsRef<Path>,
+        index: &dyn VectorIndex,
+    ) -> Result<(), Error> {
+        let index = index.as_any().downcast_ref::<T>().ok_or_else(|| {
+            let code = ErrorCode::InternalError;
+            let message = "Failed to downcast index to concrete type.";
+            Error::new(code, message)
+        })?;
+
+        index.persist(path)?;
+        Ok(())
+    }
+}
+
 /// Metadata about the index for operations and optimizations.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct IndexMetadata {
@@ -256,8 +324,10 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
 /// of this trait is required. Roughly, the index struct should look like:
 ///
 /// ```text
+/// use super::*;
+///
 /// #[derive(Debug, Serialize, Deserialize)]
-/// struct Index{{ Algorithm }} {
+/// pub struct Index{{ Algorithm }} {
 ///     config: SourceConfig,
 ///     metric: DistanceMetric,
 ///     metadata: IndexMetadata,

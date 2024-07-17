@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
-use super::*;
+use crate::types::record::*;
+use std::collections::HashMap;
 
 /// Joined multiple filters operation with either AND or OR.
 ///
