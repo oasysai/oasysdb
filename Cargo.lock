@@ -641,6 +641,7 @@ dependencies = [
  "bincode",
  "futures",
  "half",
+ "rand",
  "rayon",
  "serde",
  "serde_json",

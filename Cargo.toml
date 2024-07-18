@@ -20,6 +20,7 @@ uuid = { version = "1.9.1", features = ["v4", "fast-rng", "serde"] }
 half = { version = "2.4.1", features = ["serde"] }
 url = "2.5.2"
 futures = "0.3.30"
+rand = "0.8.5"
 
 # Parallelism.
 rayon = "1.10.0"
