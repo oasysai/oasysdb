@@ -1,4 +1,6 @@
-use crate::types::err::*;
+use crate::types::distance::DistanceMetric;
+use crate::types::err::{Error, ErrorCode};
+use crate::types::filter::*;
 use crate::types::record::*;
 use crate::utils::file;
 use rayon::prelude::*;
@@ -12,12 +14,10 @@ use std::path::Path;
 
 mod idx_flat;
 
-pub use idx_flat::IndexFlat;
+pub use idx_flat::{IndexFlat, ParamsFlat};
 
-pub use crate::types::distance::DistanceMetric;
-pub use crate::types::filter::*;
-
-type TableName = String;
+/// Name of the SQL table to use as a data source.
+pub type TableName = String;
 
 /// Type of SQL database used as a data source.
 #[allow(missing_docs)]
@@ -187,32 +187,48 @@ impl SourceConfig {
 
 /// Algorithm options used to index and search vectors.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexAlgorithm {
-    Flat, // -> IndexFlat
+    Flat(ParamsFlat), // -> IndexFlat
+}
+
+impl IndexAlgorithm {
+    /// Returns the name of the algorithm in uppercase.
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Flat(_) => "FLAT",
+        }
+    }
+}
+
+impl PartialEq for IndexAlgorithm {
+    fn eq(&self, other: &Self) -> bool {
+        self.name() == other.name()
+    }
 }
 
 impl IndexAlgorithm {
     /// Initializes a new index based on the algorithm and configuration.
+    /// - `config`: Source configuration for the index.
     pub(crate) fn initialize(
         &self,
         config: SourceConfig,
-        metric: DistanceMetric,
-    ) -> Box<dyn VectorIndex> {
-        let index = match self {
-            IndexAlgorithm::Flat => IndexFlat::new(config, metric),
+    ) -> Result<Box<dyn VectorIndex>, Error> {
+        let index = match self.to_owned() {
+            Self::Flat(params) => IndexFlat::new(config, params)?,
         };
 
-        Box::new(index)
+        Ok(Box::new(index))
     }
 
     pub(crate) fn load_index(
         &self,
         path: impl AsRef<Path>,
     ) -> Result<Box<dyn VectorIndex>, Error> {
+        // We can safely ignore the parameter inside of the algorithm here
+        // since the parameter is stored directly inside of the index.
         match self {
-            IndexAlgorithm::Flat => {
+            Self::Flat(_) => {
                 let index = Self::_load_index::<IndexFlat>(path)?;
                 Ok(Box::new(index))
             }
@@ -228,9 +244,7 @@ impl IndexAlgorithm {
         index: &dyn VectorIndex,
     ) -> Result<(), Error> {
         match self {
-            IndexAlgorithm::Flat => {
-                Self::_persist_index::<IndexFlat>(path, index)
-            }
+            Self::Flat(_) => Self::_persist_index::<IndexFlat>(path, index),
         }
     }
 
@@ -273,7 +287,7 @@ pub struct SearchResult {
     /// ID of the record in the data source.
     pub id: RecordID,
     /// Record metadata.
-    pub data: HashMap<ColumnName, Option<RecordData>>,
+    pub data: HashMap<ColumnName, Option<DataValue>>,
     /// Distance between the query and the record.
     pub distance: f32,
 }
@@ -298,14 +312,15 @@ impl Ord for SearchResult {
     }
 }
 
-/// Trait for initializing a new index implementation.
-///
-/// This will be used by the IndexAlgorithm enum to initialize a new index
-/// based on the algorithm and configuration. In addition to this trait,
-/// the index struct should implement the VectorIndex trait.
+/// Trait for a new index implementation.
 pub trait IndexOps: Debug + Serialize + DeserializeOwned {
     /// Initializes an empty index with the given configuration.
-    fn new(config: SourceConfig, metric: DistanceMetric) -> Self;
+    /// - `config`: Source configuration for the index.
+    /// - `params`: Index specific parameters.
+    fn new(
+        config: SourceConfig,
+        params: impl IndexParams,
+    ) -> Result<Self, Error>;
 
     /// Reads and deserializes the index from a file.
     fn load(path: impl AsRef<Path>) -> Result<Self, Error> {
@@ -318,23 +333,7 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
     }
 }
 
-/// Trait for vector index implementations.
-///
-/// For each index algorithm, a separate struct and implementation
-/// of this trait is required. Roughly, the index struct should look like:
-///
-/// ```text
-/// use super::*;
-///
-/// #[derive(Debug, Serialize, Deserialize)]
-/// pub struct Index{{ Algorithm }} {
-///     config: SourceConfig,
-///     metric: DistanceMetric,
-///     metadata: IndexMetadata,
-///     data: HashMap<RecordID, Record>,
-///     // Other fields...
-/// }
-/// ```
+/// Trait for operating vector index implementations.
 pub trait VectorIndex: Debug + Send + Sync {
     /// Returns the configuration of the index.
     fn config(&self) -> &SourceConfig;
@@ -382,9 +381,22 @@ pub trait VectorIndex: Debug + Send + Sync {
     /// Hides certain records from the search result permanently.
     fn hide(&mut self, record_ids: Vec<RecordID>) -> Result<(), Error>;
 
-    /// Returns the index as Any type for dynamic casting. This method
-    /// allows the index to be downcast to a specific index struct to
-    /// be serialized and stored in a file.
+    /// Returns the index as Any type for dynamic casting.
+    ///
+    /// This method allows the index trait object to be downcast to a
+    /// specific index struct to be serialized and stored in a file.
+    fn as_any(&self) -> &dyn Any;
+}
+
+/// Trait for custom index parameters.
+pub trait IndexParams: Debug + Default + Clone {
+    /// Returns the distance metric set in the parameters.
+    fn metric(&self) -> &DistanceMetric;
+
+    /// Converts a trait object to a concrete parameter type.
+    fn from_trait(params: impl IndexParams) -> Result<Self, Error>;
+
+    /// Returns the parameters as Any type for dynamic casting.
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -423,7 +435,7 @@ mod index_tests {
             let vector = Vector::from(vec![i as f32; 128]);
             let data = HashMap::from([(
                 "number".into(),
-                Some(RecordData::Integer(1000 + i)),
+                Some(DataValue::Integer(1000 + i)),
             )]);
 
             let record = Record { vector, data };

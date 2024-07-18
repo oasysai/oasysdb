@@ -15,10 +15,7 @@ pub enum Filters {
 }
 
 impl Filters {
-    pub fn apply(
-        &self,
-        data: &HashMap<ColumnName, Option<RecordData>>,
-    ) -> bool {
+    pub fn apply(&self, data: &HashMap<ColumnName, Option<DataValue>>) -> bool {
         match self {
             Filters::NONE => true,
             Filters::AND(filters) => filters.iter().all(|f| f.apply(data)),
@@ -60,22 +57,19 @@ impl From<&str> for Filters {
 #[derive(Debug, PartialEq)]
 pub struct Filter {
     pub column: ColumnName,
-    pub value: RecordData,
+    pub value: DataValue,
     pub operator: FilterOperator,
 }
 
 impl Filter {
-    pub fn apply(
-        &self,
-        data: &HashMap<ColumnName, Option<RecordData>>,
-    ) -> bool {
+    pub fn apply(&self, data: &HashMap<ColumnName, Option<DataValue>>) -> bool {
         let value = match data.get(&self.column).unwrap_or(&None) {
             Some(value) => value,
             None => return false,
         };
 
         // This alias helps us cut down lines of code.
-        type Type = RecordData;
+        type Type = DataValue;
         match (value, &self.value) {
             (Type::Boolean(a), Type::Boolean(b)) => self.match_boolean(*a, *b),
             (Type::Float(a), Type::Float(b)) => self.match_number(a, b),
@@ -127,7 +121,7 @@ impl From<&str> for Filter {
 
         let column = parts[0].into();
         let operator = FilterOperator::from(parts[1]);
-        let value = RecordData::from(parts[2]);
+        let value = DataValue::from(parts[2]);
         Filter { column, value, operator }
     }
 }
@@ -168,13 +162,13 @@ impl From<&str> for FilterOperator {
 mod tests {
     use super::*;
 
-    fn create_test_data() -> HashMap<ColumnName, Option<RecordData>> {
+    fn create_test_data() -> HashMap<ColumnName, Option<DataValue>> {
         let columns = vec!["name", "age", "gpa", "active"];
-        let values: Vec<RecordData> = vec![
+        let values: Vec<DataValue> = vec![
             "Alice".into(),
-            RecordData::Integer(20),
-            RecordData::Float(3.5),
-            RecordData::Boolean(true),
+            DataValue::Integer(20),
+            DataValue::Float(3.5),
+            DataValue::Boolean(true),
         ];
 
         let mut data = HashMap::new();
@@ -200,13 +194,13 @@ mod tests {
         let expected = {
             let filter_gpa = Filter {
                 column: "gpa".into(),
-                value: RecordData::Float(3.0),
+                value: DataValue::Float(3.0),
                 operator: FilterOperator::GreaterThanOrEqual,
             };
 
             let filter_age = Filter {
                 column: "age".into(),
-                value: RecordData::Integer(21),
+                value: DataValue::Integer(21),
                 operator: FilterOperator::LessThan,
             };
 

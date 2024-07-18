@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use simsimd::SpatialSimilarity;
 
 /// Distance metric used to compare vectors in the index.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Clone, Copy, Hash)]
 pub enum DistanceMetric {
     /// Squared [Euclidean distance](https://www.geeksforgeeks.org/euclidean-distance)
     ///
@@ -13,6 +14,12 @@ pub enum DistanceMetric {
     /// Cosine distance (1 - cosine similarity):
     /// [Cosine similarity](https://www.geeksforgeeks.org/cosine-similarity/)
     Cosine,
+}
+
+impl Default for DistanceMetric {
+    fn default() -> Self {
+        DistanceMetric::Euclidean
+    }
 }
 
 impl DistanceMetric {
@@ -25,6 +32,13 @@ impl DistanceMetric {
             DistanceMetric::Euclidean => f32::sqeuclidean(a, b),
             DistanceMetric::Cosine => f32::cosine(a, b),
         };
+
+        if dist.is_none()
+            || dist.unwrap().is_nan()
+            || dist.unwrap().is_infinite()
+        {
+            return f32::MAX;
+        }
 
         dist.unwrap() as f32
     }

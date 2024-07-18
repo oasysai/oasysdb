@@ -9,19 +9,24 @@ use std::collections::BinaryHeap;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexFlat {
     config: SourceConfig,
-    metric: DistanceMetric,
+    params: ParamsFlat,
     metadata: IndexMetadata,
     data: HashMap<RecordID, Record>,
 }
 
 impl IndexOps for IndexFlat {
-    fn new(config: SourceConfig, metric: DistanceMetric) -> Self {
-        Self {
+    fn new(
+        config: SourceConfig,
+        params: impl IndexParams,
+    ) -> Result<IndexFlat, Error> {
+        let index = IndexFlat {
             config,
-            metric,
+            params: ParamsFlat::from_trait(params)?,
             metadata: IndexMetadata::default(),
             data: HashMap::new(),
-        }
+        };
+
+        Ok(index)
     }
 }
 
@@ -31,7 +36,7 @@ impl VectorIndex for IndexFlat {
     }
 
     fn metric(&self) -> &DistanceMetric {
-        &self.metric
+        &self.params.metric
     }
 
     fn metadata(&self) -> &IndexMetadata {
@@ -76,7 +81,7 @@ impl VectorIndex for IndexFlat {
     ) -> Result<Vec<SearchResult>, Error> {
         let mut results = BinaryHeap::new();
         for (id, record) in &self.data {
-            let distance = self.metric.distance(&record.vector, &query);
+            let distance = self.metric().distance(&record.vector, &query);
             let data = record.data.clone();
             results.push(SearchResult { id: *id, distance, data });
 
@@ -100,18 +105,46 @@ impl VectorIndex for IndexFlat {
 
         let mut results = BinaryHeap::new();
         for (id, record) in &self.data {
-            if filters.apply(&record.data) {
-                let distance = self.metric.distance(&record.vector, &query);
-                let data = record.data.clone();
-                results.push(SearchResult { id: *id, distance, data });
+            if !filters.apply(&record.data) {
+                continue;
+            }
 
-                if results.len() > k {
-                    results.pop();
-                }
+            let distance = self.metric().distance(&record.vector, &query);
+            let data = record.data.clone();
+
+            results.push(SearchResult { id: *id, distance, data });
+            if results.len() > k {
+                results.pop();
             }
         }
 
         Ok(results.into_sorted_vec())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// Flat index parameters.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ParamsFlat {
+    /// Formula used to calculate the distance between vectors.
+    pub metric: DistanceMetric,
+}
+
+impl IndexParams for ParamsFlat {
+    fn metric(&self) -> &DistanceMetric {
+        &self.metric
+    }
+
+    fn from_trait(params: impl IndexParams) -> Result<ParamsFlat, Error> {
+        let params = params
+            .as_any()
+            .downcast_ref::<ParamsFlat>()
+            .ok_or_else(|| Error::invalid_params("flat"))?;
+
+        Ok(params.to_owned())
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -126,8 +159,9 @@ mod tests {
     #[test]
     fn test_flat_index() {
         let config = SourceConfig::default();
-        let metric = DistanceMetric::Euclidean;
-        let mut index = IndexFlat::new(config, metric);
+        let params = ParamsFlat::default();
+        let mut index = IndexFlat::new(config, params).unwrap();
+
         index_tests::populate_index(&mut index);
         index_tests::test_search(&index);
         index_tests::test_search_with_filters(&index);

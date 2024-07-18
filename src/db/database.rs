@@ -73,13 +73,11 @@ impl Database {
     /// Creates a new index in the database asynchronously.
     /// - `name`: Name of the index.
     /// - `algorithm`: Indexing algorithm to use.
-    /// - `metric`: Distance metric for the index.
     /// - `config`: Index data source configuration.
     pub async fn async_create_index(
         &self,
         name: impl Into<IndexName>,
         algorithm: IndexAlgorithm,
-        metric: DistanceMetric,
         config: SourceConfig,
     ) -> Result<(), Error> {
         // Create a new file where the index will be stored.
@@ -99,7 +97,7 @@ impl Database {
             records.insert(id, record);
         }
 
-        let mut index = algorithm.initialize(config, metric);
+        let mut index = algorithm.initialize(config)?;
         index.fit(records)?;
 
         // Persist the index to the file.
@@ -125,12 +123,9 @@ impl Database {
         &self,
         name: impl Into<IndexName>,
         algorithm: IndexAlgorithm,
-        metric: DistanceMetric,
         config: SourceConfig,
     ) -> Result<(), Error> {
-        executor::block_on(
-            self.async_create_index(name, algorithm, metric, config),
-        )
+        executor::block_on(self.async_create_index(name, algorithm, config))
     }
 
     /// Returns an index reference by name.
@@ -579,18 +574,14 @@ mod tests {
     }
 
     fn create_test_index(db: &mut Database) -> Result<(), Error> {
+        let algorithm = IndexAlgorithm::Flat(ParamsFlat::default());
         let config = SourceConfig::new(TABLE, "id", "vector")
             .with_metadata(vec!["data"]);
 
-        db.create_index(
-            TEST_INDEX,
-            IndexAlgorithm::Flat,
-            DistanceMetric::Euclidean,
-            config,
-        )?;
+        db.create_index(TEST_INDEX, algorithm, config)?;
 
         let index_ref = db.get_index_ref(TEST_INDEX).unwrap();
-        assert_eq!(index_ref.algorithm(), &IndexAlgorithm::Flat);
+        assert_eq!(index_ref.algorithm().name(), "FLAT");
         Ok(())
     }
 

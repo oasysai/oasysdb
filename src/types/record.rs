@@ -21,11 +21,24 @@ pub struct Record {
     /// Vector embedding.
     pub vector: Vector,
     /// Additional metadata of the record.
-    pub data: HashMap<ColumnName, Option<RecordData>>,
+    pub data: HashMap<ColumnName, Option<DataValue>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Record data type stored in PQ-based indices.
+///
+/// This data type is very similar to the standard Record type
+/// except that the vector stored within is quantized using the
+/// Product Quantization (PQ) method.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RecordPQ {
+    /// Product quantized embedding.
+    pub vector: VectorPQ,
+    /// Additional metadata of the record.
+    pub data: HashMap<ColumnName, Option<DataValue>>,
+}
+
 /// Vector data type stored in the index.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vector(pub Box<[f16]>);
 
 impl Vector {
@@ -34,7 +47,7 @@ impl Vector {
         self.0.iter().map(|v| v.to_f32()).collect()
     }
 
-    /// Returns the dimension of the vector.
+    /// Returns the length of the vector.
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -51,25 +64,36 @@ impl From<Vec<f32>> for Vector {
     }
 }
 
+/// Product quantized vector data type stored in the index.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VectorPQ(pub Box<[u8]>);
+
+impl VectorPQ {
+    /// Returns the vector data as a vector of u8.
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.iter().copied().collect()
+    }
+}
+
 /// Data types supported as metadata in the index.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum RecordData {
+pub enum DataValue {
     Boolean(bool),
     Float(f32),
     Integer(isize),
     String(String),
 }
 
-// RecordData interoperability with primitive types.
+// DataValue interoperability with primitive types.
 
-impl From<String> for RecordData {
+impl From<String> for DataValue {
     fn from(value: String) -> Self {
-        RecordData::from(value.as_str())
+        DataValue::from(value.as_str())
     }
 }
 
-impl From<&str> for RecordData {
+impl From<&str> for DataValue {
     fn from(value: &str) -> Self {
         // Parsing integer must be done before float.
         // Since integer can be parsed as float but not vice versa.
@@ -85,25 +109,25 @@ impl From<&str> for RecordData {
             return boolean.into();
         }
 
-        RecordData::String(value.to_string())
+        DataValue::String(value.to_string())
     }
 }
 
-impl From<f32> for RecordData {
+impl From<f32> for DataValue {
     fn from(value: f32) -> Self {
-        RecordData::Float(value)
+        DataValue::Float(value)
     }
 }
 
-impl From<isize> for RecordData {
+impl From<isize> for DataValue {
     fn from(value: isize) -> Self {
-        RecordData::Integer(value)
+        DataValue::Integer(value)
     }
 }
 
-impl From<bool> for RecordData {
+impl From<bool> for DataValue {
     fn from(value: bool) -> Self {
-        RecordData::Boolean(value)
+        DataValue::Boolean(value)
     }
 }
 
@@ -168,7 +192,7 @@ impl RowOps for Vector {
     }
 }
 
-impl RowOps for Option<RecordData> {
+impl RowOps for Option<DataValue> {
     fn from_row(
         column_name: impl Into<ColumnName>,
         row: &AnyRow,
@@ -183,7 +207,7 @@ impl RowOps for Option<RecordData> {
 
         if value_type.is_integer() {
             let value: i64 = row.try_get::<i64, &str>(&column)?;
-            return Ok(Some(RecordData::Integer(value as isize)));
+            return Ok(Some(DataValue::Integer(value as isize)));
         }
 
         // Handle types other than null and integer below.
@@ -191,19 +215,19 @@ impl RowOps for Option<RecordData> {
         let data = match value_type {
             SQLType::Text => {
                 let value = row.try_get::<String, &str>(&column)?;
-                RecordData::String(value.to_string())
+                DataValue::String(value.to_string())
             }
             SQLType::Bool => {
                 let value: bool = row.try_get::<bool, &str>(&column)?;
-                RecordData::Boolean(value)
+                DataValue::Boolean(value)
             }
             SQLType::Real => {
                 let value: f32 = row.try_get::<f32, &str>(&column)?;
-                RecordData::Float(value)
+                DataValue::Float(value)
             }
             SQLType::Double => {
                 let value: f64 = row.try_get::<f64, &str>(&column)?;
-                RecordData::Float(value as f32)
+                DataValue::Float(value as f32)
             }
             _ => {
                 let code = ErrorCode::InvalidMetadata;
