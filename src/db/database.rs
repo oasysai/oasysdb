@@ -225,27 +225,12 @@ impl Database {
         executor::block_on(self.async_refresh_index(name))
     }
 
-    /// Searches the index for the nearest vectors to the query vector.
-    /// - `name`: Index name.
-    /// - `query`: Query vector.
-    /// - `k`: Number of nearest neighbors to return.
-    pub fn search_index(
-        &self,
-        name: impl AsRef<str>,
-        query: impl Into<Vector>,
-        k: usize,
-    ) -> Result<Vec<SearchResult>, Error> {
-        let index: Index = self.try_get_index(name)?;
-        let index = index.lock()?;
-        index.search(query.into(), k)
-    }
-
-    /// Searches the index for nearest neighbors with post-search filters.
+    /// Searches the index for nearest neighbors.
     /// - `name`: Index name.
     /// - `query`: Query vector.
     /// - `k`: Number of nearest neighbors to return.
     /// - `filters`: SQL-like filters to apply.
-    pub fn search_index_with_filters(
+    pub fn search_index(
         &self,
         name: impl AsRef<str>,
         query: impl Into<Vector>,
@@ -254,7 +239,7 @@ impl Database {
     ) -> Result<Vec<SearchResult>, Error> {
         let index: Index = self.try_get_index(name)?;
         let index = index.lock()?;
-        index.search_with_filters(query.into(), k, filters.into())
+        index.search(query.into(), k, filters.into())
     }
 
     /// Rebuilds the index from the existing records in the index.
@@ -493,10 +478,11 @@ mod tests {
     }
 
     #[test]
-    fn test_database_search_index() {
+    fn test_database_search_index_basic() {
         let db = create_test_database().unwrap();
-        let query = vec![0.0; 128];
-        let results = db.search_index(TEST_INDEX, query, 5).unwrap();
+        let results = db
+            .search_index(TEST_INDEX, vec![0.0; 128], 5, Filters::NONE)
+            .unwrap();
 
         assert_eq!(results.len(), 5);
         assert_eq!(results[0].id, RecordID(1));
@@ -504,12 +490,10 @@ mod tests {
     }
 
     #[test]
-    fn test_database_search_index_with_filters() {
+    fn test_database_search_index_advanced() {
         let db = create_test_database().unwrap();
-        let query = vec![0.0; 128];
-        let filters = Filters::from("data >= 1050");
         let results = db
-            .search_index_with_filters(TEST_INDEX, query, 5, filters)
+            .search_index(TEST_INDEX, vec![0.0; 128], 5, "data >= 1050")
             .unwrap();
 
         assert_eq!(results.len(), 5);

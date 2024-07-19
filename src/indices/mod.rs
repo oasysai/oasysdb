@@ -8,13 +8,15 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sqlx::any::AnyRow;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{BinaryHeap, HashMap};
 use std::fmt::Debug;
 use std::path::Path;
 
 mod idx_flat;
+mod idx_ivfpq;
 
 pub use idx_flat::{IndexFlat, ParamsFlat};
+pub use idx_ivfpq::{IndexIVFPQ, ParamsIVFPQ};
 
 /// Name of the SQL table to use as a data source.
 pub type TableName = String;
@@ -189,7 +191,8 @@ impl SourceConfig {
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexAlgorithm {
-    Flat(ParamsFlat), // -> IndexFlat
+    Flat(ParamsFlat),   // -> IndexFlat
+    IVFPQ(ParamsIVFPQ), // -> IndexIVFPQ
 }
 
 impl IndexAlgorithm {
@@ -197,6 +200,7 @@ impl IndexAlgorithm {
     pub fn name(&self) -> &str {
         match self {
             Self::Flat(_) => "FLAT",
+            Self::IVFPQ(_) => "IVFPQ",
         }
     }
 }
@@ -214,22 +218,29 @@ impl IndexAlgorithm {
         &self,
         config: SourceConfig,
     ) -> Result<Box<dyn VectorIndex>, Error> {
-        let index = match self.to_owned() {
-            Self::Flat(params) => IndexFlat::new(config, params)?,
-        };
-
-        Ok(Box::new(index))
+        match self.to_owned() {
+            Self::Flat(params) => {
+                let index = IndexFlat::new(config, params)?;
+                Ok(Box::new(index))
+            }
+            Self::IVFPQ(params) => {
+                let index = IndexIVFPQ::new(config, params)?;
+                Ok(Box::new(index))
+            }
+        }
     }
 
     pub(crate) fn load_index(
         &self,
         path: impl AsRef<Path>,
     ) -> Result<Box<dyn VectorIndex>, Error> {
-        // We can safely ignore the parameter inside of the algorithm here
-        // since the parameter is stored directly inside of the index.
         match self {
             Self::Flat(_) => {
                 let index = Self::_load_index::<IndexFlat>(path)?;
+                Ok(Box::new(index))
+            }
+            Self::IVFPQ(_) => {
+                let index = Self::_load_index::<IndexIVFPQ>(path)?;
                 Ok(Box::new(index))
             }
         }
@@ -245,6 +256,7 @@ impl IndexAlgorithm {
     ) -> Result<(), Error> {
         match self {
             Self::Flat(_) => Self::_persist_index::<IndexFlat>(path, index),
+            Self::IVFPQ(_) => Self::_persist_index::<IndexIVFPQ>(path, index),
         }
     }
 
@@ -358,20 +370,11 @@ pub trait VectorIndex: Debug + Send + Sync {
     /// the index after a certain threshold of incremental fitting.
     fn refit(&mut self) -> Result<(), Error>;
 
-    /// Searches for the nearest neighbors based on the query vector.
-    /// - `query`: Query vector.
-    /// - `k`: Number of nearest neighbors to return.
-    fn search(
-        &self,
-        query: Vector,
-        k: usize,
-    ) -> Result<Vec<SearchResult>, Error>;
-
-    /// Searches the nearest neighbors based on the query vector and filters.
+    /// Searches for the nearest neighbors of the query vector.
     /// - `query`: Query vector.
     /// - `k`: Number of nearest neighbors to return.
     /// - `filters`: Filters to apply to the search results.
-    fn search_with_filters(
+    fn search(
         &self,
         query: Vector,
         k: usize,
@@ -393,11 +396,18 @@ pub trait IndexParams: Debug + Default + Clone {
     /// Returns the distance metric set in the parameters.
     fn metric(&self) -> &DistanceMetric;
 
-    /// Converts a trait object to a concrete parameter type.
-    fn from_trait(params: impl IndexParams) -> Result<Self, Error>;
-
     /// Returns the parameters as Any type for dynamic casting.
     fn as_any(&self) -> &dyn Any;
+}
+
+pub(crate) fn downcast_params<T: IndexParams + 'static>(
+    params: impl IndexParams,
+) -> Result<T, Error> {
+    params.as_any().downcast_ref::<T>().cloned().ok_or_else(|| {
+        let code = ErrorCode::InternalError;
+        let message = "Failed to downcast index parameters to concrete type.";
+        Error::new(code, message)
+    })
 }
 
 #[cfg(test)]
@@ -445,22 +455,21 @@ mod index_tests {
         index.fit(records).unwrap();
     }
 
-    pub fn test_search(index: &impl VectorIndex) {
+    pub fn test_basic_search(index: &impl VectorIndex) {
         let query = Vector::from(vec![0.0; 128]);
         let k = 10;
-        let results = index.search(query, k).unwrap();
+        let results = index.search(query, k, Filters::NONE).unwrap();
 
         assert_eq!(results.len(), k);
         assert_eq!(results[0].id, RecordID(0));
-        assert_eq!(results[0].distance, 0.0);
         assert_eq!(results[9].id, RecordID(9));
     }
 
-    pub fn test_search_with_filters(index: &impl VectorIndex) {
+    pub fn test_advanced_search(index: &impl VectorIndex) {
         let query = Vector::from(vec![0.0; 128]);
         let k = 10;
         let filters = Filters::from("number > 1010");
-        let results = index.search_with_filters(query, k, filters).unwrap();
+        let results = index.search(query, k, filters).unwrap();
 
         assert_eq!(results.len(), k);
         assert_eq!(results[0].id, RecordID(11));

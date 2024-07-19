@@ -46,16 +46,6 @@ impl Error {
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self { code, message: message.into() }
     }
-
-    /// Creates a new error instance when failing to downcast
-    /// the parameters of a specific indexing algorithm from a trait object.
-    /// - `algorithm`: The name of the index algorithm in lowercase.
-    pub(crate) fn invalid_params(algorithm: impl AsRef<str>) -> Self {
-        let name = algorithm.as_ref().to_uppercase();
-        let message = format!("Invalid parameters for {name} index.");
-        let code = ErrorCode::InvalidParameter;
-        Self::new(code, message)
-    }
 }
 
 impl Display for Error {

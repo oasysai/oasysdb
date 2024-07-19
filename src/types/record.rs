@@ -39,6 +39,7 @@ pub struct RecordPQ {
 
 /// Vector data type stored in the index.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, PartialOrd)]
 pub struct Vector(pub Box<[f16]>);
 
 impl Vector {
@@ -71,7 +72,24 @@ pub struct VectorPQ(pub Box<[u8]>);
 impl VectorPQ {
     /// Returns the vector data as a vector of u8.
     pub fn to_vec(&self) -> Vec<u8> {
-        self.0.iter().copied().collect()
+        self.0.to_vec()
+    }
+}
+
+impl From<Vec<u8>> for VectorPQ {
+    fn from(value: Vec<u8>) -> Self {
+        VectorPQ(value.into_boxed_slice())
+    }
+}
+
+impl From<Vector> for VectorPQ {
+    fn from(value: Vector) -> Self {
+        value
+            .to_vec()
+            .iter()
+            .map(|v| (v * 255.0).round() as u8)
+            .collect::<Vec<u8>>()
+            .into()
     }
 }
 

@@ -1,5 +1,4 @@
 use super::*;
-use std::collections::BinaryHeap;
 
 /// Flat index implementation.
 ///
@@ -21,7 +20,7 @@ impl IndexOps for IndexFlat {
     ) -> Result<IndexFlat, Error> {
         let index = IndexFlat {
             config,
-            params: ParamsFlat::from_trait(params)?,
+            params: downcast_params(params)?,
             metadata: IndexMetadata::default(),
             data: HashMap::new(),
         };
@@ -55,9 +54,9 @@ impl VectorIndex for IndexFlat {
         Ok(())
     }
 
-    /// Refitting doesn't do anything for the flat index as
-    /// incremental insertion or deletion will directly update
-    /// the data store accordingly guaranteeing the index optimal state.
+    /// Refitting doesn't do anything for the flat index as incremental
+    /// insertion or deletion will directly update the data store
+    /// accordingly which guarantee the optimal state of the index.
     fn refit(&mut self) -> Result<(), Error> {
         Ok(())
     }
@@ -78,41 +77,19 @@ impl VectorIndex for IndexFlat {
         &self,
         query: Vector,
         k: usize,
-    ) -> Result<Vec<SearchResult>, Error> {
-        let mut results = BinaryHeap::new();
-        for (id, record) in &self.data {
-            let distance = self.metric().distance(&record.vector, &query);
-            let data = record.data.clone();
-            results.push(SearchResult { id: *id, distance, data });
-
-            if results.len() > k {
-                results.pop();
-            }
-        }
-
-        Ok(results.into_sorted_vec())
-    }
-
-    fn search_with_filters(
-        &self,
-        query: Vector,
-        k: usize,
         filters: Filters,
     ) -> Result<Vec<SearchResult>, Error> {
-        if filters == Filters::NONE {
-            return self.search(query, k);
-        }
-
         let mut results = BinaryHeap::new();
         for (id, record) in &self.data {
+            // Skip records that don't pass the filters.
             if !filters.apply(&record.data) {
                 continue;
             }
 
             let distance = self.metric().distance(&record.vector, &query);
             let data = record.data.clone();
-
             results.push(SearchResult { id: *id, distance, data });
+
             if results.len() > k {
                 results.pop();
             }
@@ -138,15 +115,6 @@ impl IndexParams for ParamsFlat {
         &self.metric
     }
 
-    fn from_trait(params: impl IndexParams) -> Result<ParamsFlat, Error> {
-        let params = params
-            .as_any()
-            .downcast_ref::<ParamsFlat>()
-            .ok_or_else(|| Error::invalid_params("flat"))?;
-
-        Ok(params.to_owned())
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -163,7 +131,7 @@ mod tests {
         let mut index = IndexFlat::new(config, params).unwrap();
 
         index_tests::populate_index(&mut index);
-        index_tests::test_search(&index);
-        index_tests::test_search_with_filters(&index);
+        index_tests::test_basic_search(&index);
+        index_tests::test_advanced_search(&index);
     }
 }
