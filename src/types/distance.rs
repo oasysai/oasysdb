@@ -2,14 +2,14 @@ use crate::types::record::Vector;
 use serde::{Deserialize, Serialize};
 use simsimd::SpatialSimilarity;
 
-/// Distance metric used to compare vectors in the index.
+/// Metric used to compare the distance between vectors in the index.
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Serialize, Deserialize, Clone, Copy, Hash)]
 pub enum DistanceMetric {
     /// Squared [Euclidean distance](https://www.geeksforgeeks.org/euclidean-distance)
     ///
     /// The squared Euclidean distance is used to avoid the square
-    /// root operation thus making the computation faster.
+    /// root operation thus making the computation slightly faster.
     #[default]
     Euclidean,
     /// Cosine distance (1 - cosine similarity):
@@ -28,6 +28,8 @@ impl DistanceMetric {
             DistanceMetric::Cosine => f32::cosine(a, b),
         };
 
+        // Distances of 0 is the best distance. So, we return a large
+        // value for invalid values to make sure it is not selected.
         if dist.is_none()
             || dist.unwrap().is_nan()
             || dist.unwrap().is_infinite()

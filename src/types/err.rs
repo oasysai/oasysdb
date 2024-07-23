@@ -43,6 +43,8 @@ pub struct Error {
 
 impl Error {
     /// Creates a new error instance.
+    /// - `code`: Error code.
+    /// - `message`: Details why the error occurred.
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self { code, message: message.into() }
     }

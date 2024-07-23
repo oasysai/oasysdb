@@ -1,21 +1,30 @@
 use crate::types::err::{Error, ErrorCode};
 use half::f16;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sqlx::any::AnyRow;
 use sqlx::postgres::any::AnyTypeInfoKind as SQLType;
 use sqlx::{Row, ValueRef};
 use std::collections::HashMap;
 
-/// Column name of the SQL data source table.
+/// Column name in the SQL data source table.
 pub type ColumnName = String;
 
-/// ID type for records in the index from the data source.
+/// Integer-based ID for each record in the index.
+///
+/// For this to work properly with SQL as the data source, the column
+/// containing the primary key must be a unique auto-incrementing integer.
+/// Auto-incrementing integer type is important to allow the index to be
+/// updated incrementally.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct RecordID(pub u32);
 
-/// Record type stored in the index based on the
-/// configuration and data source.
+/// Record data type stored in non-PQ indices.
+///
+/// This data type contains the vector embedding and additional metadata
+/// which depends on the source configuration. This data type is compatible
+/// with the standard SQL row type.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Record {
     /// Vector embedding.
@@ -37,7 +46,11 @@ pub struct RecordPQ {
     pub data: HashMap<ColumnName, Option<DataValue>>,
 }
 
-/// Vector data type stored in the index.
+/// Vector data type for non-PQ indices.
+///
+/// This data type uses the half-precision floating-point format
+/// to store the vector data to reduce the memory footprint by half
+/// compared to the standard f32 format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(PartialEq, PartialOrd)]
 pub struct Vector(pub Box<[f16]>);
@@ -45,6 +58,8 @@ pub struct Vector(pub Box<[f16]>);
 impl Vector {
     /// Returns the vector data as a vector of f32.
     pub fn to_vec(&self) -> Vec<f32> {
+        // Don't use parallel iterator here since it actually
+        // slows it down significantly.
         self.0.iter().map(|v| v.to_f32()).collect()
     }
 
@@ -61,11 +76,16 @@ impl Vector {
 
 impl From<Vec<f32>> for Vector {
     fn from(value: Vec<f32>) -> Self {
-        Vector(value.into_iter().map(f16::from_f32).collect())
+        Vector(value.into_par_iter().map(f16::from_f32).collect())
     }
 }
 
 /// Product quantized vector data type stored in the index.
+///
+/// PQ is a method used to reduce the memory footprint of the vector
+/// data by dividing the vector into sub-vectors and quantizing them.
+/// When performing similarity search, the quantized vectors are used
+/// to reconstruct the original vector along with the codebook.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VectorPQ(pub Box<[u8]>);
 
@@ -82,18 +102,13 @@ impl From<Vec<u8>> for VectorPQ {
     }
 }
 
-impl From<Vector> for VectorPQ {
-    fn from(value: Vector) -> Self {
-        value
-            .to_vec()
-            .iter()
-            .map(|v| (v * 255.0).round() as u8)
-            .collect::<Vec<u8>>()
-            .into()
-    }
-}
-
 /// Data types supported as metadata in the index.
+///
+/// These are the corresponding SQL data types of the metadata:
+/// - Boolean: BOOL
+/// - Float: REAL | DOUBLE (Both converted to F32)
+/// - Integer: SMALLINT | INT | BIGINT
+/// - String: TEXT
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum DataValue {
@@ -151,6 +166,8 @@ impl From<bool> for DataValue {
 
 pub(crate) trait RowOps {
     /// Retrieves data from the row based on the column name.
+    /// - `column_name`: Name of the column to retrieve data from.
+    /// - `row`: SQL row containing the data.
     fn from_row(
         column_name: impl Into<ColumnName>,
         row: &AnyRow,
@@ -164,7 +181,7 @@ impl RowOps for RecordID {
         column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
-        let column_name = column_name.into();
+        let column_name: String = column_name.into();
         let id = row.try_get::<i32, &str>(&column_name).map_err(|_| {
             let code = ErrorCode::InvalidID;
             let message = "Unable to get integer ID from the row.";
@@ -180,7 +197,7 @@ impl RowOps for Vector {
         column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
-        let column = column_name.into();
+        let column: String = column_name.into();
         let value = row.try_get_raw::<&str>(&column)?;
         let value_type = value.type_info().kind();
 
@@ -215,7 +232,7 @@ impl RowOps for Option<DataValue> {
         column_name: impl Into<ColumnName>,
         row: &AnyRow,
     ) -> Result<Self, Error> {
-        let column = column_name.into();
+        let column: String = column_name.into();
         let value = row.try_get_raw::<&str>(&column)?;
         let value_type = value.type_info().kind();
 

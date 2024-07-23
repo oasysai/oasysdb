@@ -56,13 +56,17 @@ impl VectorIndex for IndexFlat {
 
     /// Refitting doesn't do anything for the flat index as incremental
     /// insertion or deletion will directly update the data store
-    /// accordingly which guarantee the optimal state of the index.
+    /// accordingly and guarantee the optimal state of the index.
     fn refit(&mut self) -> Result<(), Error> {
         Ok(())
     }
 
     /// Removes records from the index data store.
     /// - `record_ids`: List of record IDs to remove from the index.
+    ///
+    /// Instead of hiding the records to prevent them from showing up
+    /// in search results, this method removes them from the index
+    /// data store entirely.
     fn hide(&mut self, record_ids: Vec<RecordID>) -> Result<(), Error> {
         if self.data.len() < record_ids.len() {
             return Ok(());
@@ -103,7 +107,7 @@ impl VectorIndex for IndexFlat {
     }
 }
 
-/// Flat index parameters.
+/// Parameters for IndexFlat.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ParamsFlat {
     /// Formula used to calculate the distance between vectors.

@@ -7,14 +7,19 @@ use std::sync::{Arc, Mutex};
 use url::Url;
 use uuid::Uuid;
 
+// Type aliases for better readability.
 type DatabaseURL = String;
 type IndexName = String;
 type IndexFile = PathBuf;
-
 type Index = Arc<Mutex<Box<dyn VectorIndex>>>;
 type IndicesPool = Mutex<HashMap<IndexName, Index>>;
 
 /// The vector database interface.
+///
+/// The database is responsible for managing:
+/// - Data flow between the source database and the indices.
+/// - High-level indices operation and management.
+/// - Persistance, retrieval, and in-memory pool of vector indices.
 pub struct Database {
     root: PathBuf,
     state: Mutex<DatabaseState>,
@@ -43,23 +48,35 @@ impl Database {
         let root_dir: PathBuf = root.into();
         let indices_dir = root_dir.join("indices");
         if !indices_dir.try_exists()? {
+            // Creating the indices directory will also create
+            // the root directory if it doesn't exist.
             fs::create_dir_all(&indices_dir)?;
         }
 
         let state_file = root_dir.join("odbstate");
         let state = if state_file.try_exists()? {
-            file::read_binary_file(state_file)?
+            let mut state = DatabaseState::restore(&state_file)?;
+
+            // If the source URL is provided, update the state.
+            // This is useful in case the source URL has changed.
+            if let Some(source) = source_url {
+                state.with_source(source)?;
+            }
+
+            state
         } else {
             let source = source_url.ok_or_else(|| {
                 let code = ErrorCode::MissingSource;
-                let message = "Data source is required to create a database.";
+                let message = "Data source is required for a new database.";
                 Error::new(code, message)
             })?;
 
+            let indices = HashMap::new();
             let source = source.into();
             DatabaseState::validate_source(&source)?;
 
-            let state = DatabaseState { source, indices: HashMap::new() };
+            // Persist the new state to the state file.
+            let state = DatabaseState { source, indices };
             file::write_binary_file(state_file, &state)?;
             state
         };
@@ -80,16 +97,12 @@ impl Database {
         algorithm: IndexAlgorithm,
         config: SourceConfig,
     ) -> Result<(), Error> {
-        // Create a new file where the index will be stored.
-        let index_file = {
-            let uuid = Uuid::new_v4().to_string();
-            self.indices_dir().join(uuid)
-        };
-
+        // Query the source database for records.
         let query = config.to_query();
         let mut conn = self.state()?.async_connect().await?;
         let mut stream = sqlx::query(&query).fetch(conn.acquire().await?);
 
+        // Process the rows from the query as records.
         let mut records = HashMap::new();
         while let Some(row) = stream.next().await {
             let row = row?;
@@ -97,28 +110,41 @@ impl Database {
             records.insert(id, record);
         }
 
+        let index_name: IndexName = name.into();
+        let index_file = {
+            let uuid = Uuid::new_v4().to_string();
+            self.indices_dir().join(uuid)
+        };
+
         let mut index = algorithm.initialize(config)?;
         index.fit(records)?;
 
-        // Persist the index to the file.
+        // Persist the index to a file.
         algorithm.persist_index(&index_file, index.as_ref())?;
 
-        let index_name: IndexName = name.into();
-        let mut pool = self.pool.lock()?;
-        pool.insert(index_name.clone(), Arc::new(Mutex::new(index)));
+        // Insert the index into the pool for easy access.
+        {
+            let mut pool = self.pool.lock()?;
+            pool.insert(index_name.clone(), Arc::new(Mutex::new(index)));
+        }
 
         // Update db state with the new index.
-        let index_ref = IndexRef { algorithm, file: index_file };
-        let mut state = self.state.lock()?;
-        state.indices.insert(index_name, index_ref);
+        // This closure is necessary to  make sure the lock is dropped
+        // before persisting the state to the file.
+        {
+            let mut state = self.state.lock()?;
+            let index_ref = IndexRef { algorithm, file: index_file };
+            state.indices.insert(index_name, index_ref);
+        }
 
-        drop(state);
         self.persist_state()?;
-
         Ok(())
     }
 
     /// Creates a new index in the database synchronously.
+    /// - `name`: Name of the index.
+    /// - `algorithm`: Indexing algorithm to use.
+    /// - `config`: Index data source configuration.
     pub fn create_index(
         &self,
         name: impl Into<IndexName>,
@@ -128,10 +154,11 @@ impl Database {
         executor::block_on(self.async_create_index(name, algorithm, config))
     }
 
-    /// Returns an index reference by name.
+    /// Returns an index reference.
+    /// - `name`: Index name.
     ///
-    /// This method is useful for deserializing and accessing
-    /// the index directly from the file based on the algorithm type.
+    /// This method can be used to deserialize the index directly from
+    /// the file and load it into memory as an index object.
     pub fn get_index_ref(&self, name: impl AsRef<str>) -> Option<IndexRef> {
         let state = self.state.lock().ok()?;
         let index_ref = state.indices.get(name.as_ref())?;
@@ -148,19 +175,21 @@ impl Database {
         let name = name.as_ref();
         let IndexRef { algorithm, file } = self.get_index_ref(name)?;
 
+        // If the index is already in the indices pool, return it.
         let mut pool = self.pool.lock().ok()?;
         if let Some(index) = pool.get(name).cloned() {
             return Some(index);
         }
 
+        // Load the index from the file and store it in the pool.
+        // Then, return the index as a trait object.
         let index = algorithm.load_index(file).ok()?;
         let index: Index = Arc::new(Mutex::new(index));
         pool.insert(name.into(), index.clone());
         Some(index)
     }
 
-    /// Retrieves an index and if found, returns it as a trait object.
-    /// Otherwise, returns a not found error.
+    /// Retrieves an index and returns it in a result.
     /// - `name`: Index name.
     pub fn try_get_index(&self, name: impl AsRef<str>) -> Result<Index, Error> {
         let name = name.as_ref();
@@ -196,6 +225,8 @@ impl Database {
         let index: Index = self.get_index(name).unwrap();
 
         let (config, query) = {
+            // We wrap the index lock in a closure to make sure it's dropped
+            // before async functionalities are called.
             let index = index.lock()?;
             let meta = index.metadata();
             let config = index.config();
@@ -207,6 +238,7 @@ impl Database {
         let mut conn = self.state()?.async_connect().await?;
         let mut stream = sqlx::query(&query).fetch(conn.acquire().await?);
 
+        // Process the rows from the database as records.
         let mut records = HashMap::new();
         while let Some(row) = stream.next().await {
             let row = row?;
@@ -214,6 +246,8 @@ impl Database {
             records.insert(id, record);
         }
 
+        // Update the index with new records and persist it.
+        // We might want to persist the index after every fit operation.
         let mut index = index.lock()?;
         index.fit(records)?;
         algorithm.persist_index(file, index.as_ref())?;
@@ -221,6 +255,7 @@ impl Database {
     }
 
     /// Updates the index with new records from the source synchronously.
+    /// - `name`: Index name.
     pub fn refresh_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         executor::block_on(self.async_refresh_index(name))
     }
@@ -230,6 +265,11 @@ impl Database {
     /// - `query`: Query vector.
     /// - `k`: Number of nearest neighbors to return.
     /// - `filters`: SQL-like filters to apply.
+    ///
+    /// The performance of this method depends on the indexing
+    /// algorithm used when creating the index. ANNS algorithms
+    /// may not return the exact nearest neighbors but perform
+    /// much faster than linear search.
     pub fn search_index(
         &self,
         name: impl AsRef<str>,
@@ -246,7 +286,8 @@ impl Database {
     /// - `name`: Index name.
     ///
     /// Some indexing algorithms may not support perfect incremental updates.
-    /// This method can be useful to rebalance the index.
+    /// This method can be useful to rebalance the index after a large number
+    /// of insertions or deletions.
     pub fn rebuild_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         let name = name.as_ref();
         let index: Index = self.try_get_index(name)?;
@@ -260,17 +301,24 @@ impl Database {
         Ok(())
     }
 
-    /// Deletes an index from the database given its name.
+    /// Deletes an index from the database.
+    /// - `name`: Index name.
+    ///
+    /// This method will remove the index from the pool and delete
+    /// the index file from the disk. Returns an error if the index
+    /// doesn't exist in the database.
     pub fn delete_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
         let name = name.as_ref();
-        let mut state = self.state.lock()?;
-        let index_ref = state.indices.remove(name).ok_or_else(|| {
-            let code = ErrorCode::NotFound;
-            let message = format!("Index doesn't exist: {name}.");
-            Error::new(code, message)
-        })?;
+        let index_ref = {
+            let mut state = self.state.lock()?;
+            state.indices.remove(name).ok_or_else(|| {
+                let code = ErrorCode::NotFound;
+                let message = format!("Index doesn't exist: {name}.");
+                Error::new(code, message)
+            })?
+        };
 
-        drop(state);
+        self.release_indices(vec![name])?;
         fs::remove_file(index_ref.file())?;
         self.persist_state()
     }
@@ -288,6 +336,7 @@ impl Database {
             return Err(Error::new(code, message));
         }
 
+        // Using the get_index method to avoid code duplication.
         for name in names {
             self.get_index(name);
         }
@@ -308,9 +357,9 @@ impl Database {
         &self,
         names: Vec<impl AsRef<str>>,
     ) -> Result<(), Error> {
+        let mut pool = self.pool.lock()?;
         for name in names {
             let name = name.as_ref();
-            let mut pool = self.pool.lock()?;
             pool.remove(name);
         }
 
@@ -327,8 +376,8 @@ impl Database {
     ///
     /// This method requires a Mutex lock to be available.
     /// If the lock is not available, this method will be suspended.
-    /// When running this method with other state lock, drop
-    /// the lock before calling this method.
+    /// When running this method with other state lock, make sure
+    /// to release the lock before calling this method.
     pub fn persist_state(&self) -> Result<(), Error> {
         file::write_binary_file(self.state_file(), &self.state()?)
     }
@@ -336,10 +385,12 @@ impl Database {
 
 // Write internal database methods here.
 impl Database {
+    /// Returns the file path where the state is stored.
     fn state_file(&self) -> PathBuf {
         self.root.join("odbstate")
     }
 
+    /// Returns the directory where the indices are stored.
     fn indices_dir(&self) -> PathBuf {
         self.root.join("indices")
     }
@@ -353,6 +404,24 @@ pub struct DatabaseState {
 }
 
 impl DatabaseState {
+    /// Restores the database state from a file.
+    /// - `path`: Path to the state file.
+    pub fn restore(path: impl AsRef<Path>) -> Result<DatabaseState, Error> {
+        file::read_binary_file(path)
+    }
+
+    /// Updates the source URL of the database state.
+    /// - `source`: New source URL.
+    pub fn with_source(
+        &mut self,
+        source: impl Into<DatabaseURL>,
+    ) -> Result<(), Error> {
+        let source = source.into();
+        Self::validate_source(&source)?;
+        self.source = source;
+        Ok(())
+    }
+
     /// Connects to the source SQL database asynchronously.
     pub async fn async_connect(&self) -> Result<SourceConnection, Error> {
         install_default_drivers();
@@ -365,22 +434,28 @@ impl DatabaseState {
     }
 
     /// Disconnects from the source SQL database asynchronously.
+    /// - `conn`: Database connection.
     pub async fn async_disconnect(conn: SourceConnection) -> Result<(), Error> {
         Ok(conn.close().await?)
     }
 
     /// Disconnects from the source SQL database.
+    /// - `conn`: Database connection.
     pub fn disconnect(conn: SourceConnection) -> Result<(), Error> {
         executor::block_on(Self::async_disconnect(conn))
     }
 
-    /// Validates the connection to the source database successful.
+    /// Validates the connection to the source database.
+    ///
+    /// This method will try to connect to the source database and
+    /// disconnect immediately to validate the connection. If this method
+    /// is unable to connect, it will return an error.
     pub fn validate_connection(&self) -> Result<(), Error> {
         let conn = self.connect()?;
         DatabaseState::disconnect(conn)
     }
 
-    /// Returns the type of the source database.
+    /// Returns the type of the source database:
     /// - sqlite
     /// - mysql
     /// - postgresql
@@ -392,6 +467,11 @@ impl DatabaseState {
     }
 
     /// Validates the data source URL.
+    ///
+    /// The source URL scheme must be one of:
+    /// - sqlite
+    /// - mysql
+    /// - postgresql
     pub fn validate_source(url: impl Into<DatabaseURL>) -> Result<(), Error> {
         let url = url.into();
         let url = url.parse::<Url>().map_err(|_| {
@@ -423,10 +503,12 @@ pub struct IndexRef {
 }
 
 impl IndexRef {
+    /// Returns the type of the indexing algorithm of the index.
     pub fn algorithm(&self) -> &IndexAlgorithm {
         &self.algorithm
     }
 
+    /// Returns the file path where the index is stored.
     pub fn file(&self) -> &IndexFile {
         &self.file
     }

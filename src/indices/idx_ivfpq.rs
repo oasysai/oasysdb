@@ -2,6 +2,12 @@ use super::*;
 use crate::utils::kmeans::{KMeans, Vectors};
 use std::rc::Rc;
 
+/// Inverted File index with Product Quantization.
+///
+/// This index is a composite index that combines the Inverted File
+/// algorithm with Product Quantization to achieve a balance between
+/// memory usage and search speed. It is a great choice for large
+/// datasets with millions of records.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexIVFPQ {
     config: SourceConfig,
@@ -16,6 +22,12 @@ pub struct IndexIVFPQ {
 }
 
 impl IndexIVFPQ {
+    /// Builds the index from scratch.
+    /// - `records`: Dataset to build the index from.
+    ///
+    /// This method should only be called when the index is first
+    /// initialized or when the index needs to be rebuilt from scratch
+    /// because this method will overwrite the existing index data.
     fn build(
         &mut self,
         records: HashMap<RecordID, Record>,
@@ -29,9 +41,12 @@ impl IndexIVFPQ {
             .map(|record| &record.vector)
             .collect::<Vec<&Vector>>();
 
+        // We use RC to avoid cloning the entire vector data as it
+        // can be very large and expensive to clone.
         let vectors: Vectors = Rc::from(vectors.as_slice());
         self.create_codebook(vectors.clone());
 
+        // Run KMeans to find the centroids for the IVF.
         let (centroids, assignments) = {
             let mut kmeans = KMeans::new(
                 self.params.centroids,
@@ -45,6 +60,8 @@ impl IndexIVFPQ {
 
         self.centroids = centroids;
         self.clusters = {
+            // Put record IDs into their respective clusters based on the
+            // assignments from the KMeans algorithm.
             let mut clusters = vec![vec![]; self.params.centroids];
             let ids = records.keys().collect::<Vec<&RecordID>>();
             for (i, &cluster) in assignments.iter().enumerate() {
@@ -57,6 +74,7 @@ impl IndexIVFPQ {
         self.metadata.count = records.len();
         self.metadata.last_inserted = records.keys().max().copied();
 
+        // Store the quantized vectors instead of the original vectors.
         self.data = records
             .into_iter()
             .map(|(id, record)| {
@@ -69,6 +87,8 @@ impl IndexIVFPQ {
         Ok(())
     }
 
+    /// Inserts new records into the index incrementally.
+    /// - `records`: New records to insert.
     fn insert(
         &mut self,
         records: HashMap<RecordID, Record>,
@@ -77,13 +97,33 @@ impl IndexIVFPQ {
             return Ok(());
         }
 
-        let assignments = records
+        let vectors = records
             .values()
-            .map(|record| self.find_nearest_centroids(&record.vector, 1)[0])
+            .map(|record| &record.vector)
+            .collect::<Vec<&Vector>>();
+
+        let assignments = vectors
+            .par_iter()
+            .map(|vector| self.find_nearest_centroids(vector, 1)[0])
             .collect::<Vec<usize>>();
 
         let ids: Vec<&RecordID> = records.keys().collect();
         for (i, cluster_id) in assignments.iter().enumerate() {
+            // The number of records in the cluster.
+            let count = self.clusters[*cluster_id].len() as f32;
+            let new_count = count + 1.0;
+
+            // This updates the centroid of the cluster by taking the
+            // weighted average of the existing centroid and the new
+            // vector that is being inserted.
+            let centroid: Vec<f32> = self.centroids[*cluster_id]
+                .to_vec()
+                .par_iter()
+                .zip(vectors[i].to_vec().par_iter())
+                .map(|(c, v)| ((c * count) + v) / new_count)
+                .collect();
+
+            self.centroids[*cluster_id] = centroid.into();
             self.clusters[*cluster_id].push(ids[i].to_owned());
         }
 
@@ -103,6 +143,12 @@ impl IndexIVFPQ {
         Ok(())
     }
 
+    /// Creates the codebook for the Product Quantization.
+    /// - `vectors`: Dataset to create the codebook from.
+    ///
+    /// The size of the dataset should be large enough to cover the
+    /// entire vector space to ensure the codebook represents the
+    /// distribution of the vectors accurately.
     fn create_codebook(&mut self, vectors: Vectors) {
         for i in 0..self.params.sub_dimension {
             let mut subvectors = Vec::new();
@@ -125,15 +171,18 @@ impl IndexIVFPQ {
 
             self.codebook[i as usize] = centroids
                 .par_iter()
-                .map(|centroid| centroid.clone().into())
+                .map(|centroid| centroid.to_owned())
                 .collect();
         }
     }
 
+    /// Finds the nearest centroids to a vector for cluster assignments.
+    /// - `vector`: Full-length vector.
+    /// - `k`: Number of centroids to find.
     fn find_nearest_centroids(&self, vector: &Vector, k: usize) -> Vec<usize> {
         let mut distances: Vec<(usize, f32)> = self
             .centroids
-            .iter()
+            .par_iter()
             .enumerate()
             .map(|(i, center)| (i, self.metric().distance(center, vector)))
             .collect();
@@ -142,13 +191,25 @@ impl IndexIVFPQ {
         distances.into_iter().take(k).map(|(i, _)| i).collect()
     }
 
+    /// Finds the nearest centroid in the codebook for a subvector.
+    /// - `part_index`: Quantization part index.
+    /// - `subvector`: Subvector to quantize.
+    ///
+    /// Part index is used to determine which part of the vector to
+    /// quantize. For example, if we have a vector with 4 dimensions and
+    /// we want to quantize it into two parts:
+    ///
+    /// ```text
+    /// [1, 2, 3, 4] => [[1, 2], [3, 4]]
+    /// part_index   =>    0       1
+    /// ```
     fn find_nearest_code(
         &self,
         part_index: usize,
         subvector: &Vector,
     ) -> usize {
         self.codebook[part_index]
-            .iter()
+            .par_iter()
             .map(|centroid| self.metric().distance(centroid, subvector))
             .enumerate()
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
@@ -156,33 +217,39 @@ impl IndexIVFPQ {
             .0
     }
 
+    /// Quantizes a full-length vector into a PQ vector.
+    /// - `vector`: Vector data.
     fn quantize_vector(&self, vector: &Vector) -> VectorPQ {
-        let sub_dimension = self.params.sub_dimension as usize;
-        let mut pq = Vec::with_capacity(sub_dimension);
-
-        for i in 0..sub_dimension {
-            let subvector = self.get_subvector(i, vector);
-            let centroid_id = self.find_nearest_code(i, &subvector);
-            pq.push(centroid_id as u8);
-        }
-
-        pq.into()
+        (0..self.params.sub_dimension as usize)
+            .into_par_iter()
+            .map(|i| {
+                let subvector = self.get_subvector(i, vector);
+                self.find_nearest_code(i, &subvector) as u8
+            })
+            .collect::<Vec<u8>>()
+            .into()
     }
 
+    /// Reconstructs a full-length vector from a PQ vector.
+    /// - `vector_pq`: PQ vector data.
     fn dequantize_vector(&self, vector_pq: &VectorPQ) -> Vector {
-        let mut vector = vec![];
-        for (i, centroid_id) in vector_pq.0.iter().enumerate() {
-            let centroid = &self.codebook[i][*centroid_id as usize];
-            vector.extend(centroid.to_vec());
-        }
-
-        vector.into()
+        vector_pq
+            .0
+            .par_iter()
+            .enumerate()
+            .map(|(i, code_id)| self.codebook[i][*code_id as usize].to_vec())
+            .flatten()
+            .collect::<Vec<f32>>()
+            .into()
     }
 
+    /// Extracts a subvector from a full-length vector.
+    /// - `part_index`: Quantization part index.
+    /// - `vector`: Full-length vector.
     fn get_subvector(&self, part_index: usize, vector: &Vector) -> Vector {
         let dim = vector.len() / self.params.sub_dimension as usize;
-        let start = part_index as usize * dim;
-        let end = (part_index + 1) as usize * dim;
+        let start = part_index * dim;
+        let end = (part_index + 1) * dim;
         let subvector = vector.0[start..end].to_vec();
         Vector(subvector.into_boxed_slice())
     }
@@ -263,8 +330,15 @@ impl VectorIndex for IndexIVFPQ {
         for centroid_id in nearest_centroids {
             let cluster = &self.clusters[centroid_id];
             for &record_id in cluster {
+                // Skip hidden records.
+                if self.metadata.hidden.contains(&record_id) {
+                    continue;
+                }
+
                 let record = self.data.get(&record_id).unwrap();
                 let data = record.data.clone();
+
+                // Skip records that don't pass the filters.
                 if !filters.apply(&data) {
                     continue;
                 }
@@ -292,6 +366,7 @@ impl VectorIndex for IndexIVFPQ {
     }
 }
 
+/// Parameters for IndexIVFPQ.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParamsIVFPQ {
     /// Number of centroids in the IVF.

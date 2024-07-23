@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{AnyConnection as SourceConnection, Connection};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod database;
 

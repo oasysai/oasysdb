@@ -4,12 +4,23 @@ use rand::seq::SliceRandom;
 use rayon::prelude::*;
 use std::rc::Rc;
 
+/// Reference of an array of vectors to be clustered.
+///
+/// We use RC slice to avoid cloning the entire dataset when passing them
+/// around in the KMeans model. This way, we only clone the references
+/// to the dataset which is much faster and cheaper.
 pub type Vectors<'v> = Rc<[&'v Vector]>;
 
 #[derive(Debug, Clone, Copy, Default, Hash)]
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct ClusterID(pub u16);
 
+/// KMeans clustering model.
+///
+/// KMeans is a simple unsupervised learning algorithm that groups similar
+/// data points into clusters. The algorithm works by iteratively assigning
+/// each data point to the nearest centroid and then recalculating the
+/// centroids of the clusters.
 #[derive(Debug)]
 pub struct KMeans {
     num_centroids: usize,
@@ -21,6 +32,9 @@ pub struct KMeans {
 
 impl KMeans {
     /// Creates a new KMeans model.
+    /// - `num_centroids`: Number of clusters to create.
+    /// - `num_iterations`: Number of iterations to run the algorithm.
+    /// - `metric`: Distance metric to use for comparing vectors.
     pub fn new(
         num_centroids: usize,
         num_iterations: usize,
@@ -36,14 +50,17 @@ impl KMeans {
     }
 
     /// Fits the KMeans model to the given vectors.
+    /// - `vectors`: Array of vectors to cluster.
     pub fn fit(&mut self, vectors: Vectors) {
         // Cloning the vectors is acceptable because with Rc, we are
         // only cloning the references, not the actual data.
         self.centroids = self.initialize_centroids(vectors.clone());
 
-        let mut repeat_centroids = 0;
+        let mut repeat_count = 0;
         for _ in 0..self.num_iterations {
-            if repeat_centroids > 5 {
+            // If the centroids don't change for 5 iterations, we assume
+            // that the algorithm has converged and stop the iterations.
+            if repeat_count > 5 {
                 break;
             }
 
@@ -51,10 +68,10 @@ impl KMeans {
             let centroids = self.update_centroids(vectors.clone());
 
             match self.centroids == centroids {
-                true => repeat_centroids += 1,
+                true => repeat_count += 1,
                 false => {
                     self.centroids = centroids;
-                    repeat_centroids = 0;
+                    repeat_count = 0;
                 }
             }
         }
@@ -126,6 +143,20 @@ impl KMeans {
     }
 
     /// Returns the cluster assignment for each vector.
+    ///
+    /// The assignment is a vector of cluster ID where each element
+    /// corresponds to the cluster ID of the vector at the same index.
+    /// For example, if we fit the vector below:
+    ///
+    /// ```text
+    /// [v1, v2, v3, ..., vn]
+    /// Assignments: [0, 0, 1, ..., m]
+    /// ```
+    ///
+    /// This can be interpreted as:
+    /// - v1 and v2 are assigned to cluster 0.
+    /// - v3 is assigned to cluster 1.
+    /// - vn is assigned to cluster m.
     pub fn assignments(&self) -> &[ClusterID] {
         &self.assignment
     }

@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
 use crate::types::record::*;
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Joined multiple filters operation with either AND or OR.
@@ -15,11 +16,16 @@ pub enum Filters {
 }
 
 impl Filters {
+    /// Returns true if the record passes the filters.
+    /// - `data`: Record metadata to check against the filters.
+    ///
+    /// Filters of NONE type will always return true. This is useful when
+    /// no filters are provided and we want to include all records.
     pub fn apply(&self, data: &HashMap<ColumnName, Option<DataValue>>) -> bool {
         match self {
             Filters::NONE => true,
-            Filters::AND(filters) => filters.iter().all(|f| f.apply(data)),
-            Filters::OR(filters) => filters.iter().any(|f| f.apply(data)),
+            Filters::AND(filters) => filters.par_iter().all(|f| f.apply(data)),
+            Filters::OR(filters) => filters.par_iter().any(|f| f.apply(data)),
         }
     }
 }
@@ -62,24 +68,26 @@ pub struct Filter {
 }
 
 impl Filter {
+    /// Returns true if the data passes the filter.
+    /// - `data`: Data to apply the filter on.
     pub fn apply(&self, data: &HashMap<ColumnName, Option<DataValue>>) -> bool {
         let value = match data.get(&self.column).unwrap_or(&None) {
             Some(value) => value,
             None => return false,
         };
 
-        // This alias helps us cut down lines of code.
-        type Type = DataValue;
+        // This alias helps us simplify the match statement.
+        type T = DataValue;
         match (value, &self.value) {
-            (Type::Boolean(a), Type::Boolean(b)) => self.match_boolean(*a, *b),
-            (Type::Float(a), Type::Float(b)) => self.match_number(a, b),
-            (Type::Integer(a), Type::Integer(b)) => self.match_number(a, b),
-            (Type::String(a), Type::String(b)) => self.match_string(a, b),
+            (T::Boolean(a), T::Boolean(b)) => self.match_boolean(a, b),
+            (T::Float(a), T::Float(b)) => self.match_number(a, b),
+            (T::Integer(a), T::Integer(b)) => self.match_number(a, b),
+            (T::String(a), T::String(b)) => self.match_string(a, b),
             _ => false,
         }
     }
 
-    fn match_boolean(&self, a: bool, b: bool) -> bool {
+    fn match_boolean(&self, a: &bool, b: &bool) -> bool {
         match self.operator {
             FilterOperator::Equal => a == b,
             FilterOperator::NotEqual => a != b,
@@ -116,12 +124,15 @@ impl From<&str> for Filter {
         }
 
         // Split the filter string into EXACTLY 3 parts.
-        let parts: Vec<&str> = value.splitn(3, ' ').collect();
-        let parts: Vec<&str> = parts.into_iter().map(|p| p.trim()).collect();
+        let parts = value
+            .splitn(3, ' ')
+            .map(|token| token.trim())
+            .collect::<Vec<&str>>();
 
-        let column = parts[0].into();
+        let column = parts[0].to_string();
         let operator = FilterOperator::from(parts[1]);
         let value = DataValue::from(parts[2]);
+
         Filter { column, value, operator }
     }
 }

@@ -15,6 +15,7 @@ use std::path::Path;
 mod idx_flat;
 mod idx_ivfpq;
 
+// Re-export indices and their parameter types.
 pub use idx_flat::{IndexFlat, ParamsFlat};
 pub use idx_ivfpq::{IndexIVFPQ, ParamsIVFPQ};
 
@@ -23,7 +24,7 @@ pub type TableName = String;
 
 /// Type of SQL database used as a data source.
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SourceType {
     SQLITE,
     POSTGRES,
@@ -31,35 +32,42 @@ pub enum SourceType {
 }
 
 impl From<&str> for SourceType {
-    fn from(value: &str) -> Self {
-        match value {
+    /// Converts source URL scheme to a source type.
+    fn from(scheme: &str) -> Self {
+        match scheme {
             "sqlite" => SourceType::SQLITE,
             "postgres" | "postgresql" => SourceType::POSTGRES,
             "mysql" => SourceType::MYSQL,
-            _ => panic!("Unsupported database scheme: {value}."),
+            _ => panic!("Unsupported database scheme: {scheme}."),
         }
     }
 }
 
 /// Data source configuration for a vector index.
+///
+/// The column data types used as the data source must be the following:
+/// - Primary Key: Unique auto-incremented integer.
+/// - Vector: Array of floats stored as JSON string or binary.
+/// - Metadata: Primitive types like string, integer, float, or boolean.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceConfig {
     /// Name of the SQL table to use as data source.
     pub table: TableName,
-    /// Column name of the primary key in the data source.
+    /// Column name of the primary key in the source table.
     pub primary_key: ColumnName,
-    /// Column name storing the vector data.
+    /// Name of the column storing the vector data.
     pub vector: ColumnName,
-    /// Optional list of column names storing additional metadata.
+    /// Optional list of column names of additional metadata.
     pub metadata: Option<Vec<ColumnName>>,
     /// Filter to apply to the SQL query using WHERE clause.
     pub filter: Option<String>,
 }
 
+#[cfg(test)]
 impl Default for SourceConfig {
     fn default() -> Self {
         SourceConfig {
-            table: "table".into(),
+            table: "embeddings".into(),
             primary_key: "id".into(),
             vector: "vector".into(),
             metadata: None,
@@ -93,7 +101,7 @@ impl SourceConfig {
     /// Adds a list of metadata columns to the source configuration.
     /// - `metadata`: List of metadata column names.
     ///
-    /// OasysDB only supports primitive data types for metadata columns such as:
+    /// OasysDB only supports primitive data types for metadata such as:
     /// - String
     /// - Integer
     /// - Float
@@ -107,7 +115,7 @@ impl SourceConfig {
     }
 
     /// Adds a filter to the source configuration.
-    /// - `filter`: Filter string without the WHERE keyword.
+    /// - `filter`: SQL filter string without the WHERE keyword.
     ///
     /// Example:
     /// ```text
@@ -119,7 +127,10 @@ impl SourceConfig {
         self
     }
 
-    /// Returns the list of columns in the source configuration.
+    /// Returns the list of columns in the following order:
+    /// - Primary Key
+    /// - Vector
+    /// - Metadata (if any)
     pub fn columns(&self) -> Vec<ColumnName> {
         let mut columns = vec![&self.primary_key, &self.vector];
         if let Some(metadata) = &self.metadata {
@@ -129,7 +140,7 @@ impl SourceConfig {
         columns.into_iter().map(|s| s.to_owned()).collect()
     }
 
-    /// Generates a SQL query string based on the configuration.
+    /// Generates a SQL query based on the source configuration.
     ///
     /// Example:
     /// ```sql
@@ -149,15 +160,18 @@ impl SourceConfig {
         query.trim().to_string()
     }
 
-    /// Generates a SQL query string based on the configuration and checkpoint.
-    /// Instead of returning a query to fetch all records, this method returns
-    /// a query to fetch records from a specific RecordID.
+    /// Generates a SQL query string based on the configuration and a primary
+    /// key checkpoint. Instead of returning a query to fetch all records,
+    /// this method returns a query to fetch records from a specific RecordID.
     /// - `checkpoint`: Record ID to start the query from.
     pub(crate) fn to_query_after(&self, checkpoint: &RecordID) -> String {
         let table = &self.table;
+        let pk = &self.primary_key;
         let columns = self.columns().join(", ");
 
-        let mut filter = format!("WHERE id > {}", checkpoint.0);
+        // Prioritize the primary key filtering before
+        // joining with the optional filter.
+        let mut filter = format!("WHERE {pk} > {}", checkpoint.0);
         if let Some(string) = &self.filter {
             filter.push_str(&format!(" AND ({string})"));
         }
@@ -167,6 +181,7 @@ impl SourceConfig {
     }
 
     /// Creates a tuple of record ID and record data from a row.
+    /// - `row`: SQL row containing the record data.
     pub(crate) fn to_record(
         &self,
         row: &AnyRow,
@@ -174,6 +189,7 @@ impl SourceConfig {
         let id = RecordID::from_row(&self.primary_key, row)?;
         let vector = Vector::from_row(&self.vector, row)?;
 
+        // Parse all metadata from the row if any.
         let mut metadata = HashMap::new();
         if let Some(metadata_columns) = &self.metadata {
             for column in metadata_columns {
@@ -188,6 +204,10 @@ impl SourceConfig {
 }
 
 /// Algorithm options used to index and search vectors.
+///
+/// You might want to use a different algorithm based on the size
+/// of the data and the desired search performance. For example,
+/// the Flat algorithm is gives good performance and recall for small datasets.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexAlgorithm {
@@ -211,6 +231,8 @@ impl PartialEq for IndexAlgorithm {
     }
 }
 
+impl Eq for IndexAlgorithm {}
+
 impl IndexAlgorithm {
     /// Initializes a new index based on the algorithm and configuration.
     /// - `config`: Source configuration for the index.
@@ -218,31 +240,35 @@ impl IndexAlgorithm {
         &self,
         config: SourceConfig,
     ) -> Result<Box<dyn VectorIndex>, Error> {
+        macro_rules! initialize {
+            ($index_type:ident, $params:expr) => {{
+                let index = $index_type::new(config, $params)?;
+                Ok(Box::new(index))
+            }};
+        }
+
         match self.to_owned() {
-            Self::Flat(params) => {
-                let index = IndexFlat::new(config, params)?;
-                Ok(Box::new(index))
-            }
-            Self::IVFPQ(params) => {
-                let index = IndexIVFPQ::new(config, params)?;
-                Ok(Box::new(index))
-            }
+            Self::Flat(params) => initialize!(IndexFlat, params),
+            Self::IVFPQ(params) => initialize!(IndexIVFPQ, params),
         }
     }
 
+    /// Loads an index from a file based on the algorithm.
+    /// - `path`: Path to the file where the index is stored.
     pub(crate) fn load_index(
         &self,
         path: impl AsRef<Path>,
     ) -> Result<Box<dyn VectorIndex>, Error> {
+        macro_rules! load {
+            ($index_type:ident) => {{
+                let index = Self::_load_index::<$index_type>(path)?;
+                Ok(Box::new(index))
+            }};
+        }
+
         match self {
-            Self::Flat(_) => {
-                let index = Self::_load_index::<IndexFlat>(path)?;
-                Ok(Box::new(index))
-            }
-            Self::IVFPQ(_) => {
-                let index = Self::_load_index::<IndexIVFPQ>(path)?;
-                Ok(Box::new(index))
-            }
+            Self::Flat(_) => load!(IndexFlat),
+            Self::IVFPQ(_) => load!(IndexIVFPQ),
         }
     }
 
@@ -254,9 +280,15 @@ impl IndexAlgorithm {
         path: impl AsRef<Path>,
         index: &dyn VectorIndex,
     ) -> Result<(), Error> {
+        macro_rules! persist {
+            ($index_type:ident) => {{
+                Self::_persist_index::<$index_type>(path, index)
+            }};
+        }
+
         match self {
-            Self::Flat(_) => Self::_persist_index::<IndexFlat>(path, index),
-            Self::IVFPQ(_) => Self::_persist_index::<IndexIVFPQ>(path, index),
+            Self::Flat(_) => persist!(IndexFlat),
+            Self::IVFPQ(_) => persist!(IndexIVFPQ),
         }
     }
 
@@ -282,7 +314,11 @@ impl IndexAlgorithm {
     }
 }
 
-/// Metadata about the index for operations and optimizations.
+/// Metadata about the index operations.
+///
+/// This information should be available to all index implementations
+/// to keep track of the overall state of the index. This data is useful
+/// to optimize the index operations and to provide insights about the index.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct IndexMetadata {
     /// Hidden records that will not be included in search results.
@@ -324,7 +360,11 @@ impl Ord for SearchResult {
     }
 }
 
-/// Trait for a new index implementation.
+/// Trait for an index implementation.
+///
+/// This trait defines the basic operations that an index should support.
+/// The trait comes with default implementations for loading and persisting
+/// the index to a file that should work for most cases.
 pub trait IndexOps: Debug + Serialize + DeserializeOwned {
     /// Initializes an empty index with the given configuration.
     /// - `config`: Source configuration for the index.
@@ -345,7 +385,16 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
     }
 }
 
-/// Trait for operating vector index implementations.
+/// Trait for operating an index implementation.
+///
+/// This trait defines operational methods to interact with the index such as
+/// fitting and searching the index. Every index implementation should have the
+/// following fields:
+///
+/// - `config`: Data source configuration.
+/// - `params`: Index-specific parameters.
+/// - `metadata`: Index metadata.
+/// - `data`: Records stored in the index.
 pub trait VectorIndex: Debug + Send + Sync {
     /// Returns the configuration of the index.
     fn config(&self) -> &SourceConfig;
@@ -357,6 +406,7 @@ pub trait VectorIndex: Debug + Send + Sync {
     fn metadata(&self) -> &IndexMetadata;
 
     /// Trains the index based on the new records.
+    /// - `records`: Records to train the index on.
     ///
     /// If the index has been trained and not empty, this method
     /// will incrementally train the index based on the current fitting.
@@ -374,6 +424,11 @@ pub trait VectorIndex: Debug + Send + Sync {
     /// - `query`: Query vector.
     /// - `k`: Number of nearest neighbors to return.
     /// - `filters`: Filters to apply to the search results.
+    ///
+    /// Returns search results sorted by their distance to the query.
+    /// The degree of the distance might vary depending on the metric
+    /// used but the smallest distance always means the most similar
+    /// record to the query.
     fn search(
         &self,
         query: Vector,
@@ -382,6 +437,7 @@ pub trait VectorIndex: Debug + Send + Sync {
     ) -> Result<Vec<SearchResult>, Error>;
 
     /// Hides certain records from the search result permanently.
+    /// - `record_ids`: List of record IDs to hide.
     fn hide(&mut self, record_ids: Vec<RecordID>) -> Result<(), Error>;
 
     /// Returns the index as Any type for dynamic casting.
@@ -392,6 +448,10 @@ pub trait VectorIndex: Debug + Send + Sync {
 }
 
 /// Trait for custom index parameters.
+///
+/// Every index implementation should have a custom parameter struct that
+/// implements this trait. The parameters struct should also derive the
+/// Serialize and Deserialize traits as it will be stored inside of the index.
 pub trait IndexParams: Debug + Default + Clone {
     /// Returns the distance metric set in the parameters.
     fn metric(&self) -> &DistanceMetric;
@@ -400,6 +460,8 @@ pub trait IndexParams: Debug + Default + Clone {
     fn as_any(&self) -> &dyn Any;
 }
 
+/// Downcasts the index parameters trait object to a concrete type.
+/// - `params`: Index parameters trait object.
 pub(crate) fn downcast_params<T: IndexParams + 'static>(
     params: impl IndexParams,
 ) -> Result<T, Error> {
