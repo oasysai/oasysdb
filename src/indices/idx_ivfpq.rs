@@ -10,7 +10,6 @@ use std::rc::Rc;
 /// datasets with millions of records.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexIVFPQ {
-    config: SourceConfig,
     params: ParamsIVFPQ,
     metadata: IndexMetadata,
     data: HashMap<RecordID, RecordPQ>,
@@ -256,16 +255,12 @@ impl IndexIVFPQ {
 }
 
 impl IndexOps for IndexIVFPQ {
-    fn new(
-        config: SourceConfig,
-        params: impl IndexParams,
-    ) -> Result<Self, Error> {
+    fn new(params: impl IndexParams) -> Result<Self, Error> {
         let params = downcast_params::<ParamsIVFPQ>(params)?;
         let codebook = vec![vec![]; params.sub_dimension as usize];
         let clusters = vec![vec![]; params.centroids];
 
         let index = IndexIVFPQ {
-            config,
             params,
             metadata: IndexMetadata::default(),
             data: HashMap::new(),
@@ -280,10 +275,6 @@ impl IndexOps for IndexIVFPQ {
 }
 
 impl VectorIndex for IndexIVFPQ {
-    fn config(&self) -> &SourceConfig {
-        &self.config
-    }
-
     fn metric(&self) -> &DistanceMetric {
         &self.params.metric
     }
@@ -431,7 +422,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut index = create_test_index(params);
+        let mut index = IndexIVFPQ::new(params).unwrap();
         index.create_codebook(vectors);
 
         let encoded = index.quantize_vector(&data[0]);
@@ -447,14 +438,9 @@ mod tests {
             ..Default::default()
         };
 
-        let mut index = create_test_index(params);
+        let mut index = IndexIVFPQ::new(params).unwrap();
         index_tests::populate_index(&mut index);
         index_tests::test_basic_search(&index);
         index_tests::test_advanced_search(&index);
-    }
-
-    fn create_test_index(params: ParamsIVFPQ) -> IndexIVFPQ {
-        let config = SourceConfig::default();
-        IndexIVFPQ::new(config, params).unwrap()
     }
 }

@@ -116,7 +116,7 @@ impl Database {
             self.indices_dir().join(uuid)
         };
 
-        let mut index = algorithm.initialize(config)?;
+        let mut index = algorithm.initialize()?;
         index.fit(records)?;
 
         // Persist the index to a file.
@@ -133,7 +133,7 @@ impl Database {
         // before persisting the state to the file.
         {
             let mut state = self.state.lock()?;
-            let index_ref = IndexRef { algorithm, file: index_file };
+            let index_ref = IndexRef { algorithm, config, file: index_file };
             state.indices.insert(index_name, index_ref);
         }
 
@@ -173,7 +173,7 @@ impl Database {
     /// in the pool for future access.
     pub fn get_index(&self, name: impl AsRef<str>) -> Option<Index> {
         let name = name.as_ref();
-        let IndexRef { algorithm, file } = self.get_index_ref(name)?;
+        let IndexRef { algorithm, file, .. } = self.get_index_ref(name)?;
 
         // If the index is already in the indices pool, return it.
         let mut pool = self.pool.lock().ok()?;
@@ -218,21 +218,19 @@ impl Database {
         })?;
 
         // Cloning is necessary here to avoid borrowing issues.
-        let IndexRef { algorithm, file } = index_ref.to_owned();
+        let IndexRef { algorithm, file, config } = index_ref.to_owned();
 
         // It's safe to unwrap here because we validated that index exists by
         // calling get_index_ref method above.
         let index: Index = self.get_index(name).unwrap();
 
-        let (config, query) = {
+        let (query, config) = {
             // We wrap the index lock in a closure to make sure it's dropped
             // before async functionalities are called.
             let index = index.lock()?;
             let meta = index.metadata();
-            let config = index.config();
-
             let checkpoint = meta.last_inserted.unwrap_or_default();
-            (config.to_owned(), config.to_query_after(&checkpoint))
+            (config.to_query_after(&checkpoint), config)
         };
 
         let mut conn = self.state()?.async_connect().await?;
@@ -295,9 +293,10 @@ impl Database {
         index.refit()?;
 
         // Unwrap is safe here because we validated that the index exists above.
-        let IndexRef { algorithm, file } = self.get_index_ref(name).unwrap();
-        algorithm.persist_index(file, index.as_ref())?;
+        let IndexRef { algorithm, file, .. } =
+            self.get_index_ref(name).unwrap();
 
+        algorithm.persist_index(file, index.as_ref())?;
         Ok(())
     }
 
@@ -498,11 +497,17 @@ impl DatabaseState {
 /// Details about the index and where it is stored.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexRef {
+    config: SourceConfig,
     algorithm: IndexAlgorithm,
     file: IndexFile,
 }
 
 impl IndexRef {
+    /// Returns the source configuration of the index.
+    pub fn config(&self) -> &SourceConfig {
+        &self.config
+    }
+
     /// Returns the type of the indexing algorithm of the index.
     pub fn algorithm(&self) -> &IndexAlgorithm {
         &self.algorithm
@@ -678,9 +683,10 @@ mod tests {
 
         let create_table = format!(
             "CREATE TABLE IF NOT EXISTS {TABLE} (
-            id INTEGER PRIMARY KEY,
-            vector JSON NOT NULL,
-            data INTEGER NOT NULL)"
+                id INTEGER PRIMARY KEY,
+                vector JSON NOT NULL,
+                data INTEGER NOT NULL
+            )"
         );
 
         let insert_records = generate_insert_query(0, 100);

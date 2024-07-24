@@ -234,15 +234,11 @@ impl PartialEq for IndexAlgorithm {
 impl Eq for IndexAlgorithm {}
 
 impl IndexAlgorithm {
-    /// Initializes a new index based on the algorithm and configuration.
-    /// - `config`: Source configuration for the index.
-    pub(crate) fn initialize(
-        &self,
-        config: SourceConfig,
-    ) -> Result<Box<dyn VectorIndex>, Error> {
+    /// Initializes a new index based on the algorithm and its parameters.
+    pub(crate) fn initialize(&self) -> Result<Box<dyn VectorIndex>, Error> {
         macro_rules! initialize {
             ($index_type:ident, $params:expr) => {{
-                let index = $index_type::new(config, $params)?;
+                let index = $index_type::new($params)?;
                 Ok(Box::new(index))
             }};
         }
@@ -366,13 +362,9 @@ impl Ord for SearchResult {
 /// The trait comes with default implementations for loading and persisting
 /// the index to a file that should work for most cases.
 pub trait IndexOps: Debug + Serialize + DeserializeOwned {
-    /// Initializes an empty index with the given configuration.
-    /// - `config`: Source configuration for the index.
+    /// Initializes an empty index with the given parameters.
     /// - `params`: Index specific parameters.
-    fn new(
-        config: SourceConfig,
-        params: impl IndexParams,
-    ) -> Result<Self, Error>;
+    fn new(params: impl IndexParams) -> Result<Self, Error>;
 
     /// Reads and deserializes the index from a file.
     fn load(path: impl AsRef<Path>) -> Result<Self, Error> {
@@ -391,14 +383,10 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
 /// fitting and searching the index. Every index implementation should have the
 /// following fields:
 ///
-/// - `config`: Data source configuration.
 /// - `params`: Index-specific parameters.
 /// - `metadata`: Index metadata.
 /// - `data`: Records stored in the index.
 pub trait VectorIndex: Debug + Send + Sync {
-    /// Returns the configuration of the index.
-    fn config(&self) -> &SourceConfig;
-
     /// Returns the distance metric used by the index.
     fn metric(&self) -> &DistanceMetric;
 

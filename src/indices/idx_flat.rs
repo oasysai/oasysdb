@@ -7,19 +7,14 @@ use super::*;
 /// 10,000 records due to perfect recall and precision.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexFlat {
-    config: SourceConfig,
     params: ParamsFlat,
     metadata: IndexMetadata,
     data: HashMap<RecordID, Record>,
 }
 
 impl IndexOps for IndexFlat {
-    fn new(
-        config: SourceConfig,
-        params: impl IndexParams,
-    ) -> Result<IndexFlat, Error> {
+    fn new(params: impl IndexParams) -> Result<IndexFlat, Error> {
         let index = IndexFlat {
-            config,
             params: downcast_params(params)?,
             metadata: IndexMetadata::default(),
             data: HashMap::new(),
@@ -30,10 +25,6 @@ impl IndexOps for IndexFlat {
 }
 
 impl VectorIndex for IndexFlat {
-    fn config(&self) -> &SourceConfig {
-        &self.config
-    }
-
     fn metric(&self) -> &DistanceMetric {
         &self.params.metric
     }
@@ -130,9 +121,8 @@ mod tests {
 
     #[test]
     fn test_flat_index() {
-        let config = SourceConfig::default();
         let params = ParamsFlat::default();
-        let mut index = IndexFlat::new(config, params).unwrap();
+        let mut index = IndexFlat::new(params).unwrap();
 
         index_tests::populate_index(&mut index);
         index_tests::test_basic_search(&index);
