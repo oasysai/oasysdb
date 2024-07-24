@@ -35,6 +35,14 @@ impl IndexIVFPQ {
             return Ok(());
         }
 
+        // Ensure that the number of records is good enough to build
+        // the index compared to the parameters.
+        if records.len() < self.params.centroids * 5 {
+            let code = ErrorCode::InvalidSource;
+            let message = "Dataset is too small to build the index properly.";
+            return Err(Error::new(code, message));
+        }
+
         let vectors = records
             .values()
             .map(|record| &record.vector)
