@@ -23,8 +23,8 @@ futures = "0.3.30"
 rand = "0.8.5"
 
 # Parallelism.
+simsimd = { version = "4.4.0", optional = true }
 rayon = "1.10.0"
-simsimd = "4.4.0"
 
 # Serialization.
 serde = { version = "1.0.203", features = ["derive"] }
@@ -35,6 +35,15 @@ serde_json = "1.0.120"
 version = "0.7.4"
 default-features = false
 features = ["all-databases"]
+
+[dev-dependencies]
+byteorder = "1.5.0"
+curl = "0.4.44"
+flate2 = "1.0.30"
+tar = "0.4.41"
+
+[features]
+simd = ["dep:simsimd"]
 
 [profile.release]
 lto = true

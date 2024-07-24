@@ -1,5 +1,7 @@
 use crate::types::record::Vector;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "simd")]
 use simsimd::SpatialSimilarity;
 
 /// Metric used to compare the distance between vectors in the index.
@@ -24,8 +26,8 @@ impl DistanceMetric {
         let b = &b.to_vec();
 
         let dist = match self {
-            DistanceMetric::Euclidean => f32::sqeuclidean(a, b),
-            DistanceMetric::Cosine => f32::cosine(a, b),
+            DistanceMetric::Euclidean => Self::sqeuclidean(a, b),
+            DistanceMetric::Cosine => Self::cosine(a, b),
         };
 
         // Distances of 0 is the best distance. So, we return a large
@@ -38,6 +40,31 @@ impl DistanceMetric {
         }
 
         dist.unwrap() as f32
+    }
+
+    fn sqeuclidean(a: &[f32], b: &[f32]) -> Option<f64> {
+        #[cfg(feature = "simd")]
+        return f32::sqeuclidean(a, b);
+
+        let dist = a
+            .iter()
+            .zip(b.iter())
+            .map(|(a, b)| (a - b).powi(2) as f64)
+            .sum::<f64>();
+
+        Some(dist)
+    }
+
+    fn cosine(a: &[f32], b: &[f32]) -> Option<f64> {
+        #[cfg(feature = "simd")]
+        return f32::cosine(a, b);
+
+        let dot = a.iter().zip(b.iter()).map(|(a, b)| a * b).sum::<f32>();
+        let norm_a = a.iter().map(|x| x.powi(2)).sum::<f32>().sqrt();
+        let norm_b = b.iter().map(|x| x.powi(2)).sum::<f32>().sqrt();
+
+        let dist = 1.0 - dot / (norm_a * norm_b);
+        Some(dist as f64)
     }
 }
 
