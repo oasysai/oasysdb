@@ -23,6 +23,7 @@ pub enum ErrorCode {
 
     // Other generic errors.
     InternalError,
+    RequestError,
     NotFound,
 
     // External error types.

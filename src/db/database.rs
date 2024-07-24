@@ -117,7 +117,7 @@ impl Database {
         };
 
         let mut index = algorithm.initialize()?;
-        index.fit(records)?;
+        index.build(records)?;
 
         // Persist the index to a file.
         algorithm.persist_index(&index_file, index.as_ref())?;
@@ -247,7 +247,7 @@ impl Database {
         // Update the index with new records and persist it.
         // We might want to persist the index after every fit operation.
         let mut index = index.lock()?;
-        index.fit(records)?;
+        index.insert(records)?;
         algorithm.persist_index(file, index.as_ref())?;
         Ok(())
     }
@@ -278,26 +278,6 @@ impl Database {
         let index: Index = self.try_get_index(name)?;
         let index = index.lock()?;
         index.search(query.into(), k, filters.into())
-    }
-
-    /// Rebuilds the index from the existing records in the index.
-    /// - `name`: Index name.
-    ///
-    /// Some indexing algorithms may not support perfect incremental updates.
-    /// This method can be useful to rebalance the index after a large number
-    /// of insertions or deletions.
-    pub fn rebuild_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
-        let name = name.as_ref();
-        let index: Index = self.try_get_index(name)?;
-        let mut index = index.lock()?;
-        index.refit()?;
-
-        // Unwrap is safe here because we validated that the index exists above.
-        let IndexRef { algorithm, file, .. } =
-            self.get_index_ref(name).unwrap();
-
-        algorithm.persist_index(file, index.as_ref())?;
-        Ok(())
     }
 
     /// Deletes an index from the database.
@@ -542,7 +522,7 @@ mod tests {
         let index = index.lock()?;
         let metadata = index.metadata();
 
-        assert_eq!(metadata.count, 100);
+        assert_eq!(index.len(), 100);
         assert_eq!(metadata.last_inserted, Some(RecordID(100)));
         Ok(())
     }
@@ -559,7 +539,7 @@ mod tests {
         let index = index.lock()?;
         let metadata = index.metadata();
 
-        assert_eq!(metadata.count, 110);
+        assert_eq!(index.len(), 110);
         assert_eq!(metadata.last_inserted, Some(RecordID(110)));
         Ok(())
     }
@@ -585,17 +565,6 @@ mod tests {
 
         assert_eq!(results.len(), 5);
         assert_eq!(results[0].id, RecordID(51));
-    }
-
-    #[test]
-    fn test_database_rebuild_index() -> Result<(), Error> {
-        let db = create_test_database()?;
-        db.rebuild_index(TEST_INDEX)?;
-
-        let index: Index = db.try_get_index(TEST_INDEX)?;
-        let index = index.lock()?;
-        assert_eq!(index.metadata().count, 100);
-        Ok(())
     }
 
     #[test]

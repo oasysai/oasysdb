@@ -317,15 +317,17 @@ impl IndexAlgorithm {
 /// to optimize the index operations and to provide insights about the index.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct IndexMetadata {
-    /// Hidden records that will not be included in search results.
-    pub hidden: Vec<RecordID>,
-    /// Last inserted data reference used for incremental insertion.
+    /// Status whether the index has been built or not.
+    pub built: bool,
+    /// Last inserted record reference used for incremental insertion.
     pub last_inserted: Option<RecordID>,
-    /// Number of records in the index.
-    pub count: usize,
 }
 
 /// Nearest neighbor search result.
+///
+/// This struct contains the additional metadata of the records
+/// which is often used for post-search operations such as using
+/// the metadata as a context for RAG (Retrieval Augmented Generation).
 #[derive(Debug)]
 pub struct SearchResult {
     /// ID of the record in the data source.
@@ -393,20 +395,23 @@ pub trait VectorIndex: Debug + Send + Sync {
     /// Returns metadata about the index.
     fn metadata(&self) -> &IndexMetadata;
 
-    /// Trains the index based on the new records.
-    /// - `records`: Records to train the index on.
-    ///
-    /// If the index has been trained and not empty, this method
-    /// will incrementally train the index based on the current fitting.
-    /// Otherwise, this method will train the index from scratch like normal.
-    fn fit(&mut self, records: HashMap<RecordID, Record>) -> Result<(), Error>;
+    /// Builds the index from scratch based on the records.
+    /// - `records`: Records to build the index on.
+    fn build(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error>;
 
-    /// Resets the index and re-trains it on the non-hidden records.
-    ///
-    /// Incremental fitting is not as optimal as fitting from scratch for
-    /// some indexing algorithms. This method could be useful to re-balance
-    /// the index after a certain threshold of incremental fitting.
-    fn refit(&mut self) -> Result<(), Error>;
+    /// Inserts new records into the index incrementally.
+    /// - `records`: Records to insert into the index.
+    fn insert(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error>;
+
+    /// Deletes records from the index data store.
+    /// - `ids`: List of record IDs to delete from the index.
+    fn delete(&mut self, ids: Vec<RecordID>) -> Result<(), Error>;
 
     /// Searches for the nearest neighbors of the query vector.
     /// - `query`: Query vector.
@@ -415,7 +420,7 @@ pub trait VectorIndex: Debug + Send + Sync {
     ///
     /// Returns search results sorted by their distance to the query.
     /// The degree of the distance might vary depending on the metric
-    /// used but the smallest distance always means the most similar
+    /// used but the smallest distance always means the most relevant
     /// record to the query.
     fn search(
         &self,
@@ -424,9 +429,8 @@ pub trait VectorIndex: Debug + Send + Sync {
         filters: Filters,
     ) -> Result<Vec<SearchResult>, Error>;
 
-    /// Hides certain records from the search result permanently.
-    /// - `record_ids`: List of record IDs to hide.
-    fn hide(&mut self, record_ids: Vec<RecordID>) -> Result<(), Error>;
+    /// Returns the number of records in the index.
+    fn len(&self) -> usize;
 
     /// Returns the index as Any type for dynamic casting.
     ///
@@ -502,7 +506,7 @@ mod index_tests {
             records.insert(id, record);
         }
 
-        index.fit(records).unwrap();
+        index.build(records).unwrap();
     }
 
     pub fn test_basic_search(index: &impl VectorIndex) {

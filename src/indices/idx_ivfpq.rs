@@ -21,135 +21,6 @@ pub struct IndexIVFPQ {
 }
 
 impl IndexIVFPQ {
-    /// Builds the index from scratch.
-    /// - `records`: Dataset to build the index from.
-    ///
-    /// This method should only be called when the index is first
-    /// initialized or when the index needs to be rebuilt from scratch
-    /// because this method will overwrite the existing index data.
-    fn build(
-        &mut self,
-        records: HashMap<RecordID, Record>,
-    ) -> Result<(), Error> {
-        if records.is_empty() {
-            return Ok(());
-        }
-
-        // Ensure that the number of records is good enough to build
-        // the index compared to the parameters.
-        if records.len() < self.params.centroids * 5 {
-            let code = ErrorCode::InvalidSource;
-            let message = "Dataset is too small to build the index properly.";
-            return Err(Error::new(code, message));
-        }
-
-        let vectors = records
-            .values()
-            .map(|record| &record.vector)
-            .collect::<Vec<&Vector>>();
-
-        // We use RC to avoid cloning the entire vector data as it
-        // can be very large and expensive to clone.
-        let vectors: Vectors = Rc::from(vectors.as_slice());
-        self.create_codebook(vectors.clone());
-
-        // Run KMeans to find the centroids for the IVF.
-        let (centroids, assignments) = {
-            let mut kmeans = KMeans::new(
-                self.params.centroids,
-                self.params.num_iterations,
-                self.metric().to_owned(),
-            );
-
-            kmeans.fit(vectors.clone());
-            (kmeans.centroids().to_vec(), kmeans.assignments().to_vec())
-        };
-
-        self.centroids = centroids;
-        self.clusters = {
-            // Put record IDs into their respective clusters based on the
-            // assignments from the KMeans algorithm.
-            let mut clusters = vec![vec![]; self.params.centroids];
-            let ids = records.keys().collect::<Vec<&RecordID>>();
-            for (i, &cluster) in assignments.iter().enumerate() {
-                clusters[cluster.0 as usize].push(ids[i].to_owned());
-            }
-
-            clusters
-        };
-
-        self.metadata.count = records.len();
-        self.metadata.last_inserted = records.keys().max().copied();
-
-        // Store the quantized vectors instead of the original vectors.
-        self.data = records
-            .into_iter()
-            .map(|(id, record)| {
-                let vector = self.quantize_vector(&record.vector);
-                let data = record.data;
-                (id, RecordPQ { vector, data })
-            })
-            .collect();
-
-        Ok(())
-    }
-
-    /// Inserts new records into the index incrementally.
-    /// - `records`: New records to insert.
-    fn insert(
-        &mut self,
-        records: HashMap<RecordID, Record>,
-    ) -> Result<(), Error> {
-        if records.is_empty() {
-            return Ok(());
-        }
-
-        let vectors = records
-            .values()
-            .map(|record| &record.vector)
-            .collect::<Vec<&Vector>>();
-
-        let assignments = vectors
-            .par_iter()
-            .map(|vector| self.find_nearest_centroids(vector, 1)[0])
-            .collect::<Vec<usize>>();
-
-        let ids: Vec<&RecordID> = records.keys().collect();
-        for (i, cluster_id) in assignments.iter().enumerate() {
-            // The number of records in the cluster.
-            let count = self.clusters[*cluster_id].len() as f32;
-            let new_count = count + 1.0;
-
-            // This updates the centroid of the cluster by taking the
-            // weighted average of the existing centroid and the new
-            // vector that is being inserted.
-            let centroid: Vec<f32> = self.centroids[*cluster_id]
-                .to_vec()
-                .par_iter()
-                .zip(vectors[i].to_vec().par_iter())
-                .map(|(c, v)| ((c * count) + v) / new_count)
-                .collect();
-
-            self.centroids[*cluster_id] = centroid.into();
-            self.clusters[*cluster_id].push(ids[i].to_owned());
-        }
-
-        self.metadata.count += records.len();
-        self.metadata.last_inserted = records.keys().max().copied();
-
-        let records: HashMap<RecordID, RecordPQ> = records
-            .into_par_iter()
-            .map(|(id, record)| {
-                let vector = self.quantize_vector(&record.vector);
-                let data = record.data;
-                (id, RecordPQ { vector, data })
-            })
-            .collect();
-
-        self.data.par_extend(records);
-        Ok(())
-    }
-
     /// Creates the codebook for the Product Quantization.
     /// - `vectors`: Dataset to create the codebook from.
     ///
@@ -291,27 +162,127 @@ impl VectorIndex for IndexIVFPQ {
         &self.metadata
     }
 
-    fn fit(&mut self, records: HashMap<RecordID, Record>) -> Result<(), Error> {
-        match self.metadata.count {
-            0 => self.build(records),
-            _ => self.insert(records),
-        }
-    }
+    fn build(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        let vectors = records
+            .values()
+            .map(|record| &record.vector)
+            .collect::<Vec<&Vector>>();
 
-    fn refit(&mut self) -> Result<(), Error> {
-        self.data.retain(|id, _| !self.metadata.hidden.contains(id));
+        // We use RC to avoid cloning the entire vector data as it
+        // can be very large and expensive to clone.
+        let vectors: Vectors = Rc::from(vectors.as_slice());
+        self.create_codebook(vectors.clone());
 
-        let records = self
-            .data
-            .par_iter()
+        // Run KMeans to find the centroids for the IVF.
+        let (centroids, assignments) = {
+            let mut kmeans = KMeans::new(
+                self.params.centroids,
+                self.params.num_iterations,
+                self.metric().to_owned(),
+            );
+
+            kmeans.fit(vectors.clone());
+            (kmeans.centroids().to_vec(), kmeans.assignments().to_vec())
+        };
+
+        self.centroids = centroids;
+        self.clusters = {
+            // Put record IDs into their respective clusters based on the
+            // assignments from the KMeans algorithm.
+            let mut clusters = vec![vec![]; self.params.centroids];
+            let ids = records.keys().collect::<Vec<&RecordID>>();
+            for (i, &cluster) in assignments.iter().enumerate() {
+                clusters[cluster.0 as usize].push(ids[i].to_owned());
+            }
+
+            clusters
+        };
+
+        self.metadata.last_inserted = records.keys().max().copied();
+        self.metadata.built = true;
+
+        // Store the quantized vectors instead of the original vectors.
+        self.data = records
+            .into_iter()
             .map(|(id, record)| {
-                let vector = self.dequantize_vector(&record.vector);
-                let data = record.data.clone();
-                (*id, Record { vector, data })
+                let vector = self.quantize_vector(&record.vector);
+                let data = record.data;
+                (id, RecordPQ { vector, data })
             })
             .collect();
 
-        self.build(records)
+        Ok(())
+    }
+
+    fn insert(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        if !self.metadata().built {
+            let code = ErrorCode::RequestError;
+            let message = "Unable to insert records into an unbuilt index.";
+            return Err(Error::new(code, message));
+        }
+
+        let vectors = records
+            .values()
+            .map(|record| &record.vector)
+            .collect::<Vec<&Vector>>();
+
+        let assignments = vectors
+            .par_iter()
+            .map(|vector| self.find_nearest_centroids(vector, 1)[0])
+            .collect::<Vec<usize>>();
+
+        let ids: Vec<&RecordID> = records.keys().collect();
+        for (i, cluster_id) in assignments.iter().enumerate() {
+            // The number of records in the cluster.
+            let count = self.clusters[*cluster_id].len() as f32;
+            let new_count = count + 1.0;
+
+            // This updates the centroid of the cluster by taking the
+            // weighted average of the existing centroid and the new
+            // vector that is being inserted.
+            let centroid: Vec<f32> = self.centroids[*cluster_id]
+                .to_vec()
+                .par_iter()
+                .zip(vectors[i].to_vec().par_iter())
+                .map(|(c, v)| ((c * count) + v) / new_count)
+                .collect();
+
+            self.centroids[*cluster_id] = centroid.into();
+            self.clusters[*cluster_id].push(ids[i].to_owned());
+        }
+
+        self.metadata.last_inserted = records.keys().max().copied();
+
+        let records: HashMap<RecordID, RecordPQ> = records
+            .into_par_iter()
+            .map(|(id, record)| {
+                let vector = self.quantize_vector(&record.vector);
+                let data = record.data;
+                (id, RecordPQ { vector, data })
+            })
+            .collect();
+
+        self.data.par_extend(records);
+        Ok(())
+    }
+
+    fn delete(&mut self, ids: Vec<RecordID>) -> Result<(), Error> {
+        self.data.retain(|id, _| !ids.contains(id));
+        self.clusters.par_iter_mut().for_each(|cluster| {
+            cluster.retain(|id| !ids.contains(id));
+        });
+
+        Ok(())
     }
 
     fn search(
@@ -329,15 +300,8 @@ impl VectorIndex for IndexIVFPQ {
         for centroid_id in nearest_centroids {
             let cluster = &self.clusters[centroid_id];
             for &record_id in cluster {
-                // Skip hidden records.
-                if self.metadata.hidden.contains(&record_id) {
-                    continue;
-                }
-
                 let record = self.data.get(&record_id).unwrap();
                 let data = record.data.clone();
-
-                // Skip records that don't pass the filters.
                 if !filters.apply(&data) {
                     continue;
                 }
@@ -355,9 +319,8 @@ impl VectorIndex for IndexIVFPQ {
         Ok(results.into_sorted_vec())
     }
 
-    fn hide(&mut self, record_ids: Vec<RecordID>) -> Result<(), Error> {
-        self.metadata.hidden.extend(record_ids);
-        Ok(())
+    fn len(&self) -> usize {
+        self.data.len()
     }
 
     fn as_any(&self) -> &dyn Any {

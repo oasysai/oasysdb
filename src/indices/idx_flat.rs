@@ -33,38 +33,29 @@ impl VectorIndex for IndexFlat {
         &self.metadata
     }
 
-    fn fit(&mut self, records: HashMap<RecordID, Record>) -> Result<(), Error> {
+    fn build(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        self.metadata.built = true;
+        self.insert(records)
+    }
+
+    fn insert(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
         if records.is_empty() {
             return Ok(());
         }
 
         self.metadata.last_inserted = records.keys().max().copied();
-        self.metadata.count += records.len();
         self.data.par_extend(records);
-
         Ok(())
     }
 
-    /// Refitting doesn't do anything for the flat index as incremental
-    /// insertion or deletion will directly update the data store
-    /// accordingly and guarantee the optimal state of the index.
-    fn refit(&mut self) -> Result<(), Error> {
-        Ok(())
-    }
-
-    /// Removes records from the index data store.
-    /// - `record_ids`: List of record IDs to remove from the index.
-    ///
-    /// Instead of hiding the records to prevent them from showing up
-    /// in search results, this method removes them from the index
-    /// data store entirely.
-    fn hide(&mut self, record_ids: Vec<RecordID>) -> Result<(), Error> {
-        if self.data.len() < record_ids.len() {
-            return Ok(());
-        }
-
-        self.data.retain(|id, _| !record_ids.contains(id));
-        self.metadata.count = self.data.len();
+    fn delete(&mut self, ids: Vec<RecordID>) -> Result<(), Error> {
+        self.data.retain(|id, _| !ids.contains(id));
         Ok(())
     }
 
@@ -91,6 +82,10 @@ impl VectorIndex for IndexFlat {
         }
 
         Ok(results.into_sorted_vec())
+    }
+
+    fn len(&self) -> usize {
+        self.data.len()
     }
 
     fn as_any(&self) -> &dyn Any {
