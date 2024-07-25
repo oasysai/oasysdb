@@ -17,7 +17,13 @@ fn test_recall_ivfpq() -> Result<(), Box<dyn Error>> {
 
     // Create the IVFPQ index.
     if db.get_index("ivfpq").is_none() {
-        let params = ParamsIVFPQ::default();
+        let params = ParamsIVFPQ {
+            sub_centroids: 8,
+            sub_dimension: 16,
+            sampling: 0.2,
+            ..Default::default()
+        };
+
         let algorithm = IndexAlgorithm::IVFPQ(params);
         db.create_index("ivfpq", algorithm, config.clone())?;
     }
