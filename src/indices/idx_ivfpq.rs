@@ -1,5 +1,7 @@
 use super::*;
-use crate::utils::kmeans::{KMeans, Vectors};
+use crate::utils::kmeans::{ClusterID, KMeans, Vectors};
+use rand::seq::IteratorRandom;
+use std::cmp::Ordering;
 use std::rc::Rc;
 
 /// Inverted File index with Product Quantization.
@@ -38,7 +40,7 @@ impl IndexIVFPQ {
             let centroids = {
                 let mut kmeans = KMeans::new(
                     self.params.sub_centroids as usize,
-                    self.params.num_iterations,
+                    self.params.max_iterations,
                     self.params.metric,
                 );
 
@@ -57,16 +59,29 @@ impl IndexIVFPQ {
     /// Finds the nearest centroids to a vector for cluster assignments.
     /// - `vector`: Full-length vector.
     /// - `k`: Number of centroids to find.
-    fn find_nearest_centroids(&self, vector: &Vector, k: usize) -> Vec<usize> {
-        let mut distances: Vec<(usize, f32)> = self
-            .centroids
-            .par_iter()
-            .enumerate()
-            .map(|(i, center)| (i, self.metric().distance(center, vector)))
-            .collect();
+    fn find_nearest_centroids(
+        &self,
+        vector: &Vector,
+        k: usize,
+    ) -> Vec<ClusterID> {
+        let mut centroids = BinaryHeap::new();
+        for (i, center) in self.centroids.iter().enumerate() {
+            let id = ClusterID(i as u16);
+            let distance = self.metric().distance(center, vector);
 
-        distances.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
-        distances.into_iter().take(k).map(|(i, _)| i).collect()
+            let centroid = NearestCentroid { id, distance };
+            centroids.push(centroid);
+
+            if centroids.len() > k {
+                centroids.pop();
+            }
+        }
+
+        centroids
+            .into_sorted_vec()
+            .into_iter()
+            .map(|centroid| centroid.id)
+            .collect()
     }
 
     /// Finds the nearest centroid in the codebook for a subvector.
@@ -139,6 +154,13 @@ impl IndexOps for IndexIVFPQ {
         let codebook = vec![vec![]; params.sub_dimension as usize];
         let clusters = vec![vec![]; params.centroids];
 
+        // Validate the sampling parameter.
+        if params.sampling <= 0.0 || params.sampling > 1.0 {
+            let code = ErrorCode::RequestError;
+            let message = "Sampling must be between 0.0 and 1.0.";
+            return Err(Error::new(code, message));
+        }
+
         let index = IndexIVFPQ {
             params,
             metadata: IndexMetadata::default(),
@@ -166,9 +188,13 @@ impl VectorIndex for IndexIVFPQ {
         &mut self,
         records: HashMap<RecordID, Record>,
     ) -> Result<(), Error> {
+        let mut rng = rand::thread_rng();
+        let sample = (records.len() as f32 * self.params.sampling) as usize;
         let vectors = records
             .values()
-            .map(|record| &record.vector)
+            .choose_multiple(&mut rng, sample)
+            .par_iter()
+            .map(|&record| &record.vector)
             .collect::<Vec<&Vector>>();
 
         // We use RC to avoid cloning the entire vector data as it
@@ -177,43 +203,20 @@ impl VectorIndex for IndexIVFPQ {
         self.create_codebook(vectors.clone());
 
         // Run KMeans to find the centroids for the IVF.
-        let (centroids, assignments) = {
+        let centroids = {
             let mut kmeans = KMeans::new(
                 self.params.centroids,
-                self.params.num_iterations,
+                self.params.max_iterations,
                 self.metric().to_owned(),
             );
 
             kmeans.fit(vectors.clone());
-            (kmeans.centroids().to_vec(), kmeans.assignments().to_vec())
+            kmeans.centroids().to_vec()
         };
 
         self.centroids = centroids;
-        self.clusters = {
-            // Put record IDs into their respective clusters based on the
-            // assignments from the KMeans algorithm.
-            let mut clusters = vec![vec![]; self.params.centroids];
-            let ids = records.keys().collect::<Vec<&RecordID>>();
-            for (i, &cluster) in assignments.iter().enumerate() {
-                clusters[cluster.0 as usize].push(ids[i].to_owned());
-            }
-
-            clusters
-        };
-
-        self.metadata.last_inserted = records.keys().max().copied();
         self.metadata.built = true;
-
-        // Store the quantized vectors instead of the original vectors.
-        self.data = records
-            .into_iter()
-            .map(|(id, record)| {
-                let vector = self.quantize_vector(&record.vector);
-                let data = record.data;
-                (id, RecordPQ { vector, data })
-            })
-            .collect();
-
+        self.insert(records)?;
         Ok(())
     }
 
@@ -231,34 +234,26 @@ impl VectorIndex for IndexIVFPQ {
             return Err(Error::new(code, message));
         }
 
-        let vectors = records
-            .values()
-            .map(|record| &record.vector)
-            .collect::<Vec<&Vector>>();
+        for (id, record) in records.iter() {
+            let vector = &record.vector;
+            let cid = self.find_nearest_centroids(vector, 1)[0].to_usize();
 
-        let assignments = vectors
-            .par_iter()
-            .map(|vector| self.find_nearest_centroids(vector, 1)[0])
-            .collect::<Vec<usize>>();
-
-        let ids: Vec<&RecordID> = records.keys().collect();
-        for (i, cluster_id) in assignments.iter().enumerate() {
             // The number of records in the cluster.
-            let count = self.clusters[*cluster_id].len() as f32;
+            let count = self.clusters[cid].len() as f32;
             let new_count = count + 1.0;
 
             // This updates the centroid of the cluster by taking the
             // weighted average of the existing centroid and the new
             // vector that is being inserted.
-            let centroid: Vec<f32> = self.centroids[*cluster_id]
+            let centroid: Vec<f32> = self.centroids[cid]
                 .to_vec()
                 .par_iter()
-                .zip(vectors[i].to_vec().par_iter())
+                .zip(vector.to_vec().par_iter())
                 .map(|(c, v)| ((c * count) + v) / new_count)
                 .collect();
 
-            self.centroids[*cluster_id] = centroid.into();
-            self.clusters[*cluster_id].push(ids[i].to_owned());
+            self.centroids[cid] = centroid.into();
+            self.clusters[cid].push(id.to_owned());
         }
 
         self.metadata.last_inserted = records.keys().max().copied();
@@ -298,7 +293,7 @@ impl VectorIndex for IndexIVFPQ {
 
         let mut results = BinaryHeap::new();
         for centroid_id in nearest_centroids {
-            let cluster = &self.clusters[centroid_id];
+            let cluster = &self.clusters[centroid_id.to_usize()];
             for &record_id in cluster {
                 let record = self.data.get(&record_id).unwrap();
                 let data = record.data.clone();
@@ -331,16 +326,18 @@ impl VectorIndex for IndexIVFPQ {
 /// Parameters for IndexIVFPQ.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParamsIVFPQ {
-    /// Number of centroids in the IVF.
+    /// Number of centroids or partitions in the IVF.
     pub centroids: usize,
-    /// Number of iterations to run the KMeans algorithm.
-    pub num_iterations: usize,
+    /// Maximum number of iterations to run the KMeans algorithm.
+    pub max_iterations: usize,
     /// Number of centroids in the PQ sub-space.
     pub sub_centroids: u8,
     /// Dimension of the vector after PQ encoding.
     pub sub_dimension: u8,
     /// Number of clusters to explore during search.
     pub num_probes: u8,
+    /// Fraction of the records for training the initial index.
+    pub sampling: f32,
     /// Metric used to compute the distance between vectors.
     pub metric: DistanceMetric,
 }
@@ -348,11 +345,12 @@ pub struct ParamsIVFPQ {
 impl Default for ParamsIVFPQ {
     fn default() -> Self {
         Self {
-            num_iterations: 100,
             centroids: 256,
-            sub_centroids: 32,
-            sub_dimension: 16,
+            max_iterations: 50,
+            sub_centroids: 16,
+            sub_dimension: 8,
             num_probes: 4,
+            sampling: 0.1,
             metric: DistanceMetric::Euclidean,
         }
     }
@@ -365,6 +363,32 @@ impl IndexParams for ParamsIVFPQ {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+
+#[derive(Debug)]
+struct NearestCentroid {
+    id: ClusterID,
+    distance: f32,
+}
+
+impl Eq for NearestCentroid {}
+
+impl PartialEq for NearestCentroid {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Ord for NearestCentroid {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.distance.partial_cmp(&other.distance).unwrap_or(Ordering::Equal)
+    }
+}
+
+impl PartialOrd for NearestCentroid {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -387,9 +411,10 @@ mod tests {
         };
 
         let params = ParamsIVFPQ {
-            num_iterations: 10,
+            max_iterations: 10,
             sub_centroids: 8,
             sub_dimension: 2,
+            sampling: 1.0,
             ..Default::default()
         };
 
@@ -405,7 +430,8 @@ mod tests {
     fn test_ivfpq_index() {
         let params = ParamsIVFPQ {
             centroids: 5,
-            num_iterations: 20,
+            max_iterations: 20,
+            sampling: 1.0,
             ..Default::default()
         };
 

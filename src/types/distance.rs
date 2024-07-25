@@ -1,3 +1,5 @@
+#![allow(unreachable_code)]
+
 use crate::types::record::Vector;
 use serde::{Deserialize, Serialize};
 

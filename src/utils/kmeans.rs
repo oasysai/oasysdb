@@ -15,6 +15,12 @@ pub type Vectors<'v> = Rc<[&'v Vector]>;
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct ClusterID(pub u16);
 
+impl ClusterID {
+    pub fn to_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
 /// KMeans clustering model.
 ///
 /// KMeans is a simple unsupervised learning algorithm that groups similar
@@ -58,9 +64,9 @@ impl KMeans {
 
         let mut repeat_count = 0;
         for _ in 0..self.num_iterations {
-            // If the centroids don't change for 5 iterations, we assume
+            // If the centroids don't change for n iterations, we assume
             // that the algorithm has converged and stop the iterations.
-            if repeat_count > 5 {
+            if repeat_count > 3 {
                 break;
             }
 
@@ -157,6 +163,7 @@ impl KMeans {
     /// - v1 and v2 are assigned to cluster 0.
     /// - v3 is assigned to cluster 1.
     /// - vn is assigned to cluster m.
+    #[allow(dead_code)]
     pub fn assignments(&self) -> &[ClusterID] {
         &self.assignment
     }

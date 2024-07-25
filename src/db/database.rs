@@ -596,7 +596,7 @@ mod tests {
     }
 
     fn create_test_database() -> Result<Database, Error> {
-        let path = PathBuf::from("odb_data");
+        let path = PathBuf::from("odb_utest");
         if path.try_exists()? {
             fs::remove_dir_all(&path)?;
         }
@@ -659,15 +659,16 @@ mod tests {
         );
 
         let insert_records = generate_insert_query(0, 100);
+        let drop_table = format!("DROP TABLE IF EXISTS {TABLE}");
 
-        conn.execute("DROP TABLE IF EXISTS embeddings").await?;
+        conn.execute(drop_table.as_str()).await?;
         conn.execute(create_table.as_str()).await?;
         conn.execute(insert_records.as_str()).await?;
 
-        let count = conn
-            .fetch_one("SELECT COUNT(*) FROM embeddings")
-            .await?
-            .get::<i64, usize>(0);
+        let count = {
+            let query = format!("SELECT COUNT(*) FROM {TABLE}");
+            conn.fetch_one(query.as_str()).await?.get::<i64, usize>(0)
+        };
 
         assert_eq!(count, 100);
         Ok(())

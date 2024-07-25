@@ -8,6 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sqlx::any::AnyRow;
 use std::any::Any;
+use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::fmt::Debug;
 use std::path::Path;
@@ -347,14 +348,14 @@ impl PartialEq for SearchResult {
 impl Eq for SearchResult {}
 
 impl PartialOrd for SearchResult {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for SearchResult {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.distance.partial_cmp(&other.distance).unwrap()
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.distance.partial_cmp(&other.distance).unwrap_or(Ordering::Equal)
     }
 }
 
@@ -432,6 +433,11 @@ pub trait VectorIndex: Debug + Send + Sync {
     /// Returns the number of records in the index.
     fn len(&self) -> usize;
 
+    /// Checks if the index has no records.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the index as Any type for dynamic casting.
     ///
     /// This method allows the index trait object to be downcast to a
@@ -507,16 +513,23 @@ mod index_tests {
         }
 
         index.build(records).unwrap();
+        assert_eq!(index.len(), 100);
     }
 
     pub fn test_basic_search(index: &impl VectorIndex) {
         let query = Vector::from(vec![0.0; 128]);
         let k = 10;
-        let results = index.search(query, k, Filters::NONE).unwrap();
+        let results: Vec<RecordID> = index
+            .search(query, k, Filters::NONE)
+            .unwrap()
+            .iter()
+            .map(|result| result.id)
+            .collect();
 
         assert_eq!(results.len(), k);
-        assert_eq!(results[0].id, RecordID(0));
-        assert_eq!(results[9].id, RecordID(9));
+        for i in 0..k {
+            assert!(results.contains(&RecordID(i as u32)));
+        }
     }
 
     pub fn test_advanced_search(index: &impl VectorIndex) {
