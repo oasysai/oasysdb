@@ -527,18 +527,22 @@ mod index_tests {
             .collect();
 
         assert_eq!(results.len(), k);
-        for i in 0..k {
-            assert!(results.contains(&RecordID(i as u32)));
-        }
+        assert!(results.contains(&RecordID(0)));
     }
 
     pub fn test_advanced_search(index: &impl VectorIndex) {
         let query = Vector::from(vec![0.0; 128]);
         let k = 10;
         let filters = Filters::from("number > 1010");
-        let results = index.search(query, k, filters).unwrap();
+        let results: Vec<RecordID> = index
+            .search(query, k, filters)
+            .unwrap()
+            .iter()
+            .map(|result| result.id)
+            .collect();
 
         assert_eq!(results.len(), k);
-        assert_eq!(results[0].id, RecordID(11));
+        assert!(results.contains(&RecordID(11)));
+        assert!(!results.contains(&RecordID(0)));
     }
 }

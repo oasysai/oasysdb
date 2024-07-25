@@ -431,7 +431,7 @@ mod tests {
         let params = ParamsIVFPQ {
             centroids: 5,
             max_iterations: 20,
-            sampling: 1.0,
+            sampling: 0.5,
             ..Default::default()
         };
 
