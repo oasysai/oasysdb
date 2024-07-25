@@ -1,7 +1,6 @@
 use super::*;
 use crate::utils::kmeans::{ClusterID, KMeans, Vectors};
 use rand::seq::IteratorRandom;
-use std::cmp::Ordering;
 use std::rc::Rc;
 
 /// Inverted File index with Product Quantization.
@@ -56,32 +55,14 @@ impl IndexIVFPQ {
         }
     }
 
-    /// Finds the nearest centroids to a vector for cluster assignments.
-    /// - `vector`: Full-length vector.
-    /// - `k`: Number of centroids to find.
-    fn find_nearest_centroids(
-        &self,
-        vector: &Vector,
-        k: usize,
-    ) -> Vec<ClusterID> {
-        let mut centroids = BinaryHeap::new();
-        for (i, center) in self.centroids.iter().enumerate() {
-            let id = ClusterID(i as u16);
-            let distance = self.metric().distance(center, vector);
-
-            let centroid = NearestCentroid { id, distance };
-            centroids.push(centroid);
-
-            if centroids.len() > k {
-                centroids.pop();
-            }
-        }
-
-        centroids
-            .into_sorted_vec()
-            .into_iter()
-            .map(|centroid| centroid.id)
-            .collect()
+    fn find_nearest_centroid(&self, vector: &Vector) -> ClusterID {
+        self.centroids
+            .par_iter()
+            .enumerate()
+            .map(|(i, centroid)| (i, self.metric().distance(vector, centroid)))
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(i, _)| ClusterID(i as u16))
+            .unwrap_or_default()
     }
 
     /// Finds the nearest centroid in the codebook for a subvector.
@@ -103,11 +84,11 @@ impl IndexIVFPQ {
     ) -> usize {
         self.codebook[part_index]
             .par_iter()
-            .map(|centroid| self.metric().distance(centroid, subvector))
             .enumerate()
+            .map(|(i, code)| (i, self.metric().distance(subvector, code)))
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(i, _)| i)
             .unwrap_or_default()
-            .0
     }
 
     /// Quantizes a full-length vector into a PQ vector.
@@ -236,10 +217,10 @@ impl VectorIndex for IndexIVFPQ {
 
         for (id, record) in records.iter() {
             let vector = &record.vector;
-            let cid = self.find_nearest_centroids(vector, 1)[0].to_usize();
+            let cid = self.find_nearest_centroid(vector).to_usize();
 
             // The number of records in the cluster.
-            let count = self.clusters[cid].len() as f32;
+            let count = self.clusters[cid].len().max(1) as f32;
             let new_count = count + 1.0;
 
             // This updates the centroid of the cluster by taking the
@@ -286,14 +267,37 @@ impl VectorIndex for IndexIVFPQ {
         k: usize,
         filters: Filters,
     ) -> Result<Vec<SearchResult>, Error> {
-        let nearest_centroids = {
-            let nprobes = self.params.num_probes as usize;
-            self.find_nearest_centroids(&query, nprobes)
-        };
+        let mut centroid_distances: Vec<(usize, f32)> = self
+            .centroids
+            .par_iter()
+            .enumerate()
+            .map(|(i, centroid)| (i, self.metric().distance(centroid, &query)))
+            .collect();
 
+        centroid_distances
+            .par_sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+
+        let nearest_centroids: Vec<ClusterID> = centroid_distances
+            .iter()
+            .take(self.params.centroids)
+            .map(|(i, _)| (*i).into())
+            .collect();
+
+        let mut probes = 0;
         let mut results = BinaryHeap::new();
+
         for centroid_id in nearest_centroids {
+            if probes >= self.params.num_probes {
+                break;
+            }
+
             let cluster = &self.clusters[centroid_id.to_usize()];
+            if cluster.is_empty() {
+                continue;
+            }
+
+            // Empty clusters won't count towards probes.
+            probes += 1;
             for &record_id in cluster {
                 let record = self.data.get(&record_id).unwrap();
                 let data = record.data.clone();
@@ -363,32 +367,6 @@ impl IndexParams for ParamsIVFPQ {
 
     fn as_any(&self) -> &dyn Any {
         self
-    }
-}
-
-#[derive(Debug)]
-struct NearestCentroid {
-    id: ClusterID,
-    distance: f32,
-}
-
-impl Eq for NearestCentroid {}
-
-impl PartialEq for NearestCentroid {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Ord for NearestCentroid {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.distance.partial_cmp(&other.distance).unwrap_or(Ordering::Equal)
-    }
-}
-
-impl PartialOrd for NearestCentroid {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 

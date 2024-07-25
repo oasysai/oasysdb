@@ -32,15 +32,6 @@ impl DistanceMetric {
             DistanceMetric::Cosine => Self::cosine(a, b),
         };
 
-        // Distances of 0 is the best distance. So, we return a large
-        // value for invalid values to make sure it is not selected.
-        if dist.is_none()
-            || dist.unwrap().is_nan()
-            || dist.unwrap().is_infinite()
-        {
-            return f32::MAX;
-        }
-
         dist.unwrap() as f32
     }
 

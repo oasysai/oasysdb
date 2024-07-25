@@ -21,6 +21,12 @@ impl ClusterID {
     }
 }
 
+impl From<usize> for ClusterID {
+    fn from(value: usize) -> Self {
+        Self(value as u16)
+    }
+}
+
 /// KMeans clustering model.
 ///
 /// KMeans is a simple unsupervised learning algorithm that groups similar
@@ -141,8 +147,8 @@ impl KMeans {
     pub fn find_nearest_centroid(&self, vector: &Vector) -> ClusterID {
         self.centroids
             .par_iter()
-            .map(|centroid| self.metric.distance(vector, centroid))
             .enumerate()
+            .map(|(i, centroid)| (i, self.metric.distance(vector, centroid)))
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .map(|(i, _)| ClusterID(i as u16))
             .unwrap_or_default()
