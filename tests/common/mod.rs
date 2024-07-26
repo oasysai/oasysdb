@@ -7,7 +7,7 @@ use std::env;
 use std::error::Error;
 use std::fs::{self, OpenOptions};
 use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tar::Archive;
 
 /// Type of benchmark dataset to use.
@@ -77,7 +77,8 @@ impl Dataset {
 
         conn.execute(create_table.as_ref()).await?;
 
-        let vectors = self.read_vectors()?;
+        let dataset = self.base_dataset_file();
+        let vectors = self.read_vectors(dataset)?;
         let mut insert_vector = format!(
             "INSERT INTO {table_name} (vector)
             VALUES"
@@ -107,7 +108,7 @@ impl Dataset {
             self.download().await?;
         }
 
-        if !self.dataset_file().try_exists()? {
+        if !self.base_dataset_file().try_exists()? {
             self.extract()?;
         }
 
@@ -145,8 +146,12 @@ impl Dataset {
     }
 
     /// Reads the vectors from the dataset file.
-    fn read_vectors(&self) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
-        let file = OpenOptions::new().read(true).open(self.dataset_file())?;
+    /// - `path`: Path to the fvecs file.
+    pub fn read_vectors(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<Vec<Vec<f32>>, Box<dyn Error>> {
+        let file = OpenOptions::new().read(true).open(path)?;
         let mut reader = BufReader::new(file);
 
         let dimension = reader.read_i32::<LittleEndian>()? as usize;
@@ -185,10 +190,17 @@ impl Dataset {
     }
 
     /// Returns the path to the dataset file.
-    fn dataset_file(&self) -> PathBuf {
+    pub fn base_dataset_file(&self) -> PathBuf {
         self.tmp_dir()
             .join(self.name())
             .join(format!("{}_base.fvecs", self.name()))
+    }
+
+    /// Returns the path to the query file.
+    pub fn query_dataset_file(&self) -> PathBuf {
+        self.tmp_dir()
+            .join(self.name())
+            .join(format!("{}_query.fvecs", self.name()))
     }
 
     /// Returns the temporary directory path for testing OasysDB.
