@@ -10,10 +10,10 @@ use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tar::Archive;
 
-/// Type of benchmark dataset to use.
-/// - `SIFTSMALL`: SIFT small dataset (10k vectors of 128D).
-/// - `SIFT`: SIFT dataset (1000k vectors of 128D).
-/// - `GIST`: GIST dataset (1M vectors of 960D).
+/// Type of ANNS benchmark dataset to download and setup.
+/// - SIFTSMALL: 10k vectors of 128D.
+/// - SIFT: 1M vectors of 128D.
+/// - GIST: 1M vectors of 960D.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Default)]
 pub enum Dataset {
@@ -33,7 +33,7 @@ impl Dataset {
         }
     }
 
-    /// Returns the number of vectors in the dataset.
+    /// Returns the number of vectors in the base dataset.
     pub fn size(&self) -> usize {
         match self {
             Dataset::SIFTSMALL => 10_000,
@@ -68,6 +68,7 @@ impl Dataset {
             return Ok(());
         }
 
+        // Use the dataset name as the table name.
         let create_table = format!(
             "CREATE TABLE IF NOT EXISTS {table_name} (
                 id INTEGER PRIMARY KEY,

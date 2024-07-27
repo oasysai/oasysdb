@@ -5,31 +5,16 @@ use std::error::Error;
 
 mod common;
 
-#[test]
-fn test_recall_ivfpq() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let dataset = Dataset::SIFTSMALL;
     let db_url = dataset.database_url();
     let config = SourceConfig::new(dataset.name(), "id", "vector");
 
     executor::block_on(dataset.populate_database())?;
 
-    let db = Database::open("odb_itest", Some(db_url))?;
-
-    // Create the IVFPQ index.
-    let params = ParamsIVFPQ {
-        sub_centroids: 8,
-        sub_dimension: 16,
-        sampling: 0.1,
-        ..Default::default()
-    };
-
-    let algorithm = IndexAlgorithm::IVFPQ(params);
-    db.create_index("ivfpq", algorithm, config.clone())?;
-
-    // Create the Flat index.
-    let params = ParamsFlat::default();
-    let algorithm = IndexAlgorithm::Flat(params);
-    db.create_index("flat", algorithm, config)?;
+    let db = Database::open("odb_example", Some(db_url))?;
+    create_index_flat(&db, &config)?;
+    create_index_ivfpq(&db, &config)?;
 
     // Perform search queries
     let queries = {
@@ -58,9 +43,34 @@ fn test_recall_ivfpq() -> Result<(), Box<dyn Error>> {
     }
 
     let recall = correct_count as f32 / (k * iteration) as f32;
-    assert!(recall > 0.0);
+    println!("Recall@{k}: {recall}");
 
-    // println!("Recall@{k}: {recall}");
-    // assert!(false);
+    Ok(())
+}
+
+fn create_index_ivfpq(
+    db: &Database,
+    config: &SourceConfig,
+) -> Result<(), Box<dyn Error>> {
+    let params = ParamsIVFPQ {
+        sub_centroids: 8,
+        sub_dimension: 16,
+        sampling: 0.1,
+        ..Default::default()
+    };
+
+    let algorithm = IndexAlgorithm::IVFPQ(params);
+    db.create_index("ivfpq", algorithm, config.clone())?;
+    Ok(())
+}
+
+fn create_index_flat(
+    db: &Database,
+    config: &SourceConfig,
+) -> Result<(), Box<dyn Error>> {
+    let params = ParamsFlat::default();
+    let algorithm = IndexAlgorithm::Flat(params);
+    db.create_index("flat", algorithm, config.clone())?;
+
     Ok(())
 }

@@ -596,7 +596,7 @@ mod tests {
     }
 
     fn create_test_database() -> Result<Database, Error> {
-        let path = PathBuf::from("odb_utest");
+        let path = PathBuf::from("odb_test");
         if path.try_exists()? {
             fs::remove_dir_all(&path)?;
         }
