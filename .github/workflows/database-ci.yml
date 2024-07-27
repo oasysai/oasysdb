@@ -33,6 +33,7 @@ jobs:
 
   clippy-lint:
     name: Lint code with Clippy
+    needs: rustfmt-format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
