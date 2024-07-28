@@ -52,6 +52,11 @@ fn create_index_ivfpq(
     db: &Database,
     config: &SourceConfig,
 ) -> Result<(), Box<dyn Error>> {
+    let index_name = "ivfpq";
+    if db.get_index_ref(index_name).is_some() {
+        return Ok(());
+    }
+
     let params = ParamsIVFPQ {
         sub_centroids: 8,
         sub_dimension: 16,
@@ -60,7 +65,7 @@ fn create_index_ivfpq(
     };
 
     let algorithm = IndexAlgorithm::IVFPQ(params);
-    db.create_index("ivfpq", algorithm, config.clone())?;
+    db.create_index(index_name, algorithm, config.clone())?;
     Ok(())
 }
 
@@ -68,9 +73,13 @@ fn create_index_flat(
     db: &Database,
     config: &SourceConfig,
 ) -> Result<(), Box<dyn Error>> {
+    let index_name = "flat";
+    if db.get_index_ref(index_name).is_some() {
+        return Ok(());
+    }
+
     let params = ParamsFlat::default();
     let algorithm = IndexAlgorithm::Flat(params);
-    db.create_index("flat", algorithm, config.clone())?;
-
+    db.create_index(index_name, algorithm, config.clone())?;
     Ok(())
 }

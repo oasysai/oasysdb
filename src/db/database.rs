@@ -97,6 +97,15 @@ impl Database {
         algorithm: IndexAlgorithm,
         config: SourceConfig,
     ) -> Result<(), Error> {
+        let index_name: IndexName = name.into();
+
+        // Check if the index already exists in the database.
+        if self.get_index_ref(&index_name).is_some() {
+            let code = ErrorCode::RequestError;
+            let message = format!("Index already exists: {index_name}.");
+            return Err(Error::new(code, message));
+        }
+
         // Query the source database for records.
         let query = config.to_query();
         let mut conn = self.state()?.async_connect().await?;
@@ -110,7 +119,6 @@ impl Database {
             records.insert(id, record);
         }
 
-        let index_name: IndexName = name.into();
         let index_file = {
             let uuid = Uuid::new_v4().to_string();
             self.indices_dir().join(uuid)
