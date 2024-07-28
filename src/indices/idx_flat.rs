@@ -54,6 +54,20 @@ impl VectorIndex for IndexFlat {
         Ok(())
     }
 
+    fn update(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        records.into_iter().for_each(|(id, record)| {
+            if let Some(existing) = self.data.get_mut(&id) {
+                existing.vector = record.vector;
+                existing.data = record.data;
+            }
+        });
+
+        Ok(())
+    }
+
     fn delete(&mut self, ids: Vec<RecordID>) -> Result<(), Error> {
         self.data.retain(|id, _| !ids.contains(id));
         Ok(())
@@ -118,9 +132,6 @@ mod tests {
     fn test_flat_index() {
         let params = ParamsFlat::default();
         let mut index = IndexFlat::new(params).unwrap();
-
-        index_tests::populate_index(&mut index);
-        index_tests::test_basic_search(&index);
-        index_tests::test_advanced_search(&index);
+        index_tests::test_index(&mut index);
     }
 }

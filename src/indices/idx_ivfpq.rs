@@ -252,6 +252,15 @@ impl VectorIndex for IndexIVFPQ {
         Ok(())
     }
 
+    fn update(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        let ids: Vec<RecordID> = records.keys().cloned().collect();
+        self.delete(ids)?;
+        self.insert(records)
+    }
+
     fn delete(&mut self, ids: Vec<RecordID>) -> Result<(), Error> {
         self.data.retain(|id, _| !ids.contains(id));
         self.clusters.par_iter_mut().for_each(|cluster| {
@@ -414,8 +423,6 @@ mod tests {
         };
 
         let mut index = IndexIVFPQ::new(params).unwrap();
-        index_tests::populate_index(&mut index);
-        index_tests::test_basic_search(&index);
-        index_tests::test_advanced_search(&index);
+        index_tests::test_index(&mut index);
     }
 }

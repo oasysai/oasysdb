@@ -410,6 +410,13 @@ pub trait VectorIndex: Debug + Send + Sync {
         records: HashMap<RecordID, Record>,
     ) -> Result<(), Error>;
 
+    /// Updates records in the index with new values.
+    /// - `records`: Records to update along with their new values.
+    fn update(
+        &mut self,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error>;
+
     /// Deletes records from the index data store.
     /// - `ids`: List of record IDs to delete from the index.
     fn delete(&mut self, ids: Vec<RecordID>) -> Result<(), Error>;
@@ -498,11 +505,26 @@ mod tests {
 mod index_tests {
     use super::*;
 
+    const DIMENSION: usize = 128;
+    const K: usize = 10;
+
+    pub fn test_index(index: &mut impl VectorIndex) {
+        populate_index(index);
+        test_search(index);
+        test_search_with_filters(index);
+
+        // The tests below mutates the index and changes the underlying data.
+        // Be careful when modifying them!
+        test_search_after_insert(index);
+        test_search_after_update(index);
+        test_search_after_delete(index);
+    }
+
     pub fn populate_index(index: &mut impl VectorIndex) {
         let mut records = HashMap::new();
         for i in 0..100 {
             let id = RecordID(i as u32);
-            let vector = Vector::from(vec![i as f32; 128]);
+            let vector = Vector::from(vec![i as f32; DIMENSION]);
             let data = HashMap::from([(
                 "number".into(),
                 Some(DataValue::Integer(1000 + i)),
@@ -516,33 +538,78 @@ mod index_tests {
         assert_eq!(index.len(), 100);
     }
 
-    pub fn test_basic_search(index: &impl VectorIndex) {
-        let query = Vector::from(vec![0.0; 128]);
-        let k = 10;
-        let results: Vec<RecordID> = index
-            .search(query, k, Filters::NONE)
-            .unwrap()
-            .iter()
-            .map(|result| result.id)
-            .collect();
-
-        assert_eq!(results.len(), k);
+    pub fn test_search(index: &impl VectorIndex) {
+        let results = search_index(index, Filters::NONE);
+        assert_eq!(results.len(), K);
         assert!(results.contains(&RecordID(0)));
     }
 
-    pub fn test_advanced_search(index: &impl VectorIndex) {
-        let query = Vector::from(vec![0.0; 128]);
-        let k = 10;
+    pub fn test_search_with_filters(index: &impl VectorIndex) {
         let filters = Filters::from("number > 1010");
-        let results: Vec<RecordID> = index
-            .search(query, k, filters)
+        let results = search_index(index, filters);
+
+        assert_eq!(results.len(), K);
+        assert!(results.contains(&RecordID(11)));
+        assert!(!results.contains(&RecordID(0)));
+    }
+
+    pub fn test_search_after_insert(index: &mut impl VectorIndex) {
+        let id = RecordID(100);
+        let vector = Vector::from(vec![0.1; DIMENSION]);
+        let data = HashMap::from([(
+            "number".to_string(),
+            Some(DataValue::Integer(2000)),
+        )]);
+
+        let record = Record { vector, data };
+        let records = HashMap::from([(id, record)]);
+        index.insert(records).unwrap();
+
+        let results = search_index(index, Filters::NONE);
+        assert_eq!(results.len(), K);
+        assert!(results.contains(&RecordID(100)));
+        assert!(results.contains(&RecordID(0)));
+    }
+
+    pub fn test_search_after_update(index: &mut impl VectorIndex) {
+        let id = RecordID(0);
+        let vector = Vector::from(vec![100.0; DIMENSION]);
+        let data = HashMap::from([(
+            "number".to_string(),
+            Some(DataValue::Integer(2000)),
+        )]);
+
+        let record = Record { vector, data };
+        let records = HashMap::from([(id, record)]);
+        index.update(records).unwrap();
+
+        let results = search_index(index, Filters::NONE);
+        assert_eq!(results.len(), K);
+        assert!(!results.contains(&RecordID(0)));
+        assert!(results.contains(&RecordID(1)));
+    }
+
+    pub fn test_search_after_delete(index: &mut impl VectorIndex) {
+        let ids = vec![RecordID(1), RecordID(2)];
+        index.delete(ids).unwrap();
+
+        let results = search_index(index, Filters::NONE);
+        assert_eq!(results.len(), K);
+        assert!(!results.contains(&RecordID(1)));
+        assert!(!results.contains(&RecordID(2)));
+        assert!(results.contains(&RecordID(3)));
+    }
+
+    fn search_index(
+        index: &impl VectorIndex,
+        filters: Filters,
+    ) -> Vec<RecordID> {
+        let query = Vector::from(vec![0.0; DIMENSION]);
+        index
+            .search(query, K, filters)
             .unwrap()
             .iter()
             .map(|result| result.id)
-            .collect();
-
-        assert_eq!(results.len(), k);
-        assert!(results.contains(&RecordID(11)));
-        assert!(!results.contains(&RecordID(0)));
+            .collect()
     }
 }
