@@ -57,13 +57,7 @@ fn create_index_ivfpq(
         return Ok(());
     }
 
-    let params = ParamsIVFPQ {
-        sub_centroids: 8,
-        sub_dimension: 16,
-        sampling: 0.1,
-        ..Default::default()
-    };
-
+    let params = ParamsIVFPQ::default();
     let algorithm = IndexAlgorithm::IVFPQ(params);
     db.create_index(index_name, algorithm, config.clone())?;
     Ok(())

@@ -344,7 +344,7 @@ pub struct ParamsIVFPQ {
     /// Maximum number of iterations to run the KMeans algorithm.
     pub max_iterations: usize,
     /// Number of centroids in the PQ sub-space.
-    pub sub_centroids: u8,
+    pub sub_centroids: usize,
     /// Dimension of the vector after PQ encoding.
     pub sub_dimension: u8,
     /// Number of clusters to explore during search.
@@ -358,12 +358,12 @@ pub struct ParamsIVFPQ {
 impl Default for ParamsIVFPQ {
     fn default() -> Self {
         Self {
-            centroids: 256,
-            max_iterations: 50,
-            sub_centroids: 16,
+            centroids: 512,
+            max_iterations: 100,
+            sub_centroids: 256,
             sub_dimension: 8,
-            num_probes: 4,
-            sampling: 0.1,
+            num_probes: 16,
+            sampling: 0.25,
             metric: DistanceMetric::Euclidean,
         }
     }
