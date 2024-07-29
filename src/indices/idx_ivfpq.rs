@@ -38,7 +38,7 @@ impl IndexIVFPQ {
 
             let centroids = {
                 let mut kmeans = KMeans::new(
-                    self.params.sub_centroids as usize,
+                    self.params.sub_centroids,
                     self.params.max_iterations,
                     self.params.metric,
                 );
