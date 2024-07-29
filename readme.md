@@ -52,7 +52,6 @@ interface.
 ```rust no_run
 // Use the prelude module to import all necessary functionalities.
 use oasysdb::prelude::*;
-use std::env;
 
 // Open OasysDB database with connection to SQLite.
 // Connection is required for new database but optional for existing ones.
