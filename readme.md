@@ -84,3 +84,20 @@ possible.
 
 [docs]: https://docs.oasysdb.com
 [discord]: https://discord.gg/bDhQrkqNP4
+
+# Contributing 🤝
+
+The easiest way to contribute to this project is to star this project and share
+it with your friends. This will help us grow the community and make the project
+more visible to others who might need it.
+
+If you want to go further and contribute your expertise, we will gladly welcome
+your code contributions. For more information and guidance about this, please
+see [Contributing to OasysDB](docs/contributing.md).
+
+If you have a deep experience in the space but don't have the free time to
+contribute codes, we also welcome advices, suggestions, or feature requests. We
+are also looking for advisors to help guide the project direction and roadmap.
+
+If you are interested about the project in any way, please join us on [Discord
+Server][discord]. Help us grow the community and make OasysDB better 😁
