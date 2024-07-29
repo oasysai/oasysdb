@@ -101,3 +101,11 @@ are also looking for advisors to help guide the project direction and roadmap.
 
 If you are interested about the project in any way, please join us on [Discord
 Server][discord]. Help us grow the community and make OasysDB better 😁
+
+## Disclaimer
+
+This project is still in the early stages of development. We are actively
+working on improving it and we expect the API and functionality to change. We do
+not recommend using this in production yet. If you do, however, please let us
+know so we can help you with any issues you might encounter as promptly as
+possible.
