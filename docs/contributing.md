@@ -58,17 +58,30 @@ First, you will need to have Rust installed on your machine. We recommend using
 [rustup][rustup] to install Rust. We also recommend having rust-analyzer
 installed for your code editor for a better development experience.
 
-TODO: Complete the getting started guide.
+All of the functionalities of OasysDB are available in the **src** directory.
+The 2 most important modules are **db** and **indices** which respectively
+contain the database functionalities and the index implementations.
+Additionally, some custom types used throughout the project are defined in the
+**types** module.
+
+Before you start working on the code, I recommend you to run the tests to make
+sure everything is working as expected. You can run the tests with the following
+command:
+
+```sh
+cargo test
+```
 
 ## Style guide
 
 We mostly use the default linting and style guide for Rust except for some
-linting changes listed in rustfmt.toml file. For more information about the code
-style, see the [Rust Style Guide][style_guide].
+linting changes listed in the rustfmt.toml file. For more information about the
+code style, see the [Rust Style Guide][style_guide].
 
 For commit messages, we use the [Conventional Commits][conventional_commits]
 format. This allows us to maintain consistency and readability in our Git commit
-history.
+history making it easier to understand the changes made to the codebase at a
+high-level.
 
 When commenting your code, please try your best to write comments that are clear
 and concise with proper English sentence capitalization and punctuation. This
