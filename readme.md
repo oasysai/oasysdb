@@ -56,8 +56,6 @@ use std::env;
 
 // Open OasysDB database with connection to SQLite.
 // Connection is required for new database but optional for existing ones.
-// If the connection is provided, it will overwrite the previous connection.
-// The SQL connection will only be used to sync vectors with OasysDB.
 let sqlite = "sqlite://sqlite.db";
 let db = Database::open("odb_test", Some(sqlite)).unwrap();
 
@@ -80,11 +78,10 @@ let results = db.search_index("index", query, 10, filters).unwrap();
 [![Documentation](https://img.shields.io/badge/read-6b7280?style=for-the-badge&label=oasysdb%20docs&labelColor=14b8a6)][docs]
 
 There are more to OasysDB than what is shown in this Quickstart guide. Please
-visit OasysDB's [Documentation][docs] for more information.
-
-In addition, if you have any question or need help that needs immediate
-response, please join our [Discord Server][discord] and I will try my best to
-help you as soon as possible.
+visit OasysDB's [Documentation][docs] for more information. In addition, if you
+have any question or need help that needs immediate response, please join our
+[Discord Server][discord] and I will try my best to help you as soon as
+possible.
 
 [docs]: https://docs.oasysdb.com
 [discord]: https://discord.gg/bDhQrkqNP4
