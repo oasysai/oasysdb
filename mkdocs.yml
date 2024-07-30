@@ -57,7 +57,7 @@ extra_css:
   - assets/style.css
 
 nav:
-  - Home:
+  - Documentation:
       - Introduction: index.md
 
   - Other:
