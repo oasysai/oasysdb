@@ -417,6 +417,7 @@ mod tests {
     fn test_ivfpq_index() {
         let params = ParamsIVFPQ {
             centroids: 5,
+            sub_centroids: 16,
             max_iterations: 20,
             sampling: 0.5,
             ..Default::default()

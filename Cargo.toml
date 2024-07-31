@@ -43,6 +43,7 @@ flate2 = "1.0.30"
 tar = "0.4.41"
 
 [features]
+default = ["simd"]
 simd = ["dep:simsimd"]
 
 [profile.release]

@@ -142,7 +142,13 @@ impl From<&str> for DataValue {
             return boolean.into();
         }
 
-        DataValue::String(value.to_string())
+        let match_quotes = |c: char| c == '\"' || c == '\'';
+        let value = value
+            .trim_start_matches(match_quotes)
+            .trim_end_matches(match_quotes)
+            .to_string();
+
+        DataValue::String(value)
     }
 }
 
