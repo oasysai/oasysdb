@@ -60,7 +60,7 @@ nav:
   - Documentation:
       - Introduction: index.md
       - Database: refs/database.md
-      - Index: refs/index.md
+      - Vector Index: refs/vector_index.md
 
   - Other:
       - Changelog: changelog.md

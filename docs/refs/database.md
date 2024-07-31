@@ -146,7 +146,7 @@ This method updates an existing index with the latest data from the SQL table.
 Under the hood, OasysDB will query the source table from the last primary key
 inserted and insert the new data to the index incrementally.
 
-Incremental insertion is very crucial here because it allows us to insert
+Incremental insertion is very crucial here because it allows us to insert an
 individual record to the index without rebuilding the entire index which can be
 very slow.
 
