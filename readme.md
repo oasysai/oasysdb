@@ -7,9 +7,9 @@
 
 # Introducing OasysDB 👋
 
-OasysDB is a hybrid vector database that allows you utilize relational databases
-like SQLite and Postgres as a storage engine for your vector data without using
-them to compute expensive vector operations.
+OasysDB is a hybrid vector database that allows you to utilize relational
+databases like SQLite and Postgres as a storage engine for your vector data
+without using them to compute expensive vector operations.
 
 This allows you to consolidate your data into a single database and ensure high
 data integrity with the ACID properties of traditional databases while also
@@ -32,12 +32,12 @@ OasysDB has 2 primary components: **Database** and **Index**.
 
 - The Index implements a vector indexing algorithm and is responsible for
   storing and querying vectors. The functionality and algorithm of the index
-  depends on the algorithm you choose when creating the index.
+  depends on the algorithm we choose when creating the index.
 
 ## Embedded in Rust
 
 To use OasysDB as an embedded vector database in your Rust project, simply add
-it to your Cargo.toml file or run the command below on your terminal:
+it to the project Cargo.toml file or run the command below on the terminal:
 
 ```bash
 cargo add oasysdb

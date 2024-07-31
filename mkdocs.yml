@@ -59,6 +59,8 @@ extra_css:
 nav:
   - Documentation:
       - Introduction: index.md
+      - Database: refs/database.md
+      - Index: refs/index.md
 
   - Other:
       - Changelog: changelog.md
@@ -71,8 +73,10 @@ nav:
       - blog/index.md
 
 markdown_extensions:
+  - admonition
   - attr_list
   - md_in_html
+  - pymdownx.details
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
