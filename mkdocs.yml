@@ -60,14 +60,11 @@ nav:
   - Documentation:
       - Introduction: index.md
       - Database: refs/database.md
-      - Vector Index: refs/vector_index.md
+      - Vector Index: refs/vector-index.md
 
   - Other:
       - Changelog: changelog.md
       - Contributing: contributing.md
-      - Code of Conduct: code_of_conduct.md
-      - Migrations:
-          - 0.4.5 to 0.5.0: migrations/0.4.5_to_0.5.0.md
 
   - Blog:
       - blog/index.md
@@ -99,7 +96,3 @@ plugins:
       categories_allowed:
         - Log
         - Rust
-
-exclude_docs: |
-  pull_request_template.md
-  security.md
