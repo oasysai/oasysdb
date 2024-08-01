@@ -54,7 +54,7 @@ extra:
       link: https://discord.gg/bDhQrkqNP4
 
 extra_css:
-  - assets/style.css
+  - css/style.css
 
 nav:
   - Documentation:
