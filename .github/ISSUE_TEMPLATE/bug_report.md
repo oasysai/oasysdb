@@ -6,30 +6,23 @@ labels: bug
 assignees: ""
 ---
 
-### Short description
+### Short Description
 
-What is the bug about? Please provide a clear and concise description of what
-the bug is. If applicable, include the error message that you received.
+What is the bug about? If applicable, please include the error message.
 
-### Steps to reproduce
+### Steps to Reproduce
 
-How can the bug be reproduced? Please provide a minimal set of steps to
-reproduce the behavior.
+What are the minimal steps to reproduce the behavior?
 
 Example:
 
 1. Go to ...
 2. Click on ...
 
-### Expected behavior
+### Expected Behavior
 
 A clear and concise description of what you expected to happen.
 
-### Severity
+### Additional Context
 
-How severe is the bug? Are you using OasysDB in production?
-
-### Additional context
-
-Add any other context about the problem here. For example, screenshots, screen
-recordings, or logs.
+Add any other context about the problem here like screenshots or logs.
