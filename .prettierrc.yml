@@ -2,4 +2,6 @@ bracketSpacing: true
 singleQuote: false
 trailingComma: "none"
 semi: false
-editorConfig: true
+tabWidth: 2
+printWidth: 80
+proseWrap: "always"

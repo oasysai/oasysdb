@@ -1,202 +1,111 @@
-# 📣 Announcement
-
-Many thanks to everyone who supported OasysDB to progress this far. After thorough consideration, I have decided to pivot the project to a new direction. I will be focusing OasysDB to be a more robust vector database solution for production workload with ground-up support for hybrid ANN search algorithms.
-
-This will come with a lot of changes to the project structure, API, and functionality. I will be working on this in the coming weeks and months. I will keep you updated on the progress and the new direction of OasysDB.
-
-~ Edwin
-
-![OasysDB Use Case](https://i.postimg.cc/k4x4Q55k/banner.png)
+![OasysDB Use Case](https://odb-assets.s3.amazonaws.com/banners/0.7.0.png)
 
 [![GitHub Stars](https://img.shields.io/github/stars/oasysai/oasysdb?style=for-the-badge&logo=github&logoColor=%23000000&labelColor=%23fcd34d&color=%236b7280)](https://github.com/oasysai/oasysdb)
-[![Discord](https://img.shields.io/badge/chat-%236b7280?style=for-the-badge&logo=discord&logoColor=%23ffffff&label=discord&labelColor=%237289da)](https://discord.gg/bDhQrkqNP4)
-
+[![Discord](https://img.shields.io/badge/chat-%236b7280?style=for-the-badge&logo=discord&logoColor=%23ffffff&label=discord&labelColor=%237289da)][discord]
+[![Documentation](https://img.shields.io/badge/read-6b7280?style=for-the-badge&label=oasysdb%20docs&labelColor=14b8a6)][docs]
 [![Crates.io](https://img.shields.io/crates/d/oasysdb?style=for-the-badge&logo=rust&logoColor=%23000&label=crates.io&labelColor=%23fdba74&color=%236b7280)](https://crates.io/crates/oasysdb)
-[![PyPI](https://img.shields.io/pypi/dm/oasysdb?style=for-the-badge&label=PyPI&logo=python&logoColor=ffffff&labelColor=%230284c7&color=%236b7280)](https://pypi.org/project/oasysdb/)
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&labelColor=%2314b8a6&color=%236b7280)](https://opensource.org/licenses/Apache-2.0)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?style=for-the-badge&labelColor=%2314b8a6&color=%236b7280)](/docs/code_of_conduct.md)
+# Introducing OasysDB 👋
 
-# 👋 Meet OasysDB
+OasysDB is a hybrid vector database that allows you to utilize relational
+databases like SQLite and Postgres as a storage engine for your vector data
+without using them to compute expensive vector operations.
 
-OasysDB is a flexible and easy-to-use vector database written in Rust. It is designed with simplicity in mind to help you focus on building your AI application without worrying about database setup and configuration.
+This allows you to consolidate your data into a single database and ensure high
+data integrity with the ACID properties of traditional databases while also
+having a fast and isolated vector indexing layer.
 
-With 3 different runtime modes, OasysDB will accompany you throughout your journey from the early stages of development to scaling up your AI application for production workloads.
+For more details about OasysDB, please visit the
+[Documentation](https://docs.oasysdb.com/).
 
-- **Embedded**: Run OasysDB directly inside your application.
-- **Hosted**: Run OasysDB as a standalone server. _Coming soon_
-- **Distributed**: Run sharded OasysDB instances. _Coming not so soon_ 😉
+# Quickstart 🚀
 
-## Use Cases
+Currently, OasysDB is only available for Rust projects as an embedded database.
+We are still working on implementing RPC APIs to allow you to use OasysDB in any
+language as a standalone service.
 
-OasysDB is very flexible! You can use it for almost any systems related with vector search such as:
+OasysDB has 2 primary components: **Database** and **Index**.
 
-- Local RAG (Retrieval-Augmented Generation) pipeline with an LLM and embedding model to generate a context-aware output.
-- Image similarity search engine to find similar images based on their semantic content. [See Python demo](https://colab.research.google.com/drive/15_1hH7jGKzMeQ6IfnScjsc-iJRL5XyL7?usp=sharing).
-- Real-time product recommendation system to suggest similar products based on the product features or user preferences.
-- **Add your use case here** 😁
+- The Database is responsible for managing the vector indices and connecting the
+  storage engine, the SQL database, to the indices as the data source. OasysDB
+  uses SQLx to handle the SQL database operations.
 
-## Features
+- The Index implements a vector indexing algorithm and is responsible for
+  storing and querying vectors. The functionality and algorithm of the index
+  depends on the algorithm we choose when creating the index.
 
-### Core Features
+## Embedded in Rust
 
-🔸 **Embedded Database**: Zero setup and no dedicated server or process required.
-
-🔸 **Optional Persistence**: In-memory vector collections that can be persisted to disk.
-
-🔸 **Incremental Ops**: Insert, modify, and delete vectors without rebuilding indexes.
-
-🔸 **Flexible Schema**: Store additional and flexible metadata for each vector record.
-
-### Technical Features
-
-🔹 **Fast HNSW**: Efficient and accurate vector search with state-of-the-art algorithm.
-
-🔹 **Configurable Metric**: Use Euclidean or Cosine distance depending on your use-case.
-
-🔹 **Parallel Processing**: Multi-threaded & SIMD-optimized vector distance calculation.
-
-🔹 **Built-in vector ID**: No headache record management with guaranteed ID uniqueness.
-
-# 🚀 Quickstart with Rust
-
-![Rust-Banner.png](https://i.postimg.cc/NMCwFBPd/Rust-Banner.png)
-
-To get started with OasysDB in Rust, you need to add `oasysdb` to your `Cargo.toml`. You can do so by running the command below which will add the latest version of OasysDB to your project.
+To use OasysDB as an embedded vector database in your Rust project, simply add
+it to the project Cargo.toml file or run the command below on the terminal:
 
 ```bash
 cargo add oasysdb
 ```
 
-After that, you can use the code snippet below as a reference to get started with OasysDB. In short, use `Collection` to store your vector records or search similar vector and use `Database` to persist a vector collection to the disk.
+When running OasysDB as an embedded database, you have access to both the
+Database and Index interfaces. In a rare occassion that you're building a
+project that doesn't utilize SQL, you can use the Index interface directly.
+Otherwise, the quickstart guide below will show you how to use the Database
+interface.
 
-```rust
+```rust no_run
+// Use the prelude module to import all necessary functionalities.
 use oasysdb::prelude::*;
 
-// Vector dimension must be uniform.
-let dimension = 128;
+// Open OasysDB database with connection to SQLite.
+// Connection is required for new database but optional for existing ones.
+let sqlite = "sqlite://sqlite.db";
+let db = Database::open("odb_test", Some(sqlite)).unwrap();
 
-// Replace with your own data.
-let records = Record::many_random(dimension, 100);
+// Create a new index with IVFPQ algorithm with default parameters.
+let params = ParamsIVFPQ::default();
+let algorithm = IndexAlgorithm::IVFPQ(params);
+// Setup where the data of the index will come from.
+let config = SourceConfig::new("table", "id", "vector");
+db.create_index("index", algorithm, config).unwrap();
 
-let mut config = Config::default();
-
-// Optionally set the distance function. Default to Euclidean.
-config.distance = Distance::Cosine;
-
-// Create a vector collection.
-let collection = Collection::build(&config, &records).unwrap();
-
-// Optionally save the collection to persist it.
-let mut db = Database::new("data/test").unwrap();
-db.save_collection("vectors", &collection).unwrap();
-
-// Search for the nearest neighbors.
-let query = Vector::random(dimension);
-let result = collection.search(&query, 5).unwrap();
-
-for res in result {
-    let (id, distance) = (res.id, res.distance);
-    println!("{distance:.5} | ID: {id}");
-}
+// Search the index for nearest neighbors of a query vector.
+let query = vec![0.0; 128];
+let filters = ""; // Optional SQL-like filter for the search.
+let results = db.search_index("index", query, 10, filters).unwrap();
 ```
 
-## Feature Flags
+## More Resources
 
-OasysDB provides several feature flags to enable or disable certain features. You can do this by adding the feature flags to your project `Cargo.toml` file. Below are the available feature flags and their descriptions:
+[![Discord](https://img.shields.io/badge/chat-%236b7280?style=for-the-badge&logo=discord&logoColor=%23ffffff&label=discord&labelColor=%237289da)][discord]
+[![Documentation](https://img.shields.io/badge/read-6b7280?style=for-the-badge&label=oasysdb%20docs&labelColor=14b8a6)][docs]
 
-- `json`: Enables easy Serde's JSON conversion from and to the metadata type. This feature is very useful if you have a complex metadata type or if you use APIs that communicate using JSON.
+There are more to OasysDB than what is shown in this Quickstart guide. Please
+visit OasysDB's [Documentation][docs] for more information. In addition, if you
+have any question or need help that needs immediate response, please join our
+[Discord Server][discord] and I will try my best to help you as soon as
+possible.
 
-- `gen`: Enables the vector generator trait and modules to extract vector embeddings from your contents using OpenAI or other embedding models. This feature allows OasysDB to handle vector embedding extraction for you without separate dependencies.
+[docs]: https://docs.oasysdb.com
+[discord]: https://discord.gg/bDhQrkqNP4
 
-# 🚀 Quickstart with Python
+# Contributing 🤝
 
-![Python-Banner.png](https://i.postimg.cc/rp1qjBZJ/Python-Banner.png)
+The easiest way to contribute to this project is to star this project and share
+it with your friends. This will help us grow the community and make the project
+more visible to others who might need it.
 
-OasysDB also provides a Python binding which allows you to add it directly to your project. You can install the Python library of OasysDB by running the command below:
+If you want to go further and contribute your expertise, we will gladly welcome
+your code contributions. For more information and guidance about this, please
+see [Contributing to OasysDB](docs/contributing.md).
 
-```bash
-pip install oasysdb
-```
+If you have a deep experience in the space but don't have the free time to
+contribute codes, we also welcome advices, suggestions, or feature requests. We
+are also looking for advisors to help guide the project direction and roadmap.
 
-This command will install the latest version of OasysDB to your Python environment. After you're all set with the installation, you can use the code snippet below as a reference to get started with OasysDB in Python.
-
-```python
-from oasysdb.prelude import *
-
-
-if __name__ == "__main__":
-    # Open the database.
-    db = Database("data/example")
-
-    # Replace with your own records.
-    records = Record.many_random(dimension=128, len=100)
-
-    # Create a vector collection.
-    config = Config.create_default()
-    collection = Collection.from_records(config, records)
-
-    # Optionally, persist the collection to the database.
-    db.save_collection("my_collection", collection)
-
-    # Replace with your own query.
-    query = Vector.random(128)
-
-    # Search for the nearest neighbors.
-    result = collection.search(query, n=5)
-
-    # Print the result.
-    print("Nearest neighbors ID: {}".format(result[0].id))
-```
-
-# 🎯 Benchmarks
-
-OasysDB uses a built-in benchmarking suite using Rust's [Criterion](https://docs.rs/criterion) crate which we use to measure the performance of the vector database.
-
-Currently, the benchmarks are focused on the performance of the collection's vector search functionality. We are working on adding more benchmarks to measure the performance of other operations.
-
-If you are curious and want to run the benchmarks, you can use the command below to run the benchmarks. If you do run it, please share the results with us 😉
-
-```bash
-cargo bench
-```
-
-## Memory Usage
-
-OasysDB uses HNSW which is known to be a memory hog compared to other indexing algorithms. We decided to use it because of its performance even when storing large datasets of vectors with high dimension.
-
-If you are curious about the memory usage of OasysDB, you can use the command below to run the memory usage measurement script. You can tweak the parameters in the `examples/measure-memory.rs` file to see how the memory usage changes.
-
-```bash
-cargo run --example measure-memory
-```
-
-## Recall Rate
-
-In vector databases, recall is the percentage of relevant items that are successfully retrieved compared to the true set of relevant items also known as the ground truth.
-
-To measure the recall rate, you can use the command below to run the recall rate measurement script. You can tweak the parameters in the `examples/measure-recall.rs` to see how OasysDB performs under different requirements.
-
-```bash
-cargo run --example measure-recall
-```
-
-Note: This script uses random vector records to measure the recall rate. This might not represent the real-world performance of OasysDB with proper datasets.
-
-# 🤝 Contributing
-
-The easiest way to contribute to this project is to star this project and share it with your friends. This will help us grow the community and make the project more visible to others.
-
-If you want to go further and contribute your expertise, we will gladly welcome your code contributions. For more information and guidance about this, please see [contributing.md](/docs/contributing.md).
-
-If you have deep experience in the space but don't have the free time to contribute codes, we also welcome advices, suggestions, or feature requests. We are also looking for advisors to help guide the project direction and roadmap.
-
-If you are interested about the project in any way, please join us on [Discord](https://discord.gg/bDhQrkqNP4). Help us grow the community and make OasysDB better 😁
-
-## Code of Conduct
-
-We are committed to creating a welcoming community. Any participant in our project is expected to act respectfully and to follow the [Code of Conduct](/docs/code_of_conduct.md).
+If you are interested about the project in any way, please join us on [Discord
+Server][discord]. Help us grow the community and make OasysDB better 😁
 
 ## Disclaimer
 
-This project is still in the early stages of development. We are actively working on it and we expect the API and functionality to change. We do not recommend using this in production yet.
+This project is still in the early stages of development. We are actively
+working on improving it and we expect the API and functionality to change. We do
+not recommend using this in production yet. If you do, however, please let us
+know so we can help you with any issues you might encounter as promptly as
+possible.

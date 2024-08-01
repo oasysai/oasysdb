@@ -1,16 +1,15 @@
-/// The vector database storing collections.
-pub mod database;
-
-use crate::collection::*;
-use crate::func::err::{Error, ErrorKind};
+use crate::indices::*;
+use crate::types::err::{Error, ErrorCode};
+use crate::types::filter::Filters;
+use crate::types::record::Vector;
+use crate::utils::file;
 use serde::{Deserialize, Serialize};
-use sled::Db;
-use std::collections::hash_map::DefaultHasher;
-use std::fs::{self, OpenOptions};
-use std::hash::{Hash, Hasher};
-use std::io::{BufReader, BufWriter};
-use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use sqlx::{AnyConnection as SourceConnection, Connection};
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 
-#[cfg(feature = "py")]
-use pyo3::prelude::*;
+mod database;
+
+// Re-export types for public API below.
+pub use database::Database;

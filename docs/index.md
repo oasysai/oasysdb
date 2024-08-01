@@ -1,55 +1,60 @@
-# Introducing OasysDB
+# Welcome to OasysDB 🎉
 
-![OasysDB Use Case](https://i.postimg.cc/k4x4Q55k/banner.png)
+First of all, thank you for considering to use OasysDB! We hope that OasysDB
+will help you build your AI projects faster and more efficiently.
 
-OasysDB is a **flexible**, **performant**, and **easy to use** vector database for storing and searching high-dimensional vectors. OasysDB is built in Rust but provides a Python binding for you to use in your Python projects.
+Before you dive deep into OasysDB, these are a few things you should know about
+OasysDB and why you should or shouldn't use it.
 
-The goal of OasysDB is to be a vector database with a great developer experience throughout the lifecycle of the project; from early development to production. In addition to an easy-to-use API, OasysDB can be used in 3 different ways:
+## What is OasysDB?
+
+OasysDB is a hybrid vector database that allows you to have a vector index layer
+for similarity search with SQL database as your primary storage. For real-time
+and constantly changing data, this means you can use SQL databases like
+PostgreSQL, MySQL, or SQLite which offer ACID compliance and strong
+transactional support as your primary storage layer and only use OasysDB for
+similarity search.
+
+![OasysDB Use Case](https://odb-assets.s3.amazonaws.com/banners/0.7.0.png)
+
+## Features
 
 <div class="grid cards" markdown>
 
-- :fontawesome-solid-terminal: **Embedded** <br />
-  Run OasysDB directly inside your application.
+<!-- prettier-ignore -->
+- **SQL Storage Layer**
 
-- :fontawesome-solid-server: **Hosted** <br />
-  Run OasysDB as a standalone server. <br />
-  _Coming soon_
+    OasysDB allows you to consolidate your vector data with other operational
+    data in a single SQL database without impacting the performance of your
+    SQL database.
 
-- :fontawesome-solid-circle-nodes: **Distributed** <br />
-  Run sharded OasysDB instances. <br />
-  _Coming not so soon_ 😉
+- **Flexible Indexing**
+
+    You can pick your own poison by choosing indexing algorithms that fit your
+    use case like Flat (Brute Force) or IVFPQ. You can also configure the index
+    to fit your performance requirements.
+
+- **Multi-index Support**
+
+    Depending on your use case and setup, you can create multiple vector
+    indices for different vector columns from the same table to improve your
+    search performance.
+
+- **Pre-filtering**
+
+    In addition to post-filtering, OasysDB supports pre-filtering allowing you
+    to create an index for a subset of your data to narrow down the search
+    space before performing the ANN search.
 
 </div>
 
-## OasysDB as a Vector Database
+## Why not OasysDB?
 
-You can think of OasysDB as a NoSQL/document database like MongoDB or CouchDB, but purposefully built for indexing high-dimensional vectors. Instead of using a traditional index like B-Tree or LSM-Tree, OasysDB uses **HNSW** as its indexing algorithm to index the data in graphs so that it can perform fast similarity searches on the vectors.
-
-OasysDB shares a lot of concepts with traditional NoSQL databases. It stores data in collections and multiple collections can be stored in a database. The API of the collection is also very similar to a document store where you have methods to insert, get, update, and delete records with the additional search method to find similar vectors AKA nearest neighbors.
-
-## Vector Record
-
-When you want to store a vector in OasysDB, you will insert vector record objects. This object contains the vector embedding itself and some additional metadata.
-
-### Embedding
-
-OasysDB is optimized for high-dimensional vectors of any dimensionality. You can store 2D or 3D vectors/points, but, the real power of OasysDB shines when you store high-dimensional vectors like 128D, 768D, or even 4096D vectors.
-
-As per the benchmark, OasysDB can perform similarity searches on 1 million 4096D vectors in single-digit milliseconds which makes it a great choice for building real-time search or semantic caching systems.
-
-- M2 Macbook Pro with 16GB memory: 9.11ms
-- M3 Macbook Pro with 128GB memory: 3.87ms
-
-### Metadata
-
-When you store a vector in OasysDB, you can insert a metadata object along with the vector. The metadata is a JSON-like object that can store any information you need to associate with the vector. For example, for a use case like an image search system, you can store the image URL, title, and description of the image in the metadata object.
-
-```json
-{
-  "url": "https://www.example.com/image.jpg",
-  "title": "Beautiful Sunset",
-  ...
-}
-```
-
-When performing a search, the metadata will be returned along with additional information. In most cases, you will use the metadata to display the search results to the user or in case of RAG application, you can use the metadata to generate a relevant answer.
+- **Fully In-memory**: OasysDB stores the entire index in memory which means
+  that the size of your index is limited by the memory available on your
+  machine. If you have a large dataset over 10M vectors, you may want to
+  consider using a disk-based indexing algorithm.
+- **Hybrid Solution**: OasysDB is a hybrid of SQL database and vector indexing
+  layer. This means that you need to use a SQL database as your primary storage
+  layer for OasysDB to be optimal. OasysDB, or any other vector databases for
+  that matter, won't be able to replace a transactional database.

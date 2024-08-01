@@ -57,8 +57,10 @@ extra_css:
   - assets/style.css
 
 nav:
-  - Home:
+  - Documentation:
       - Introduction: index.md
+      - Database: refs/database.md
+      - Vector Index: refs/vector_index.md
 
   - Other:
       - Changelog: changelog.md
@@ -67,9 +69,14 @@ nav:
       - Migrations:
           - 0.4.5 to 0.5.0: migrations/0.4.5_to_0.5.0.md
 
+  - Blog:
+      - blog/index.md
+
 markdown_extensions:
+  - admonition
   - attr_list
   - md_in_html
+  - pymdownx.details
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
@@ -84,7 +91,15 @@ markdown_extensions:
   - toc:
       permalink: "#"
 
+plugins:
+  - blog:
+      post_readtime: true
+      post_excerpt: required
+      authors: true
+      categories_allowed:
+        - Log
+        - Rust
+
 exclude_docs: |
-  guide.md
   pull_request_template.md
   security.md

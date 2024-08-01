@@ -1,0 +1,72 @@
+name: Test Database
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "clients/**"
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "clients/**"
+
+jobs:
+  rustfmt-format:
+    name: Check code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Run cargo fmt with check
+        run: cargo fmt -- --check
+
+  clippy-lint:
+    name: Lint code with Clippy
+    needs: rustfmt-format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Install Protobuf compiler
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y protobuf-compiler libprotobuf-dev
+
+      - name: Run cargo clippy
+        run: cargo clippy -- -D warnings
+
+  run-rust-tests:
+    name: Run Rust tests
+    needs: clippy-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Protobuf compiler
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y protobuf-compiler libprotobuf-dev
+
+      - name: Run cargo test
+        run: cargo test --all-features -- --test-threads 1

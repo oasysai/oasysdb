@@ -1,7 +1,6 @@
-pub use crate::database::*;
-pub use crate::func::collection::*;
-pub use crate::func::distance::*;
-pub use crate::func::err::*;
-pub use crate::func::filter::*;
-pub use crate::func::metadata::*;
-pub use crate::func::vector::*;
+pub use crate::db::Database;
+pub use crate::indices::*;
+pub use crate::types::distance::DistanceMetric;
+pub use crate::types::err::{Error, ErrorCode};
+pub use crate::types::filter::*;
+pub use crate::types::record::*;
