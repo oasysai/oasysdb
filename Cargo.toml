@@ -7,13 +7,13 @@ readme = "readme.md"
 
 # Information.
 authors = ["Edwin Kys", "Oasys"]
-description = "Fast & scalable vector store with ground-up hybrid ANN search support."
+description = "Hybrid vector store with SQL integration & multi-index support."
 homepage = "https://docs.oasysdb.com"
 repository = "https://github.com/oasysai/oasysdb"
 
 # Metadata.
-keywords = ["vector", "database", "anns", "search", "simd"]
-categories = ["database", "algorithms", "data-structures"]
+keywords = ["embedded", "vector", "database", "search", "anns"]
+categories = ["database", "algorithms", "embedded"]
 
 [dependencies]
 uuid = { version = "1.9.1", features = ["v4", "fast-rng", "serde"] }
