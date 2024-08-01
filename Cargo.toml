@@ -18,6 +18,7 @@ categories = ["database", "algorithms", "embedded"]
 [dependencies]
 uuid = { version = "1.9.1", features = ["v4", "fast-rng", "serde"] }
 half = { version = "2.4.1", features = ["serde"] }
+tokio = { version = "1.39.2", features = ["rt-multi-thread"] }
 url = "2.5.2"
 futures = "0.3.30"
 rand = "0.8.5"
@@ -34,7 +35,7 @@ serde_json = "1.0.120"
 [dependencies.sqlx]
 version = "0.7.4"
 default-features = false
-features = ["all-databases"]
+features = ["all-databases", "runtime-tokio"]
 
 [dev-dependencies]
 byteorder = "1.5.0"
