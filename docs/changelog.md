@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.7.0
+
+### What's Changed
+
+OasysDB v0.7.0 is a major release that includes a complete overhaul of the
+system. Instead of being a dedicated vector database, OasysDB is now a hybrid
+vector database that integrates with SQL databases such as SQLite and PostgreSQL
+which you can configure to store the vector records. This approach gives various
+advantages such as:
+
+- Reliability and durability of the data due to SQL database ACID properties.
+- Separation of vector storage and computation allowing you to scale the system
+  independently.
+
+These are some of the key changes in this release:
+
+- **SQL Storage Layer**: OasysDB can be configured to source vector records from
+  a SQL database such as SQLite or PostgreSQL.
+- **Multi-index Support**: OasysDB can support multiple indices for the same SQL
+  table allowing users to improve the search performance.
+- **Pre-filtering**: OasysDB can pre-filter the vector records from SQL tables
+  based on the metadata before inserting them into the index.
+- **Configurable Algorithm**: Each index in OasysDB can be configured with
+  different algorithms and parameters to fit the performance requirements.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+[v0.6.1...v0.7.0](https://github.com/oasysai/oasysdb/compare/v0.6.1...v0.7.0)
+
 ## v0.6.1
 
 ### What's Changed
