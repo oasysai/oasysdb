@@ -128,8 +128,7 @@ let me know.
 - **BREAKING CHANGE**: Although there is no change in the database API, the
   underlying storage format has been changed to save the collection data to
   dedicated files directly. The details of the new persistent system and how to
-  migrate from v0.4.x to v0.5.0 can be found in this
-  [migration guide](migrations/0.4.5_to_0.5.0.md).
+  migrate from v0.4.x to v0.5.0 can be found in this migration guide.
 
 - By adding the feature `gen`, you can now use the `EmbeddingModel` trait and
   OpenAI's embedding models to generate vectors or records from text without

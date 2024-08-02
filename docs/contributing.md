@@ -9,7 +9,7 @@ contributing to our project.
 We are committed to building an inclusive and welcoming community. We believe
 that it will lead to a more successful project and a better experience for
 everyone involved. To achieve that, any participant in our project is expected
-to act respectfully and to follow the [Code of Conduct](code_of_conduct.md).
+to act respectfully and to follow the Code of Conduct.
 
 ## Have questions or suggestions?
 
