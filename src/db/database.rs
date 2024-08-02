@@ -1,9 +1,9 @@
 use super::*;
-use futures::executor;
 use futures::stream::StreamExt;
 use sqlx::any::install_default_drivers;
 use sqlx::Acquire;
 use std::sync::{Arc, Mutex};
+use tokio::runtime::Runtime;
 use url::Url;
 use uuid::Uuid;
 
@@ -159,7 +159,8 @@ impl Database {
         algorithm: IndexAlgorithm,
         config: SourceConfig,
     ) -> Result<(), Error> {
-        executor::block_on(self.async_create_index(name, algorithm, config))
+        let rt = Runtime::new()?;
+        rt.block_on(self.async_create_index(name, algorithm, config))
     }
 
     /// Returns an index reference.
@@ -263,7 +264,8 @@ impl Database {
     /// Updates the index with new records from the source synchronously.
     /// - `name`: Index name.
     pub fn refresh_index(&self, name: impl AsRef<str>) -> Result<(), Error> {
-        executor::block_on(self.async_refresh_index(name))
+        let rt = Runtime::new()?;
+        rt.block_on(self.async_refresh_index(name))
     }
 
     /// Searches the index for nearest neighbors.
@@ -417,7 +419,8 @@ impl DatabaseState {
 
     /// Connects to the source SQL database.
     pub fn connect(&self) -> Result<SourceConnection, Error> {
-        executor::block_on(self.async_connect())
+        let rt = Runtime::new()?;
+        rt.block_on(self.async_connect())
     }
 
     /// Disconnects from the source SQL database asynchronously.
@@ -429,7 +432,8 @@ impl DatabaseState {
     /// Disconnects from the source SQL database.
     /// - `conn`: Database connection.
     pub fn disconnect(conn: SourceConnection) -> Result<(), Error> {
-        executor::block_on(Self::async_disconnect(conn))
+        let rt = Runtime::new()?;
+        rt.block_on(Self::async_disconnect(conn))
     }
 
     /// Validates the connection to the source database.
@@ -539,7 +543,9 @@ mod tests {
     fn test_database_refresh_index() -> Result<(), Error> {
         let db = create_test_database()?;
         let query = generate_insert_query(100, 10);
-        executor::block_on(db.async_execute_sql(query))?;
+
+        let rt = Runtime::new()?;
+        rt.block_on(db.async_execute_sql(query))?;
 
         db.refresh_index(TEST_INDEX).unwrap();
 
@@ -616,7 +622,9 @@ mod tests {
         let state = db.state()?;
         assert_eq!(state.source_type(), SourceType::SQLITE);
 
-        executor::block_on(setup_test_source(&db_url))?;
+        let rt = Runtime::new()?;
+        rt.block_on(setup_test_source(&db_url))?;
+
         create_test_index(&mut db)?;
         Ok(db)
     }

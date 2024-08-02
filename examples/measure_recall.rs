@@ -1,7 +1,7 @@
 use common::Dataset;
-use futures::executor;
 use oasysdb::prelude::*;
 use std::error::Error;
+use tokio::runtime::Runtime;
 
 mod common;
 
@@ -10,7 +10,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let db_url = dataset.database_url();
     let config = SourceConfig::new(dataset.name(), "id", "vector");
 
-    executor::block_on(dataset.populate_database())?;
+    let rt = Runtime::new()?;
+    rt.block_on(dataset.populate_database())?;
 
     let db = Database::open("odb_example", Some(db_url))?;
     create_index_flat(&db, &config)?;
