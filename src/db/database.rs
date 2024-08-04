@@ -303,7 +303,7 @@ impl Database {
     ///
     /// This method will replace the existing record data of the provided
     /// ID with the new record data. If the record doesn't exist in the
-    /// index, it will be inserted as a new record.
+    /// index, it will be ignored.
     pub fn update_index(
         &self,
         name: impl AsRef<str>,
