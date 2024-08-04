@@ -49,6 +49,12 @@ impl VectorIndex for IndexFlat {
             return Ok(());
         }
 
+        // Filter only records that are not already in the index.
+        let records: HashMap<RecordID, Record> = records
+            .into_iter()
+            .filter(|(id, _)| !self.data.contains_key(id))
+            .collect();
+
         self.metadata.last_inserted = records.keys().max().copied();
         self.data.par_extend(records);
         Ok(())

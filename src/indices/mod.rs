@@ -405,6 +405,10 @@ pub trait VectorIndex: Debug + Send + Sync {
 
     /// Inserts new records into the index incrementally.
     /// - `records`: Records to insert into the index.
+    ///
+    /// This method will only insert records that are not already
+    /// in the index. If the record already exists in the index,
+    /// it will be skipped.
     fn insert(
         &mut self,
         records: HashMap<RecordID, Record>,
@@ -412,6 +416,10 @@ pub trait VectorIndex: Debug + Send + Sync {
 
     /// Updates records in the index with new values.
     /// - `records`: Records to update along with their new values.
+    ///
+    /// This method will update the records with the provided IDs to
+    /// the new values. If the record does not exist in the index,
+    /// it will be skipped.
     fn update(
         &mut self,
         records: HashMap<RecordID, Record>,

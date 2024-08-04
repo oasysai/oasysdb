@@ -215,6 +215,12 @@ impl VectorIndex for IndexIVFPQ {
             return Err(Error::new(code, message));
         }
 
+        // Only process records that are not already in the index.
+        let records: HashMap<RecordID, Record> = records
+            .into_iter()
+            .filter(|(id, _)| !self.data.contains_key(id))
+            .collect();
+
         for (id, record) in records.iter() {
             let vector = &record.vector;
             let cid = self.find_nearest_centroid(vector).to_usize();
@@ -256,6 +262,12 @@ impl VectorIndex for IndexIVFPQ {
         &mut self,
         records: HashMap<RecordID, Record>,
     ) -> Result<(), Error> {
+        // Only process records that are already in the index.
+        let records: HashMap<RecordID, Record> = records
+            .into_iter()
+            .filter(|(id, _)| self.data.contains_key(id))
+            .collect();
+
         let ids: Vec<RecordID> = records.keys().cloned().collect();
         self.delete(ids)?;
         self.insert(records)

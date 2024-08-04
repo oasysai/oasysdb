@@ -227,15 +227,12 @@ impl Database {
         })?;
 
         // Cloning is necessary here to avoid borrowing issues.
-        let IndexRef { algorithm, file, config } = index_ref.to_owned();
-
-        // It's safe to unwrap here because we validated that index exists by
-        // calling get_index_ref method above.
-        let index: Index = self.get_index(name).unwrap();
+        let IndexRef { config, .. } = index_ref.to_owned();
 
         let (query, config) = {
             // We wrap the index lock in a closure to make sure it's dropped
             // before async functionalities are called.
+            let index: Index = self.get_index(name).unwrap();
             let index = index.lock()?;
             let meta = index.metadata();
             let checkpoint = meta.last_inserted.unwrap_or_default();
@@ -253,12 +250,7 @@ impl Database {
             records.insert(id, record);
         }
 
-        // Update the index with new records and persist it.
-        // We might want to persist the index after every fit operation.
-        let mut index = index.lock()?;
-        index.insert(records)?;
-        algorithm.persist_index(file, index.as_ref())?;
-        Ok(())
+        self.insert_into_index(name, records)
     }
 
     /// Updates the index with new records from the source synchronously.
@@ -285,9 +277,56 @@ impl Database {
         k: usize,
         filters: impl Into<Filters>,
     ) -> Result<Vec<SearchResult>, Error> {
+        // These 2 lines are necessary to avoid memory issues.
         let index: Index = self.try_get_index(name)?;
         let index = index.lock()?;
         index.search(query.into(), k, filters.into())
+    }
+
+    /// Inserts new records into the index.
+    /// - `name`: Index name.
+    /// - `records`: Records to insert.
+    pub fn insert_into_index(
+        &self,
+        name: impl AsRef<str>,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        let index: Index = self.try_get_index(name.as_ref())?;
+        let mut index = index.lock()?;
+        index.insert(records)?;
+        self.persist_existing_index(name, index.as_ref())
+    }
+
+    /// Updates the index with new record data.
+    /// - `name`: Index name.
+    /// - `records`: Records to update.
+    ///
+    /// This method will replace the existing record data of the provided
+    /// ID with the new record data. If the record doesn't exist in the
+    /// index, it will be ignored.
+    pub fn update_index(
+        &self,
+        name: impl AsRef<str>,
+        records: HashMap<RecordID, Record>,
+    ) -> Result<(), Error> {
+        let index: Index = self.try_get_index(name.as_ref())?;
+        let mut index = index.lock()?;
+        index.update(records)?;
+        self.persist_existing_index(name, index.as_ref())
+    }
+
+    /// Deletes records from the index.
+    /// - `name`: Index name.
+    /// - `ids`: List of record IDs to delete.
+    pub fn delete_from_index(
+        &self,
+        name: impl AsRef<str>,
+        ids: Vec<RecordID>,
+    ) -> Result<(), Error> {
+        let index: Index = self.try_get_index(name.as_ref())?;
+        let mut index = index.lock()?;
+        index.delete(ids)?;
+        self.persist_existing_index(name, index.as_ref())
     }
 
     /// Deletes an index from the database.
@@ -382,6 +421,29 @@ impl Database {
     /// Returns the directory where the indices are stored.
     fn indices_dir(&self) -> PathBuf {
         self.root.join("indices")
+    }
+
+    /// Persists an existing index to its file.
+    /// - `name`: Index name.
+    /// - `index`: Index trait object.
+    ///
+    /// This method requires the reference to the index with the given
+    /// name to exist in the database state. If the index doesn't exist,
+    /// this method will return a not found error.
+    fn persist_existing_index(
+        &self,
+        name: impl AsRef<str>,
+        index: &dyn VectorIndex,
+    ) -> Result<(), Error> {
+        let name = name.as_ref();
+        let IndexRef { algorithm, file, .. } =
+            self.get_index_ref(name).ok_or_else(|| {
+                let code = ErrorCode::NotFound;
+                let message = format!("Index might not exists: {name}.");
+                Error::new(code, message)
+            })?;
+
+        algorithm.persist_index(file, index)
     }
 }
 
@@ -514,7 +576,6 @@ impl IndexRef {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prelude::RecordID;
     use sqlx::{Executor, Row};
     use std::sync::MutexGuard;
 
@@ -579,6 +640,40 @@ mod tests {
 
         assert_eq!(results.len(), 5);
         assert_eq!(results[0].id, RecordID(51));
+    }
+
+    #[test]
+    fn test_database_insert_into_index() -> Result<(), Error> {
+        // Create sample records to insert.
+        let id = RecordID(101);
+        let vector = Vector::from(vec![100.0; 128]);
+        let data = HashMap::from([(
+            "number".to_string(),
+            Some(DataValue::Integer(1100)),
+        )]);
+
+        let record = Record { vector, data };
+        let records = HashMap::from([(id, record)]);
+
+        let db = create_test_database()?;
+        db.insert_into_index(TEST_INDEX, records)?;
+
+        let index: Index = db.try_get_index(TEST_INDEX)?;
+        let index = index.lock()?;
+        assert_eq!(index.len(), 101);
+        Ok(())
+    }
+
+    #[test]
+    fn test_database_delete_from_index() -> Result<(), Error> {
+        let db = create_test_database()?;
+        let ids = vec![RecordID(1), RecordID(2)];
+        db.delete_from_index(TEST_INDEX, ids)?;
+
+        let index: Index = db.try_get_index(TEST_INDEX)?;
+        let index = index.lock()?;
+        assert_eq!(index.len(), 98);
+        Ok(())
     }
 
     #[test]
