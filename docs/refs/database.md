@@ -285,3 +285,24 @@ avoid the overhead of loading the index from disk which can be slow.
 By default, performing any operation related to an index like search or refresh
 will load the index to the pool. If we want to release the index from the pool,
 we can use the `release_indices` method.
+
+## Advanced Data Operations
+
+The Database also provides advanced operations to manage the indices directly
+without the SQL layer. These operations are useful when we want to perform
+low-level operations updating the records directly in the index data store.
+
+These are the available advanced operations:
+
+- Insert records into an index.
+- Update records in an index.
+- Delete records from an index by their IDs.
+
+!!! warning "Low-level Operations"
+
+    Please note that these operations are not recommended for general use since
+    they bypass the SQL layer and can lead to inconsistencies between the SQL
+    data source and the index which can lead to unexpected behavior.
+
+    With this in mind, technically you can use these operations to use OasysDB
+    without the SQL layer and directly interact with each index data store.
