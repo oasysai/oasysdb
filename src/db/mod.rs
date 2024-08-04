@@ -1,7 +1,7 @@
 use crate::indices::*;
 use crate::types::err::{Error, ErrorCode};
 use crate::types::filter::Filters;
-use crate::types::record::Vector;
+use crate::types::record::*;
 use crate::utils::file;
 use serde::{Deserialize, Serialize};
 use sqlx::{AnyConnection as SourceConnection, Connection};
