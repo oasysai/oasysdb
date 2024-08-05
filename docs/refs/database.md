@@ -303,6 +303,3 @@ These are the available advanced operations:
     Please note that these operations are not recommended for general use since
     they bypass the SQL layer and can lead to inconsistencies between the SQL
     data source and the index which can lead to unexpected behavior.
-
-    With this in mind, technically you can use these operations to use OasysDB
-    without the SQL layer and directly interact with each index data store.

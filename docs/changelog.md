@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.7.1
+
+### What's Changed
+
+This release includes a low-level CRUD API for the index implementation from the
+Database layer. Once the index is built, when necessary, you can use the CRUD
+API to manage the index data directly. This API allows you to perform the
+following operations:
+
+- Insert new records into the index.
+- Update existing records in the index.
+- Delete records from the index.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+[v0.7.0...v0.7.1](https://github.com/oasysai/oasysdb/compare/v0.7.0...v0.7.1)
+
 ## v0.7.0
 
 ### What's Changed
