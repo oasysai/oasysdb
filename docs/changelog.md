@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.2
+
+### What's Changed
+
+This release includes a fix for the file system issue happening on Windows which
+happen when the default temporary directory in in a different drive than the
+current working directory. This issue is fixed by creating a temporary directory
+in the root of the database directory.
+
+### Contributors
+
+- @edwinkys
+
+### Full Changelog
+
+[v0.7.1...v0.7.2](https://github.com/oasysai/oasysdb/compare/v0.7.1...v0.7.2)
+
 ## v0.7.1
 
 ### What's Changed
