@@ -274,12 +274,13 @@ impl IndexAlgorithm {
     /// - `index`: Index to persist as a trait object.
     pub(crate) fn persist_index(
         &self,
+        tmp_dir: impl AsRef<Path>,
         path: impl AsRef<Path>,
         index: &dyn VectorIndex,
     ) -> Result<(), Error> {
         macro_rules! persist {
             ($index_type:ident) => {{
-                Self::_persist_index::<$index_type>(path, index)
+                Self::_persist_index::<$index_type>(tmp_dir, path, index)
             }};
         }
 
@@ -297,6 +298,7 @@ impl IndexAlgorithm {
     }
 
     fn _persist_index<T: VectorIndex + IndexOps + 'static>(
+        tmp_dir: impl AsRef<Path>,
         path: impl AsRef<Path>,
         index: &dyn VectorIndex,
     ) -> Result<(), Error> {
@@ -306,7 +308,7 @@ impl IndexAlgorithm {
             Error::new(code, message)
         })?;
 
-        index.persist(path)?;
+        index.persist(tmp_dir, path)?;
         Ok(())
     }
 }
@@ -375,8 +377,12 @@ pub trait IndexOps: Debug + Serialize + DeserializeOwned {
     }
 
     /// Serializes and persists the index to a file.
-    fn persist(&self, path: impl AsRef<Path>) -> Result<(), Error> {
-        file::write_binary_file(path, self)
+    fn persist(
+        &self,
+        tmp_dir: impl AsRef<Path>,
+        path: impl AsRef<Path>,
+    ) -> Result<(), Error> {
+        file::write_binary_file(tmp_dir, path, self)
     }
 }
 

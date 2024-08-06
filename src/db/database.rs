@@ -53,6 +53,11 @@ impl Database {
             fs::create_dir_all(&indices_dir)?;
         }
 
+        let tmp_dir = root_dir.join("tmp");
+        if !tmp_dir.try_exists()? {
+            fs::create_dir_all(&tmp_dir)?;
+        }
+
         let state_file = root_dir.join("odbstate");
         let state = if state_file.try_exists()? {
             let mut state = DatabaseState::restore(&state_file)?;
@@ -77,7 +82,7 @@ impl Database {
 
             // Persist the new state to the state file.
             let state = DatabaseState { source, indices };
-            file::write_binary_file(state_file, &state)?;
+            file::write_binary_file(tmp_dir, state_file, &state)?;
             state
         };
 
@@ -128,7 +133,8 @@ impl Database {
         index.build(records)?;
 
         // Persist the index to a file.
-        algorithm.persist_index(&index_file, index.as_ref())?;
+        let tmp_dir = self.tmp_dir();
+        algorithm.persist_index(tmp_dir, &index_file, index.as_ref())?;
 
         // Insert the index into the pool for easy access.
         {
@@ -407,7 +413,11 @@ impl Database {
     /// When running this method with other state lock, make sure
     /// to release the lock before calling this method.
     pub fn persist_state(&self) -> Result<(), Error> {
-        file::write_binary_file(self.state_file(), &self.state()?)
+        file::write_binary_file(
+            self.tmp_dir(),
+            self.state_file(),
+            &self.state()?,
+        )
     }
 }
 
@@ -421,6 +431,11 @@ impl Database {
     /// Returns the directory where the indices are stored.
     fn indices_dir(&self) -> PathBuf {
         self.root.join("indices")
+    }
+
+    /// Returns the temporary directory path for the database.
+    fn tmp_dir(&self) -> PathBuf {
+        self.root.join("tmp")
     }
 
     /// Persists an existing index to its file.
@@ -443,7 +458,8 @@ impl Database {
                 Error::new(code, message)
             })?;
 
-        algorithm.persist_index(file, index)
+        let tmp_dir = self.tmp_dir();
+        algorithm.persist_index(tmp_dir, file, index)
     }
 }
 
@@ -577,6 +593,7 @@ impl IndexRef {
 mod tests {
     use super::*;
     use sqlx::{Executor, Row};
+    use std::env;
     use std::sync::MutexGuard;
 
     const TABLE: &str = "embeddings";
@@ -710,7 +727,7 @@ mod tests {
             fs::remove_dir_all(&path)?;
         }
 
-        let db_path = file::get_tmp_dir()?.join("sqlite.db");
+        let db_path = get_tmp_dir()?.join("sqlite.db");
         let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
 
         let mut db = Database::open(path, Some(db_url.to_owned()))?;
@@ -753,6 +770,15 @@ mod tests {
             "INSERT INTO {TABLE} (vector, data)
             VALUES {values}"
         )
+    }
+
+    pub fn get_tmp_dir() -> Result<PathBuf, Error> {
+        let tmp_dir = env::temp_dir().join("oasysdb");
+        if !tmp_dir.try_exists()? {
+            fs::create_dir_all(&tmp_dir)?;
+        }
+
+        Ok(tmp_dir)
     }
 
     async fn setup_test_source(
