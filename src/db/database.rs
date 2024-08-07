@@ -86,7 +86,6 @@ impl Database {
             state
         };
 
-        state.validate_connection()?;
         let state = Mutex::new(state);
         let pool: IndicesPool = Mutex::new(HashMap::new());
         Ok(Self { root: root_dir, state, pool })
@@ -512,16 +511,6 @@ impl DatabaseState {
     pub fn disconnect(conn: SourceConnection) -> Result<(), Error> {
         let rt = Runtime::new()?;
         rt.block_on(Self::async_disconnect(conn))
-    }
-
-    /// Validates the connection to the source database.
-    ///
-    /// This method will try to connect to the source database and
-    /// disconnect immediately to validate the connection. If this method
-    /// is unable to connect, it will return an error.
-    pub fn validate_connection(&self) -> Result<(), Error> {
-        let conn = self.connect()?;
-        DatabaseState::disconnect(conn)
     }
 
     /// Returns the type of the source database:
