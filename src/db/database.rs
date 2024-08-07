@@ -86,6 +86,8 @@ impl Database {
             state
         };
 
+        install_default_drivers();
+
         let state = Mutex::new(state);
         let pool: IndicesPool = Mutex::new(HashMap::new());
         Ok(Self { root: root_dir, state, pool })
@@ -490,7 +492,6 @@ impl DatabaseState {
 
     /// Connects to the source SQL database asynchronously.
     pub async fn async_connect(&self) -> Result<SourceConnection, Error> {
-        install_default_drivers();
         Ok(SourceConnection::connect(&self.source).await?)
     }
 
