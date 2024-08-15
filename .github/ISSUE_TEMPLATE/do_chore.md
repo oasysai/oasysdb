@@ -1,21 +1,21 @@
 ---
 name: 🧹 Do Chore
 about: Documentation updates, code refactoring, or other chores.
-title: "CHORE:"
+title: "CHORE: "
 labels: chore
 assignees: ""
 ---
 
 ### Description
 
-What is the chore about?
+Please describe the chore you suggest in a few sentences.
 
 Chore examples:
 
-- Documentation updates
-- Code refactoring
-- Dependency updates
+- Updating documentation
+- Adding tests or examples
+- Refactoring parts of the codebase
 
-### Why is this beneficial?
+### Context
 
-Why do you think this chore is needed?
+Why ist this chore beneficial for the project and its community?
