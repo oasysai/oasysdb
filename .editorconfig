@@ -7,8 +7,8 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 max_line_length = 80
 
-[*.{rs, py}]
+[*.{rs, py, md}]
 indent_size = 4
 
-[*.{yml, md, css}]
+[*.{yml, html, css, js, ts}]
 indent_size = 2

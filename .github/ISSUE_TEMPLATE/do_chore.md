@@ -18,4 +18,4 @@ Chore examples:
 
 ### Context
 
-Why ist this chore beneficial for the project and its community?
+Why is this chore beneficial for the project and its community?

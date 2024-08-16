@@ -12,7 +12,7 @@ Please describe the issue you are experiencing in a few sentences.
 
 ### Error Message
 
-If you received an error message, please paste it here.
+If you received an error message, please paste parts of it here.
 
 ```txt
 
@@ -30,7 +30,7 @@ Example:
 
 ### Expected Behavior
 
-A clear and concise description of what you expected to happen.
+What do you expect to happen?
 
 ### Additional Context
 

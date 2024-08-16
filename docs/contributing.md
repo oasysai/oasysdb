@@ -23,23 +23,19 @@ Discussions][gh_discussions] with your question or suggestion.
 ## Encounter a bug? Have a feature request?
 
 If you encounter a bug or have a feature request, please open an issue on
-[GitHub Issues][gh_issues]. Please include as much information as possible in
-your issue. This includes:
-
-- A description of the bug or feature request.
-- If it's a bug, steps to reproduce the bug. If it's a feature request, include
-  the use case and expected behavior of the feature.
-- Screenshots or screen recording, if applicable.
+[GitHub Issues][gh_issues]. Please include enough information for us to
+understand the issue or feature request. For this reason, we recommend you to
+follow the issue templates provided when creating a new issue.
 
 ## Want to contribute code?
 
-**TLDR: Check and open an issue first before forking the repository and
-submitting a pull request.**
+**TLDR: Check or open an issue first before working on a PR.**
 
 Before you start working on a pull request, we encourage you to check out the
 existing issues and pull requests to make sure that the feature you want to work
 on is in our roadmap and is aligned with the project's vision. After all, we
-don't want you to waste your precious time!
+don't want you to waste your precious time working on something that might not
+be merged.
 
 We try to prioritize features and bug fixes that are on our roadmap or requested
 a lot by the community. If you want to work on a feature or bug fix that isn't
@@ -52,25 +48,7 @@ We'd love to hear about it!
 
 ## Getting started
 
-Getting started with OasysDB development is pretty straightforward.
-
-First, you will need to have Rust installed on your machine. We recommend using
-[rustup][rustup] to install Rust. We also recommend having rust-analyzer
-installed for your code editor for a better development experience.
-
-All of the functionalities of OasysDB are available in the **src** directory.
-The 2 most important modules are **db** and **indices** which respectively
-contain the database functionalities and the index implementations.
-Additionally, some custom types used throughout the project are defined in the
-**types** module.
-
-Before you start working on the code, I recommend you to run the tests to make
-sure everything is working as expected. You can run the tests with the following
-command:
-
-```sh
-cargo test
-```
+TODO: Complete this guide to help contributors get started.
 
 ## Style guide
 
