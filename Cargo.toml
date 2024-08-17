@@ -1,0 +1,12 @@
+[package]
+name = "oasysdb"
+version = "0.8.0"
+edition = "2021"
+authors = ["Edwin Kys"]
+
+[workspace]
+members = ["servers/coordinator", "servers/data"]
+
+[lib]
+name = "oasysdb"
+path = "src/lib.rs"
