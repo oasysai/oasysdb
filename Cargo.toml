@@ -12,4 +12,7 @@ name = "oasysdb"
 path = "src/lib.rs"
 
 [dependencies]
+simsimd = "5.0.1"
+
+# Serialization-related dependencies
 serde = { version = "1.0.208", features = ["derive"] }
