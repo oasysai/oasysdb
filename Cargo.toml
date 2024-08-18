@@ -10,3 +10,6 @@ members = ["servers/coordinator", "servers/data"]
 [lib]
 name = "oasysdb"
 path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0.208", features = ["derive"] }
