@@ -12,6 +12,7 @@ name = "oasysdb"
 path = "src/lib.rs"
 
 [dependencies]
+uuid = { version = "1.10.0", features = ["v4", "serde"] }
 simsimd = "5.0.1"
 
 # Serialization-related dependencies
