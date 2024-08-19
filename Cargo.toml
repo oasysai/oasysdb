@@ -13,7 +13,11 @@ path = "src/lib.rs"
 
 [dependencies]
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
-simsimd = "5.0.1"
+rand = "0.8.5"
 
 # Serialization-related dependencies
 serde = { version = "1.0.208", features = ["derive"] }
+
+# Parallelism-related dependencies
+simsimd = "5.0.1"
+rayon = "1.10.0"
