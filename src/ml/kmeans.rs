@@ -4,7 +4,7 @@ use rand::Rng;
 use std::cmp::min;
 use std::rc::Rc;
 
-type ClusterID = usize;
+type ClusterIndex = usize;
 
 /// A list of vectors.
 ///
@@ -19,7 +19,7 @@ type Vectors<'v> = Rc<[&'v Vector]>;
 /// centroids and recalculating these centroids until they are stable.
 #[derive(Debug)]
 pub struct KMeans {
-    assignments: Vec<ClusterID>,
+    assignments: Vec<ClusterIndex>,
     centroids: Vec<Vector>,
 
     // Algorithm parameters.
@@ -167,7 +167,7 @@ impl KMeans {
     }
 
     /// Create cluster assignments for the vectors.
-    fn assign_clusters(&self, vectors: Vectors) -> Vec<ClusterID> {
+    fn assign_clusters(&self, vectors: Vectors) -> Vec<ClusterIndex> {
         vectors
             .par_iter()
             .map(|vector| self.find_nearest_centroid(vector))
@@ -175,7 +175,7 @@ impl KMeans {
     }
 
     /// Find the index of the nearest centroid from a vector.
-    pub fn find_nearest_centroid(&self, vector: &Vector) -> ClusterID {
+    pub fn find_nearest_centroid(&self, vector: &Vector) -> ClusterIndex {
         self.centroids
             .par_iter()
             .enumerate()
@@ -199,7 +199,7 @@ impl KMeans {
     /// - Point 1 and 3 are assigned to cluster 1.
     /// - Point 4 is assigned to cluster 2.
     ///
-    pub fn assignments(&self) -> &[ClusterID] {
+    pub fn assignments(&self) -> &[ClusterIndex] {
         &self.assignments
     }
 
