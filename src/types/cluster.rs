@@ -14,3 +14,9 @@ impl ClusterID {
         Self(Uuid::new_v4())
     }
 }
+
+impl Default for ClusterID {
+    fn default() -> Self {
+        Self::new()
+    }
+}
