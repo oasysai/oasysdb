@@ -1,4 +1,4 @@
-/// K-means algorithm implementation and data structures.
+/// Module for K-means clustering algorithm.
 pub mod kmeans;
 
 // Import common dependencies below.
