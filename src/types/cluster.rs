@@ -20,26 +20,3 @@ impl Default for ClusterID {
         Self::new()
     }
 }
-
-/// Cluster data structure in the data node.
-///
-/// Fields:
-/// - centroid: Vector representing the cluster.
-/// - members: List of record IDs in the cluster.
-#[derive(Debug)]
-pub struct Cluster {
-    centroid: Vector,
-    members: Vec<RecordID>,
-}
-
-impl Cluster {
-    /// Return the centroid vector of the cluster.
-    pub fn centroid(&self) -> &Vector {
-        &self.centroid
-    }
-
-    /// Return a slice of record IDs that belong in the cluster.
-    pub fn members(&self) -> &[RecordID] {
-        &self.members
-    }
-}
