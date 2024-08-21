@@ -1,4 +1,4 @@
-use uuid::Uuid;
+use super::*;
 
 /// ID for a vector record in the database.
 ///
