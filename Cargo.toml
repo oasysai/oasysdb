@@ -4,23 +4,23 @@ version = "0.8.0"
 edition = "2021"
 authors = ["Edwin Kys"]
 
-[workspace]
-members = ["servers/coordinator", "servers/data"]
-
 [[bin]] # Coordinator Node Server
 name = "coordinator-server"
-path = "servers/coordinator/src/server.rs"
+path = "servers/coordinator.rs"
 
 [[bin]] # Data Node Server
 name = "data-server"
-path = "servers/data/src/server.rs"
+path = "servers/data.rs"
 
 [lib]
 name = "oasysdb"
 path = "src/lib.rs"
 
 [dependencies]
+tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
+tonic = "0.12.1"
+prost = "0.13.1"
 rand = "0.8.5"
 
 # Serialization-related dependencies
@@ -30,18 +30,10 @@ serde = { version = "1.0.208", features = ["derive"] }
 simsimd = "5.0.1"
 rayon = "1.10.0"
 
-# From workspace dependencies
-tonic = { workspace = true }
-
-[build-dependencies]
-tonic-build = "0.12"
-
-[workspace.dependencies]
-tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
-tonic = "0.12.1"
-prost = "0.13.1"
-
-[workspace.dependencies.sqlx]
+[dependencies.sqlx]
 version = "0.8.0"
 default-features = false
 features = ["postgres", "runtime-tokio"]
+
+[build-dependencies]
+tonic-build = "0.12"
