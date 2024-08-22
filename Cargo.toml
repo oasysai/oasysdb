@@ -4,24 +4,14 @@ version = "0.8.0"
 edition = "2021"
 authors = ["Edwin Kys"]
 
-[[bin]] # Coordinator Node Server
-name = "coordinator-server"
-path = "servers/coordinator.rs"
-
-[[bin]] # Data Node Server
-name = "data-server"
-path = "servers/data.rs"
-
-[lib]
-name = "oasysdb"
-path = "src/lib.rs"
-
 [dependencies]
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
-uuid = { version = "1.10.0", features = ["v4", "serde"] }
+rand = "0.8.5"
+clap = "4.5.16"
+
+# gRPC-related dependencies
 tonic = "0.12.1"
 prost = "0.13.1"
-rand = "0.8.5"
 
 # Serialization-related dependencies
 serde = { version = "1.0.208", features = ["derive"] }

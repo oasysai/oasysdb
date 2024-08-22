@@ -1,1 +1,5 @@
-fn main() {}
+mod cli;
+
+fn main() {
+    cli::run();
+}
