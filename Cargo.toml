@@ -21,3 +21,11 @@ serde = { version = "1.0.208", features = ["derive"] }
 # Parallelism-related dependencies
 simsimd = "5.0.1"
 rayon = "1.10.0"
+
+[workspace.dependencies]
+tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
+
+[workspace.dependencies.sqlx]
+version = "0.8.0"
+default-features = false
+features = ["postgres", "runtime-tokio"]
