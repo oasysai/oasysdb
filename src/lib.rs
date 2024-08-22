@@ -8,6 +8,7 @@ pub mod ml;
 pub mod types;
 
 /// Module for gRPC services and clients.
+#[allow(clippy::all)]
 pub mod protos {
     tonic::include_proto!("coordinator");
     tonic::include_proto!("data");
