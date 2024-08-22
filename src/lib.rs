@@ -1,5 +1,4 @@
 #![warn(missing_docs)]
-#![warn(unused_qualifications)]
 #![warn(missing_debug_implementations)]
 #![doc = include_str!("../readme.md")]
 
@@ -7,3 +6,9 @@
 pub mod ml;
 /// Module for OasysDB native types and data structures.
 pub mod types;
+
+/// Module for gRPC services and clients.
+pub mod protos {
+    tonic::include_proto!("coordinator");
+    tonic::include_proto!("data");
+}

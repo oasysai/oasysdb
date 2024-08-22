@@ -7,6 +7,14 @@ authors = ["Edwin Kys"]
 [workspace]
 members = ["servers/coordinator", "servers/data"]
 
+[[bin]] # Coordinator Node Server
+name = "coordinator-server"
+path = "servers/coordinator/src/server.rs"
+
+[[bin]] # Data Node Server
+name = "data-server"
+path = "servers/data/src/server.rs"
+
 [lib]
 name = "oasysdb"
 path = "src/lib.rs"
@@ -22,8 +30,16 @@ serde = { version = "1.0.208", features = ["derive"] }
 simsimd = "5.0.1"
 rayon = "1.10.0"
 
+# From workspace dependencies
+tonic = { workspace = true }
+
+[build-dependencies]
+tonic-build = "0.12"
+
 [workspace.dependencies]
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
+tonic = "0.12.1"
+prost = "0.13.1"
 
 [workspace.dependencies.sqlx]
 version = "0.8.0"

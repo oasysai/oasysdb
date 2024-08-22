@@ -3,5 +3,11 @@ name = "odb-coordinator"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "coordinator-server"
+path = "src/server.rs"
+
 [dependencies]
 oasysdb = { path = "../.." }
+tonic = { workspace = true }
+tokio = { workspace = true }
