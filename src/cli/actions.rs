@@ -26,8 +26,7 @@ fn coordinator_start_handler(args: &ArgMatches) {
         .expect("Postgres database URL is required with --db flag.");
 
     let node = CoordinatorNode::new(database_url.as_ref());
-    let service = Arc::new(node);
-    block_on(start_coordinator_server(service)).unwrap();
+    block_on(start_coordinator_server(Arc::new(node))).unwrap();
 }
 
 async fn start_coordinator_server(
@@ -61,8 +60,7 @@ fn data_join_handler(args: &ArgMatches) {
         .expect("Coordinator server URL is required to join the cluster.");
 
     let node = DataNode::new(database_url.as_ref(), coordinator_url.as_ref());
-    let service = Arc::new(node);
-    block_on(join_data_server(service)).unwrap();
+    block_on(join_data_server(Arc::new(node))).unwrap();
 }
 
 async fn join_data_server(
