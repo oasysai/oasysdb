@@ -3,6 +3,7 @@ use oasysdb::nodes::{CoordinatorNode, DataNode};
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
 use std::future::Future;
+use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 
@@ -32,7 +33,9 @@ fn coordinator_start_handler(args: &ArgMatches) {
 async fn start_coordinator_server(
     service: Arc<CoordinatorNode>,
 ) -> Result<(), Box<dyn Error>> {
-    let addr = "[::]:2505".parse()?;
+    let addr: SocketAddr = "[::]:2505".parse()?;
+    tracing::info!("Starting coordinator server at port {}", addr.port());
+
     Server::builder()
         .add_service(CoordinatorNodeServer::new(service))
         .serve(addr)
@@ -66,7 +69,11 @@ fn data_join_handler(args: &ArgMatches) {
 async fn join_data_server(
     service: Arc<DataNode>,
 ) -> Result<(), Box<dyn Error>> {
-    let addr = "[::]:2510".parse()?;
+    let addr: SocketAddr = "[::]:2510".parse()?;
+
+    tracing::info!("Starting data node server at port {}", addr.port());
+    tracing::info!("Joining coordinator: {}", service.coordinator_url());
+
     Server::builder()
         .add_service(DataNodeServer::new(service))
         .serve(addr)

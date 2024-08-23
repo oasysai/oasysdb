@@ -4,7 +4,6 @@ use crate::protos::data_node_server as proto;
 type CoordinatorURL = Box<str>;
 
 /// Data node server definition.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DataNode {
     database_url: DatabaseURL,
@@ -21,6 +20,16 @@ impl DataNode {
             database_url: database_url.into(),
             coordinator_url: coordinator_url.into(),
         }
+    }
+
+    /// Return the configured database URL.
+    pub fn database_url(&self) -> &DatabaseURL {
+        &self.database_url
+    }
+
+    /// Return the coordinator URL for this data node.
+    pub fn coordinator_url(&self) -> &CoordinatorURL {
+        &self.coordinator_url
     }
 }
 
