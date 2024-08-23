@@ -1,4 +1,15 @@
 use super::*;
+use oasysdb::nodes::{CoordinatorNode, DataNode};
+use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
+use oasysdb::protos::data_node_server::DataNodeServer;
+use std::future::Future;
+use tokio::runtime::Runtime;
+use tonic::transport::Server;
+
+fn block_on<F: Future>(future: F) -> F::Output {
+    let rt = Runtime::new().expect("Failed to create a Tokio runtime.");
+    rt.block_on(future)
+}
 
 // Coordinator action handlers.
 
@@ -10,9 +21,25 @@ pub fn coordinator_handler(args: &ArgMatches) {
 }
 
 fn coordinator_start_handler(args: &ArgMatches) {
-    let _database_url = args
+    let database_url = args
         .get_one::<String>("db")
         .expect("Postgres database URL is required with --db flag.");
+
+    let node = CoordinatorNode::new(database_url.as_ref());
+    let service = Arc::new(node);
+    block_on(start_coordinator_server(service)).unwrap();
+}
+
+async fn start_coordinator_server(
+    service: Arc<CoordinatorNode>,
+) -> Result<(), Box<dyn Error>> {
+    let addr = "[::]:2505".parse()?;
+    Server::builder()
+        .add_service(CoordinatorNodeServer::new(service))
+        .serve(addr)
+        .await?;
+
+    Ok(())
 }
 
 // Data action handlers.
@@ -25,11 +52,27 @@ pub fn data_handler(args: &ArgMatches) {
 }
 
 fn data_join_handler(args: &ArgMatches) {
-    let _database_url = args
+    let database_url = args
         .get_one::<String>("db")
         .expect("Please provide Postgres database URL with --db flag.");
 
-    let _coordinator_url = args
+    let coordinator_url = args
         .get_one::<String>("coordinator_url")
         .expect("Coordinator server URL is required to join the cluster.");
+
+    let node = DataNode::new(database_url.as_ref(), coordinator_url.as_ref());
+    let service = Arc::new(node);
+    block_on(join_data_server(service)).unwrap();
+}
+
+async fn join_data_server(
+    service: Arc<DataNode>,
+) -> Result<(), Box<dyn Error>> {
+    let addr = "[::]:2510".parse()?;
+    Server::builder()
+        .add_service(DataNodeServer::new(service))
+        .serve(addr)
+        .await?;
+
+    Ok(())
 }

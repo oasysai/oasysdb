@@ -4,6 +4,8 @@
 
 /// Module for machine learning algorithms.
 pub mod ml;
+/// Module for coordinator and data node server implementations.
+pub mod nodes;
 /// Module for OasysDB native types and data structures.
 pub mod types;
 

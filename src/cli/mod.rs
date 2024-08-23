@@ -1,4 +1,7 @@
+// Common module dependencies.
 use clap::{ArgMatches, Command};
+use std::error::Error;
+use std::sync::Arc;
 
 mod actions;
 mod commands;
