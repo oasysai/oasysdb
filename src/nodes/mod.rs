@@ -8,4 +8,5 @@ pub use data::*;
 type DatabaseURL = Box<str>;
 
 // Import common modules below.
+use crate::protos as proto;
 use std::sync::Arc;

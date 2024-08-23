@@ -1,5 +1,5 @@
 use super::*;
-use crate::protos::coordinator_node_server as proto;
+use proto::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 
 /// Coordinator node definition.
 #[derive(Debug)]
@@ -19,4 +19,4 @@ impl CoordinatorNode {
     }
 }
 
-impl proto::CoordinatorNode for Arc<CoordinatorNode> {}
+impl ProtoCoordinatorNode for Arc<CoordinatorNode> {}

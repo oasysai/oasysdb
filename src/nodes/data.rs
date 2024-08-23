@@ -1,5 +1,5 @@
 use super::*;
-use crate::protos::data_node_server as proto;
+use proto::data_node_server::DataNode as ProtoDataNode;
 
 type CoordinatorURL = Box<str>;
 
@@ -33,4 +33,4 @@ impl DataNode {
     }
 }
 
-impl proto::DataNode for Arc<DataNode> {}
+impl ProtoDataNode for Arc<DataNode> {}
