@@ -28,6 +28,7 @@ pub fn data() -> Command {
 fn data_join() -> Command {
     Command::new("join")
         .about("Start and join server as a data node in the cluster")
+        .arg(arg!(<name> "Name of the data node"))
         .arg(arg!(<coordinator_url> "Coordinator server URL"))
         .arg(shared_arg_database_url())
 }

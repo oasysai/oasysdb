@@ -16,18 +16,18 @@ fn block_on<F: Future>(future: F) -> F::Output {
 
 pub fn coordinator_handler(args: &ArgMatches) {
     match args.subcommand() {
-        Some(("start", args)) => coordinator_start_handler(args),
+        Some(("start", args)) => block_on(coordinator_start_handler(args)),
         _ => unreachable!(),
     }
 }
 
-fn coordinator_start_handler(args: &ArgMatches) {
+async fn coordinator_start_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
         .expect("Postgres database URL is required with --db flag.");
 
-    let node = CoordinatorNode::new(database_url.as_ref());
-    block_on(start_coordinator_server(Arc::new(node))).unwrap();
+    let node = CoordinatorNode::new(database_url.as_ref()).await;
+    start_coordinator_server(Arc::new(node)).await.unwrap();
 }
 
 async fn start_coordinator_server(
@@ -48,22 +48,28 @@ async fn start_coordinator_server(
 
 pub fn data_handler(args: &ArgMatches) {
     match args.subcommand() {
-        Some(("join", args)) => data_join_handler(args),
+        Some(("join", args)) => block_on(data_join_handler(args)),
         _ => unreachable!(),
     }
 }
 
-fn data_join_handler(args: &ArgMatches) {
+async fn data_join_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
         .expect("Please provide Postgres database URL with --db flag.");
 
-    let coordinator_url = args
-        .get_one::<String>("coordinator_url")
-        .expect("Coordinator server URL is required to join the cluster.");
+    // Unwrap is safe because these arguments are validated by clap.
+    let coordinator_url = args.get_one::<String>("coordinator_url").unwrap();
+    let name = args.get_one::<String>("name").unwrap();
 
-    let node = DataNode::new(database_url.as_ref(), coordinator_url.as_ref());
-    block_on(join_data_server(Arc::new(node))).unwrap();
+    let node = DataNode::new(
+        name.as_ref(),
+        database_url.as_ref(),
+        coordinator_url.as_ref(),
+    )
+    .await;
+
+    join_data_server(Arc::new(node)).await.unwrap();
 }
 
 async fn join_data_server(

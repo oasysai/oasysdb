@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Edwin Kys"]
 
 [dependencies]
+uuid = { version = "1.10.0", features = ["v4"] }
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
 rand = "0.8.5"
 clap = "4.5.16"

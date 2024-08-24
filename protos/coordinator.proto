@@ -1,4 +1,14 @@
 syntax = "proto3";
 package coordinator;
 
-service CoordinatorNode {}
+import "google/protobuf/empty.proto";
+
+service CoordinatorNode {
+    rpc RegisterNode(RegisterNodeRequest) returns (google.protobuf.Empty);
+}
+
+// section: RegisterNode
+    message RegisterNodeRequest {
+        string name = 1;
+        string address = 2;
+    }
