@@ -8,7 +8,7 @@ use tokio::runtime::Runtime;
 use tonic::transport::Server;
 
 fn block_on<F: Future>(future: F) -> F::Output {
-    let rt = Runtime::new().expect("Failed to create a Tokio runtime.");
+    let rt = Runtime::new().expect("Failed to create a Tokio runtime");
     rt.block_on(future)
 }
 
@@ -24,7 +24,7 @@ pub fn coordinator_handler(args: &ArgMatches) {
 async fn coordinator_start_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
-        .expect("Postgres database URL is required with --db flag.");
+        .expect("Postgres database URL is required with --db flag");
 
     let node = CoordinatorNode::new(database_url.as_ref()).await;
     start_coordinator_server(Arc::new(node)).await.unwrap();
@@ -56,7 +56,7 @@ pub fn data_handler(args: &ArgMatches) {
 async fn data_join_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
-        .expect("Please provide Postgres database URL with --db flag.");
+        .expect("Please provide Postgres database URL with --db flag");
 
     // Unwrap is safe because these arguments are validated by clap.
     let coordinator_url = args.get_one::<String>("coordinator_url").unwrap();

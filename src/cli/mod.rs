@@ -9,7 +9,7 @@ mod commands;
 pub fn run() {
     let command = Command::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
-        .about("Interface to setup and manage OasysDB servers.")
+        .about("Interface to setup and manage OasysDB servers")
         .arg_required_else_help(true)
         .subcommand(commands::coordinator())
         .subcommand(commands::data())

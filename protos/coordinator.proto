@@ -10,5 +10,5 @@ service CoordinatorNode {
 // section: RegisterNode
     message RegisterNodeRequest {
         string name = 1;
-        string address = 2;
+        string address = 2; // Public data node address -> IP:PORT
     }
