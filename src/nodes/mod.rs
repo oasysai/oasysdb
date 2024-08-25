@@ -17,16 +17,46 @@ use tonic::{async_trait, Request, Response, Status};
 
 // Constants for database schema names.
 const COORDINATOR_SCHEMA: &str = "coordinator";
-const DATA_SCHEMA: &str = "data";
+/// Append the data node name for the final schema name.
+const DATA_SCHEMA: &str = "data_";
 
 // Constants for database table names.
-const CENTROID_TABLE: &str = "centroids";
+const CONNECTION_TABLE: &str = "connections";
 const CLUSTER_TABLE: &str = "clusters";
 const RECORD_TABLE: &str = "records";
-const CONNECTION_TABLE: &str = "connections";
-const SUBCENTROID_TABLE: &str = "subcentroids";
+const SUBCLUSTER_TABLE: &str = "subclusters";
 
-/// Create a table to track data nodes connected to the coordinator.
+/// Create a new schema with the given name in the database.
+async fn create_schema(connection: &mut PgConnection, schema: impl AsRef<str>) {
+    sqlx::query("CREATE SCHEMA IF NOT EXISTS ?")
+        .bind(schema.as_ref())
+        .execute(connection)
+        .await
+        .expect("Failed to create the schema");
+}
+
+/// Create a table to store cluster data.
+async fn create_cluster_table(
+    connection: &mut PgConnection,
+    schema: impl AsRef<str>,
+) {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS ? (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            centroid BYTEA NOT NULL
+        )",
+    )
+    .bind(format!("{}.{CLUSTER_TABLE}", schema.as_ref()))
+    .execute(connection)
+    .await
+    .expect("Failed to create cluster table");
+}
+
+/// Create a table to track data node connections.
+///
+/// Columns:
+/// - name: Unique name of the data node.
+/// - address: Network address to connect to the data node.
 async fn create_coordinator_connection_table(connection: &mut PgConnection) {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS ? (
@@ -40,61 +70,52 @@ async fn create_coordinator_connection_table(connection: &mut PgConnection) {
     .expect("Failed to create the connection table");
 }
 
-/// Create a table for the coordinator to store centroids from data nodes.
-async fn create_coordinator_subcentroid_table(connection: &mut PgConnection) {
+/// Create a table to store clusters from data nodes.
+///
+/// Columns:
+/// - id: Unique ID of the data node cluster.
+/// - connection_name: Data node name of the sub-cluster.
+/// - cluster_id: Cluster ID assigned for the sub-cluster.
+/// - centroid: Centroid vector as a byte array.
+async fn create_coordinator_subcluster_table(connection: &mut PgConnection) {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS ? (
             id UUID PRIMARY KEY,
             connection_name TEXT NOT NULL REFERENCES ? (name),
-            vector BYTEA NOT NULL,
+            cluster_id UUID NOT NULL REFERENCES ? (id),
+            centroid BYTEA NOT NULL,
         )",
     )
-    .bind(format!("{COORDINATOR_SCHEMA}.{SUBCENTROID_TABLE}"))
+    .bind(format!("{COORDINATOR_SCHEMA}.{SUBCLUSTER_TABLE}"))
     .bind(format!("{COORDINATOR_SCHEMA}.{CONNECTION_TABLE}"))
+    .bind(format!("{COORDINATOR_SCHEMA}.{CLUSTER_TABLE}"))
     .execute(connection)
     .await
     .expect("Failed to create the subcentroid table");
 }
 
-/// Create a table to track of which subcentroids belong to which centroids.
-async fn create_coordinator_cluster_table(connection: &mut PgConnection) {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS ? (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            centroid_id UUID NOT NULL REFERENCES ? (id),
-            subcentroid_id UUID NOT NULL REFERENCES ? (id),
-        )",
-    )
-    .bind(format!("{COORDINATOR_SCHEMA}.{CLUSTER_TABLE}"))
-    .bind(format!("{COORDINATOR_SCHEMA}.{CENTROID_TABLE}"))
-    .bind(format!("{COORDINATOR_SCHEMA}.{SUBCENTROID_TABLE}"))
-    .execute(connection)
-    .await
-    .expect("Failed to create the cluster table");
-}
-
-// Common utility functions.
-
-async fn create_schema(connection: &mut PgConnection, schema: impl AsRef<str>) {
-    sqlx::query("CREATE SCHEMA IF NOT EXISTS ?")
-        .bind(schema.as_ref())
-        .execute(connection)
-        .await
-        .expect("Failed to create the schema");
-}
-
-async fn create_centroid_table(
+/// Create a table to store vector records.
+///
+/// Columns:
+/// - id: Record ID.
+/// - cluster_id: Cluster ID assigned for the record.
+/// - vector: Record vector as a byte array.
+/// - data: Additional metadata as a JSON object.
+async fn create_data_record_table(
     connection: &mut PgConnection,
     schema: impl AsRef<str>,
 ) {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS ? (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            vector BYTEA NOT NULL
+            cluster_id UUID NOT NULL REFERENCES ? (id),
+            vector BYTEA NOT NULL,
+            data JSONB
         )",
     )
-    .bind(format!("{}.{CENTROID_TABLE}", schema.as_ref()))
+    .bind(format!("{}.{RECORD_TABLE}", schema.as_ref()))
+    .bind(format!("{}.{CLUSTER_TABLE}", schema.as_ref()))
     .execute(connection)
     .await
-    .expect("Failed to create centroid table");
+    .expect("Failed to create the record table");
 }

@@ -23,7 +23,14 @@ impl DataNode {
         let database_url = database_url.into();
         let coordinator_url = coordinator_url.into();
 
-        // TODO: connect and setup schema if needed.
+        let mut connection = PgConnection::connect(database_url.as_ref())
+            .await
+            .expect("Failed to connect to Postgres database");
+
+        let schema = format!("{DATA_SCHEMA}{name}");
+        create_schema(&mut connection, &schema).await;
+        create_cluster_table(&mut connection, &schema).await;
+        create_data_record_table(&mut connection, &schema).await;
 
         // Register with the coordinator.
 
