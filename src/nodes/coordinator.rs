@@ -13,7 +13,7 @@ impl CoordinatorNode {
         let database_url = database_url.into();
 
         // TODO: connect and setup schema if needed.
-        let connection = PgConnection::connect(database_url.as_ref())
+        let mut connection = PgConnection::connect(database_url.as_ref())
             .await
             .expect("Failed to connect to Postgres database");
 
