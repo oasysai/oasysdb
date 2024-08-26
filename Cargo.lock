@@ -930,6 +930,7 @@ dependencies = [
  "prost",
  "rand",
  "rayon",
+ "regex",
  "serde",
  "simsimd",
  "sqlx",
@@ -938,6 +939,7 @@ dependencies = [
  "tonic-build",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
 ]
 

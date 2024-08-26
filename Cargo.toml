@@ -7,7 +7,6 @@ authors = ["Edwin Kys"]
 [dependencies]
 uuid = { version = "1.10.0", features = ["v4"] }
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
-rand = "0.8.5"
 clap = "4.5.16"
 
 # gRPC-related dependencies
@@ -24,6 +23,11 @@ rayon = "1.10.0"
 # Logging-related dependencies
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
+
+# Utility dependencies
+regex = "1.10.6"
+url = "2.5.2"
+rand = "0.8.5"
 
 [dependencies.sqlx]
 version = "0.8.0"
