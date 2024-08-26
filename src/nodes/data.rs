@@ -1,5 +1,6 @@
 use super::*;
 use protos::data_node_server::DataNode as ProtoDataNode;
+use regex::Regex;
 
 type NodeName = Box<str>;
 type CoordinatorURL = Box<str>;
@@ -22,6 +23,12 @@ impl DataNode {
         let name = name.into();
         let database_url = database_url.into();
         let coordinator_url = coordinator_url.into();
+
+        // Validate node name: lowercase, alphanumeric, and underscores only.
+        if !Regex::new("^[a-z0-9_]+$").unwrap().is_match(name.as_ref()) {
+            let action = "Use lowercase letters, numbers, and underscores.";
+            panic!("Invalid node name: {action}");
+        }
 
         let mut connection = PgConnection::connect(database_url.as_ref())
             .await
