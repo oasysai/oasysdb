@@ -3,13 +3,23 @@ use oasysdb::nodes::{CoordinatorNode, DataNode};
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
 use std::future::Future;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
+use url::Url;
 
 fn block_on<F: Future>(future: F) -> F::Output {
     let rt = Runtime::new().expect("Failed to create a Tokio runtime");
     rt.block_on(future)
+}
+
+fn validate_database_url(url: impl AsRef<str>) {
+    if Url::parse(url.as_ref()).is_err() {
+        panic!(
+            "Please provide a valid Postgres database URL\n\
+            Example: postgres://username:password@localhost:5432/database"
+        );
+    }
 }
 
 // Coordinator action handlers.
@@ -25,6 +35,8 @@ async fn coordinator_start_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
         .expect("Postgres database URL is required with --db flag");
+
+    validate_database_url(&database_url);
 
     let node = CoordinatorNode::new(database_url.as_ref()).await;
     start_coordinator_server(Arc::new(node)).await.unwrap();
@@ -61,6 +73,11 @@ async fn data_join_handler(args: &ArgMatches) {
     // Unwrap is safe because these arguments are validated by clap.
     let coordinator_url = args.get_one::<String>("coordinator_url").unwrap();
     let name = args.get_one::<String>("name").unwrap();
+
+    validate_database_url(database_url);
+    if coordinator_url.to_socket_addrs().is_err() {
+        panic!("Please provide a valid coordinator node address: IP:PORT");
+    }
 
     let node = DataNode::new(
         name.as_ref(),
