@@ -3,7 +3,7 @@ use oasysdb::nodes::{CoordinatorNode, DataNode};
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
 use std::future::Future;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 use url::Url;
@@ -11,15 +11,6 @@ use url::Url;
 fn block_on<F: Future>(future: F) -> F::Output {
     let rt = Runtime::new().expect("Failed to create a Tokio runtime");
     rt.block_on(future)
-}
-
-fn validate_database_url(url: impl AsRef<str>) {
-    if Url::parse(url.as_ref()).is_err() {
-        panic!(
-            "Please provide a valid Postgres database URL\n\
-            Example: postgres://username:password@localhost:5432/database"
-        );
-    }
 }
 
 // Coordinator action handlers.
@@ -34,11 +25,11 @@ pub fn coordinator_handler(args: &ArgMatches) {
 async fn coordinator_start_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
-        .expect("Postgres database URL is required with --db flag");
+        .expect("Postgres database URL is required with --db flag")
+        .parse::<Url>()
+        .expect("Invalid Postgres database URL");
 
-    validate_database_url(database_url);
-
-    let node = CoordinatorNode::new(database_url.as_ref()).await;
+    let node = CoordinatorNode::new(database_url).await;
     start_coordinator_server(Arc::new(node)).await.unwrap();
 }
 
@@ -68,24 +59,18 @@ pub fn data_handler(args: &ArgMatches) {
 async fn data_join_handler(args: &ArgMatches) {
     let database_url = args
         .get_one::<String>("db")
-        .expect("Please provide Postgres database URL with --db flag");
+        .expect("Please provide Postgres database URL with --db flag")
+        .parse::<Url>()
+        .expect("Invalid Postgres database URL");
 
-    // Unwrap is safe because these arguments are validated by clap.
-    let coordinator_url = args.get_one::<String>("coordinator_url").unwrap();
-    let name = args.get_one::<String>("name").unwrap();
+    let coordinator_url = args
+        .get_one::<String>("coordinator_url")
+        .unwrap()
+        .parse::<SocketAddr>()
+        .expect("Invalid coordinator node address");
 
-    validate_database_url(database_url);
-    if coordinator_url.to_socket_addrs().is_err() {
-        panic!("Please provide a valid coordinator node address: IP:PORT");
-    }
-
-    let node = DataNode::new(
-        name.as_ref(),
-        database_url.as_ref(),
-        coordinator_url.as_ref(),
-    )
-    .await;
-
+    let name = args.get_one::<String>("name").unwrap().as_str();
+    let node = DataNode::new(name, coordinator_url, database_url).await;
     join_data_server(Arc::new(node)).await.unwrap();
 }
 

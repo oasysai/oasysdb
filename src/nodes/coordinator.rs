@@ -48,13 +48,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_coordinator_node_new() {
-        let mut connection = PgConnection::connect(DB).await.unwrap();
-        drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
+        let db = database_url();
+        let mut connection = PgConnection::connect(&db.to_string())
+            .await
+            .expect("Failed to connect to Postgres database");
 
-        CoordinatorNode::new(DB).await;
+        drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
+        CoordinatorNode::new(db).await;
 
         let schema = get_schema(&mut connection, COORDINATOR_SCHEMA).await;
-        assert_eq!(schema.as_ref(), COORDINATOR_SCHEMA);
+        assert_eq!(schema, COORDINATOR_SCHEMA);
 
         let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
         assert_eq!(tables.len(), 3);

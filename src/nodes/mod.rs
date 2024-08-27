@@ -5,15 +5,18 @@ mod data;
 pub use coordinator::*;
 pub use data::*;
 
-type DatabaseURL = Box<str>;
+type DatabaseURL = Url;
+type CoordinatorURL = SocketAddr;
 type ServerResult<T> = StandardResult<Response<T>, Status>;
 
 // Import common modules below.
 use crate::protos;
 use sqlx::{Connection, PgConnection};
+use std::net::SocketAddr;
 use std::result::Result as StandardResult;
 use std::sync::Arc;
 use tonic::{async_trait, Request, Response, Status};
+use url::Url;
 
 // Constants for database schema names.
 const COORDINATOR_SCHEMA: &str = "coordinator";
@@ -123,7 +126,14 @@ mod tests {
     use super::*;
     use sqlx::Row;
 
-    pub const DB: &str = "postgres://postgres:password@0.0.0.0:5432/postgres";
+    pub fn database_url() -> DatabaseURL {
+        let url = "postgres://postgres:password@0.0.0.0:5432/postgres";
+        DatabaseURL::parse(url).unwrap()
+    }
+
+    pub fn coordinator_url() -> CoordinatorURL {
+        "0.0.0.0:2505".parse::<SocketAddr>().unwrap()
+    }
 
     pub async fn drop_schema(
         connection: &mut PgConnection,
@@ -141,7 +151,7 @@ mod tests {
     pub async fn get_schema(
         connection: &mut PgConnection,
         schema: impl AsRef<str>,
-    ) -> Box<str> {
+    ) -> String {
         sqlx::query(
             "SELECT schema_name
             FROM information_schema.schemata
@@ -152,13 +162,12 @@ mod tests {
         .await
         .unwrap()
         .get::<String, _>(0)
-        .into_boxed_str()
     }
 
     pub async fn get_tables(
         connection: &mut PgConnection,
         schema: impl AsRef<str>,
-    ) -> Box<[Box<str>]> {
+    ) -> Vec<String> {
         sqlx::query(
             "SELECT table_name
             FROM information_schema.tables
@@ -170,7 +179,7 @@ mod tests {
         .await
         .unwrap()
         .into_iter()
-        .map(|row| row.get::<String, _>(0).into_boxed_str())
+        .map(|row| row.get::<String, _>(0))
         .collect()
     }
 }
