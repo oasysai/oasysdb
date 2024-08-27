@@ -28,8 +28,7 @@ const SUBCLUSTER_TABLE: &str = "subclusters";
 
 /// Create a new schema with the given name in the database.
 async fn create_schema(connection: &mut PgConnection, schema: impl AsRef<str>) {
-    sqlx::query("CREATE SCHEMA IF NOT EXISTS ?")
-        .bind(schema.as_ref())
+    sqlx::query(&format!("CREATE SCHEMA IF NOT EXISTS {}", schema.as_ref()))
         .execute(connection)
         .await
         .expect("Failed to create the schema");
@@ -40,13 +39,13 @@ async fn create_cluster_table(
     connection: &mut PgConnection,
     schema: impl AsRef<str>,
 ) {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS ? (
+    let schema = schema.as_ref();
+    sqlx::query(&format!(
+        "CREATE TABLE IF NOT EXISTS {schema}.{CLUSTER_TABLE} (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             centroid BYTEA NOT NULL
-        )",
-    )
-    .bind(format!("{}.{CLUSTER_TABLE}", schema.as_ref()))
+        )"
+    ))
     .execute(connection)
     .await
     .expect("Failed to create cluster table");
@@ -58,13 +57,12 @@ async fn create_cluster_table(
 /// - name: Unique name of the data node.
 /// - address: Network address to connect to the data node.
 async fn create_coordinator_connection_table(connection: &mut PgConnection) {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS ? (
+    sqlx::query(&format!(
+        "CREATE TABLE IF NOT EXISTS {COORDINATOR_SCHEMA}.{CONNECTION_TABLE} (
             name TEXT PRIMARY KEY,
-            address TEXT NOT NULL,
-        )",
-    )
-    .bind(format!("{COORDINATOR_SCHEMA}.{CONNECTION_TABLE}"))
+            address TEXT NOT NULL
+        )"
+    ))
     .execute(connection)
     .await
     .expect("Failed to create the connection table");
@@ -78,20 +76,21 @@ async fn create_coordinator_connection_table(connection: &mut PgConnection) {
 /// - cluster_id: Cluster ID assigned for the sub-cluster.
 /// - centroid: Centroid vector as a byte array.
 async fn create_coordinator_subcluster_table(connection: &mut PgConnection) {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS ? (
+    let subcluster_table = format!("{COORDINATOR_SCHEMA}.{SUBCLUSTER_TABLE}");
+    let connection_table = format!("{COORDINATOR_SCHEMA}.{CONNECTION_TABLE}");
+    let cluster_table = format!("{COORDINATOR_SCHEMA}.{CLUSTER_TABLE}");
+
+    sqlx::query(&format!(
+        "CREATE TABLE IF NOT EXISTS {subcluster_table} (
             id UUID PRIMARY KEY,
-            connection_name TEXT NOT NULL REFERENCES ? (name),
-            cluster_id UUID NOT NULL REFERENCES ? (id),
-            centroid BYTEA NOT NULL,
-        )",
-    )
-    .bind(format!("{COORDINATOR_SCHEMA}.{SUBCLUSTER_TABLE}"))
-    .bind(format!("{COORDINATOR_SCHEMA}.{CONNECTION_TABLE}"))
-    .bind(format!("{COORDINATOR_SCHEMA}.{CLUSTER_TABLE}"))
+            connection_name TEXT NOT NULL REFERENCES {connection_table} (name),
+            cluster_id UUID NOT NULL REFERENCES {cluster_table} (id),
+            centroid BYTEA NOT NULL
+        )"
+    ))
     .execute(connection)
     .await
-    .expect("Failed to create the subcentroid table");
+    .expect("Failed to create the subcluster table");
 }
 
 /// Create a table to store vector records.
@@ -105,17 +104,73 @@ async fn create_data_record_table(
     connection: &mut PgConnection,
     schema: impl AsRef<str>,
 ) {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS ? (
+    let schema = schema.as_ref();
+    sqlx::query(&format!(
+        "CREATE TABLE IF NOT EXISTS {schema}.{RECORD_TABLE} (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            cluster_id UUID NOT NULL REFERENCES ? (id),
+            cluster_id UUID NOT NULL REFERENCES {schema}.{CLUSTER_TABLE} (id),
             vector BYTEA NOT NULL,
             data JSONB
-        )",
-    )
-    .bind(format!("{}.{RECORD_TABLE}", schema.as_ref()))
-    .bind(format!("{}.{CLUSTER_TABLE}", schema.as_ref()))
+        )"
+    ))
     .execute(connection)
     .await
-    .expect("Failed to create the record table");
+    .expect("Failed to create the data record table");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::Row;
+
+    pub const DB: &str = "postgres://postgres:password@0.0.0.0:5432/postgres";
+
+    pub async fn drop_schema(
+        connection: &mut PgConnection,
+        schema: impl AsRef<str>,
+    ) {
+        sqlx::query(&format!(
+            "DROP SCHEMA IF EXISTS {} CASCADE",
+            schema.as_ref()
+        ))
+        .execute(connection)
+        .await
+        .expect("Failed to drop the schema");
+    }
+
+    pub async fn get_schema(
+        connection: &mut PgConnection,
+        schema: impl AsRef<str>,
+    ) -> Box<str> {
+        sqlx::query(
+            "SELECT schema_name
+            FROM information_schema.schemata
+            WHERE schema_name = $1",
+        )
+        .bind(schema.as_ref())
+        .fetch_one(connection)
+        .await
+        .unwrap()
+        .get::<String, _>(0)
+        .into_boxed_str()
+    }
+
+    pub async fn get_tables(
+        connection: &mut PgConnection,
+        schema: impl AsRef<str>,
+    ) -> Box<[Box<str>]> {
+        sqlx::query(
+            "SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = $1
+            AND table_type = 'BASE TABLE'",
+        )
+        .bind(schema.as_ref())
+        .fetch_all(connection)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| row.get::<String, _>(0).into_boxed_str())
+        .collect()
+    }
 }

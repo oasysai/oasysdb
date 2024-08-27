@@ -40,3 +40,23 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         Ok(Response::new(()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nodes::tests::*;
+
+    #[tokio::test]
+    async fn test_coordinator_node_new() {
+        let mut connection = PgConnection::connect(DB).await.unwrap();
+        drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
+
+        CoordinatorNode::new(DB).await;
+
+        let schema = get_schema(&mut connection, COORDINATOR_SCHEMA).await;
+        assert_eq!(schema.as_ref(), COORDINATOR_SCHEMA);
+
+        let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
+        assert_eq!(tables.len(), 3);
+    }
+}

@@ -36,7 +36,7 @@ async fn coordinator_start_handler(args: &ArgMatches) {
         .get_one::<String>("db")
         .expect("Postgres database URL is required with --db flag");
 
-    validate_database_url(&database_url);
+    validate_database_url(database_url);
 
     let node = CoordinatorNode::new(database_url.as_ref()).await;
     start_coordinator_server(Arc::new(node)).await.unwrap();

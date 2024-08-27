@@ -62,3 +62,28 @@ impl DataNode {
 
 #[async_trait]
 impl ProtoDataNode for Arc<DataNode> {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nodes::tests::*;
+
+    const COORDINATOR_URL: &str = "http://0.0.0.0:2505";
+
+    #[tokio::test]
+    async fn test_data_node_new() {
+        let node_name = "49babacf";
+        let schema_name = format!("{DATA_SCHEMA}{node_name}");
+
+        let mut connection = PgConnection::connect(DB).await.unwrap();
+        drop_schema(&mut connection, &schema_name).await;
+
+        DataNode::new(node_name, DB, COORDINATOR_URL).await;
+
+        let schema = get_schema(&mut connection, &schema_name).await;
+        assert_eq!(schema.as_ref(), schema_name);
+
+        let tables = get_tables(&mut connection, &schema_name).await;
+        assert_eq!(tables.len(), 2);
+    }
+}
