@@ -37,7 +37,7 @@ async fn start_coordinator_server(
     service: Arc<CoordinatorNode>,
 ) -> Result<(), Box<dyn Error>> {
     let addr: SocketAddr = "[::]:2505".parse()?;
-    tracing::info!("Starting coordinator server at port {}", addr.port());
+    tracing::info!("starting coordinator server at port {}", addr.port());
 
     Server::builder()
         .add_service(CoordinatorNodeServer::new(service))
@@ -78,9 +78,7 @@ async fn join_data_server(
     service: Arc<DataNode>,
 ) -> Result<(), Box<dyn Error>> {
     let addr: SocketAddr = "[::]:2510".parse()?;
-
-    tracing::info!("Starting data node server at port {}", addr.port());
-    tracing::info!("Joining coordinator: {}", service.coordinator_url());
+    tracing::info!("starting data node server at port {}", addr.port());
 
     Server::builder()
         .add_service(DataNodeServer::new(service))
