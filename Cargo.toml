@@ -28,6 +28,7 @@ tracing-subscriber = "0.3.18"
 regex = "1.10.6"
 url = "2.5.2"
 rand = "0.8.5"
+async-trait = "0.1.81"
 
 [dependencies.sqlx]
 version = "0.8.0"

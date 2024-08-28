@@ -926,6 +926,7 @@ dependencies = [
 name = "oasysdb"
 version = "0.8.0"
 dependencies = [
+ "async-trait",
  "clap",
  "prost",
  "rand",

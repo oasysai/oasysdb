@@ -2,9 +2,14 @@ use super::*;
 use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 
 /// Coordinator node definition.
+///
+/// Coordinator nodes are responsible for managing the functionality of OasysDB
+/// clusters. Data nodes can register with a coordinator node to join a cluster
+/// which will horizontally extend OasysDB processing capabilities.
 #[derive(Debug)]
 pub struct CoordinatorNode {
     database_url: DatabaseURL,
+    schema: CoordinatorSchema,
 }
 
 impl CoordinatorNode {
@@ -15,19 +20,25 @@ impl CoordinatorNode {
             .await
             .expect("Failed to connect to Postgres database");
 
-        create_schema(&mut connection, COORDINATOR_SCHEMA).await;
-        create_cluster_table(&mut connection, COORDINATOR_SCHEMA).await;
-        create_coordinator_connection_table(&mut connection).await;
-        create_coordinator_subcluster_table(&mut connection).await;
+        let schema = CoordinatorSchema::new();
+        schema.create_schema(&mut connection).await;
+        schema.create_cluster_table(&mut connection).await;
+        schema.create_connection_table(&mut connection).await;
+        schema.create_subcluster_table(&mut connection).await;
 
         // TODO: create new or restore state from database.
 
-        Self { database_url }
+        Self { database_url, schema }
     }
 
     /// Return the configured database URL.
     pub fn database_url(&self) -> &DatabaseURL {
         &self.database_url
+    }
+
+    /// Return the schema configured for the coordinator node.
+    pub fn schema(&self) -> &CoordinatorSchema {
+        &self.schema
     }
 }
 
@@ -44,7 +55,9 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nodes::tests::*;
+    use crate::postgres::test_utils::*;
+
+    const COORDINATOR_SCHEMA: &str = "coordinator";
 
     #[tokio::test]
     async fn test_coordinator_node_new() {
@@ -55,9 +68,6 @@ mod tests {
 
         drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
         CoordinatorNode::new(db).await;
-
-        let schema = get_schema(&mut connection, COORDINATOR_SCHEMA).await;
-        assert_eq!(schema, COORDINATOR_SCHEMA);
 
         let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
         assert_eq!(tables.len(), 3);

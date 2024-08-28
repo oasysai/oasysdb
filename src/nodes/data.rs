@@ -5,11 +5,16 @@ use regex::Regex;
 type NodeName = Box<str>;
 
 /// Data node server definition.
+///
+/// Data nodes are responsible for managing the records and data processing
+/// capabilities of OasysDB clusters. Various data nodes can register with a
+/// coordinator node.
 #[derive(Debug)]
 pub struct DataNode {
     name: NodeName,
     coordinator_url: CoordinatorURL,
     database_url: DatabaseURL,
+    schema: DataSchema,
 }
 
 impl DataNode {
@@ -33,14 +38,14 @@ impl DataNode {
             .await
             .expect("Failed to connect to Postgres database");
 
-        let schema = format!("{DATA_SCHEMA}{name}");
-        create_schema(&mut connection, &schema).await;
-        create_cluster_table(&mut connection, &schema).await;
-        create_data_record_table(&mut connection, &schema).await;
+        let schema = DataSchema::new(name.as_ref());
+        schema.create_schema(&mut connection).await;
+        schema.create_cluster_table(&mut connection).await;
+        schema.create_record_table(&mut connection).await;
 
         // Register with the coordinator.
 
-        Self { name, coordinator_url, database_url }
+        Self { name, coordinator_url, database_url, schema }
     }
 
     /// Return the name configured for this data node.
@@ -57,6 +62,11 @@ impl DataNode {
     pub fn coordinator_url(&self) -> &CoordinatorURL {
         &self.coordinator_url
     }
+
+    /// Return the schema configured for the data node.
+    pub fn schema(&self) -> &DataSchema {
+        &self.schema
+    }
 }
 
 #[async_trait]
@@ -65,7 +75,13 @@ impl ProtoDataNode for Arc<DataNode> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nodes::tests::*;
+    use crate::postgres::test_utils::*;
+
+    const DATA_SCHEMA: &str = "data_";
+
+    fn coordinator_url() -> CoordinatorURL {
+        "0.0.0.0:2505".parse::<SocketAddr>().unwrap()
+    }
 
     #[tokio::test]
     async fn test_data_node_new() {
@@ -81,9 +97,6 @@ mod tests {
 
         drop_schema(&mut connection, &schema_name).await;
         DataNode::new(node_name, coordinator, db).await;
-
-        let schema = get_schema(&mut connection, &schema_name).await;
-        assert_eq!(schema.as_ref(), schema_name);
 
         let tables = get_tables(&mut connection, &schema_name).await;
         assert_eq!(tables.len(), 2);
