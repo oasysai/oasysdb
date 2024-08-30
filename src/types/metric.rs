@@ -1,6 +1,10 @@
 use super::*;
 use simsimd::SpatialSimilarity;
 
+// Distance name constants.
+const EUCLIDEAN: &str = "euclidean";
+const COSINE: &str = "cosine";
+
 /// Distance formula for vector similarity calculations.
 ///
 /// ### Euclidean
@@ -28,6 +32,30 @@ impl Metric {
 
         // TODO: Handle non-numerical values like NaN.
         d.unwrap() as f32
+    }
+
+    /// Return the metric name as a string slice.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Metric::Euclidean => EUCLIDEAN,
+            Metric::Cosine => COSINE,
+        }
+    }
+}
+
+impl From<&str> for Metric {
+    fn from(value: &str) -> Self {
+        match value {
+            COSINE => Metric::Cosine,
+            EUCLIDEAN => Metric::Euclidean,
+            _ => panic!("Metric should be cosine or euclidean"),
+        }
+    }
+}
+
+impl From<String> for Metric {
+    fn from(value: String) -> Self {
+        Metric::from(value.as_str())
     }
 }
 
