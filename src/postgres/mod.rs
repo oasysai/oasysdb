@@ -6,11 +6,53 @@ pub use coordinator::*;
 pub use data::*;
 
 // Import common dependencies below.
+use crate::types::Metric;
 use async_trait::async_trait;
 use sqlx::PgConnection;
 
 type SchemaName = Box<str>;
 type TableName = Box<str>;
+
+/// Node's index parameters.
+///
+/// Fields:
+/// - metric: Formula used to calculate distance.
+/// - dimension: Vector dimension.
+/// - density: Number of records in each cluster.
+#[derive(Debug)]
+pub struct Parameters {
+    metric: Metric,
+    dimension: usize,
+    density: usize,
+}
+
+impl Parameters {
+    /// Create a new instance of the node parameters.
+    pub fn new(metric: Metric, dimension: usize) -> Self {
+        Self { metric, dimension, density: 128 }
+    }
+
+    /// Override the default density of the node.
+    pub fn with_density(mut self, density: usize) -> Self {
+        self.density = density;
+        self
+    }
+
+    /// Return the metric configured for the node.
+    pub fn metric(&self) -> &Metric {
+        &self.metric
+    }
+
+    /// Return the set vector dimension of the node.
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Return the density of the node.
+    pub fn density(&self) -> usize {
+        self.density
+    }
+}
 
 /// Trait of a node schema in Postgres database.
 ///
@@ -33,6 +75,9 @@ pub trait NodeSchema {
             .await
             .expect("Failed to create the schema");
     }
+
+    /// Create all tables required by the node.
+    async fn create_all_tables(&self, connection: &mut PgConnection);
 
     /// Create a table to store cluster data.
     ///

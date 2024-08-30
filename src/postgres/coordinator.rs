@@ -22,9 +22,17 @@ impl Default for CoordinatorSchema {
     }
 }
 
+#[async_trait]
 impl NodeSchema for CoordinatorSchema {
     fn schema(&self) -> SchemaName {
         self.schema.to_owned()
+    }
+
+    async fn create_all_tables(&self, connection: &mut PgConnection) {
+        self.create_parameter_table(connection).await;
+        self.create_cluster_table(connection).await;
+        self.create_connection_table(connection).await;
+        self.create_subcluster_table(connection).await;
     }
 }
 
@@ -32,6 +40,11 @@ impl CoordinatorSchema {
     /// Create a new instance of the coordinator schema.
     pub fn new() -> Self {
         Self { schema: "coordinator".into() }
+    }
+
+    /// Return the table name storing the node parameters.
+    fn parameter_table(&self) -> TableName {
+        format!("{}.parameters", self.schema()).into_boxed_str()
     }
 
     /// Return the name of the table storing data node connections.
@@ -42,6 +55,37 @@ impl CoordinatorSchema {
     /// Return the name of the table storing sub-clusters.
     pub fn subcluster_table(&self) -> TableName {
         format!("{}.subclusters", self.schema()).into_boxed_str()
+    }
+
+    /// Create a table to store node parameters.
+    ///
+    /// Columns:
+    /// - metric: Metric used to calculate distance.
+    /// - dimension: Vector dimension.
+    /// - density: Number of records in each cluster.
+    async fn create_parameter_table(&self, connection: &mut PgConnection) {
+        let table = self.parameter_table();
+        sqlx::query(&format!(
+            "CREATE TABLE IF NOT EXISTS {table} (
+                singleton BOOLEAN PRIMARY KEY DEFAULT true,
+                metric TEXT NOT NULL,
+                dimension INTEGER NOT NULL,
+                density INTEGER NOT NULL,
+
+                CONSTRAINT single_row CHECK (singleton),
+                CONSTRAINT valid_dimension CHECK (dimension > 0),
+                CONSTRAINT valid_density CHECK (density > 0),
+                CONSTRAINT valid_metric CHECK (
+                    metric IN (
+                        'euclidean',
+                        'cosine'
+                    )
+                )
+            )"
+        ))
+        .execute(connection)
+        .await
+        .expect("Failed to create the parameter table");
     }
 
     /// Create a table to track data node connections.

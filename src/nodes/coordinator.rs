@@ -22,9 +22,7 @@ impl CoordinatorNode {
 
         let schema = CoordinatorSchema::new();
         schema.create_schema(&mut connection).await;
-        schema.create_cluster_table(&mut connection).await;
-        schema.create_connection_table(&mut connection).await;
-        schema.create_subcluster_table(&mut connection).await;
+        schema.create_all_tables(&mut connection).await;
 
         // TODO: create new or restore state from database.
 
@@ -70,6 +68,6 @@ mod tests {
         CoordinatorNode::new(db).await;
 
         let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
-        assert_eq!(tables.len(), 3);
+        assert_eq!(tables.len(), 4);
     }
 }

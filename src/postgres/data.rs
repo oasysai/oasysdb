@@ -13,9 +13,15 @@ pub struct DataSchema {
     schema: SchemaName, // Full schema name of data node: data_{node_name}
 }
 
+#[async_trait]
 impl NodeSchema for DataSchema {
     fn schema(&self) -> SchemaName {
         self.schema.to_owned()
+    }
+
+    async fn create_all_tables(&self, connection: &mut PgConnection) {
+        self.create_cluster_table(connection).await;
+        self.create_record_table(connection).await;
     }
 }
 

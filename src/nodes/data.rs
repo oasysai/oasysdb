@@ -40,8 +40,7 @@ impl DataNode {
 
         let schema = DataSchema::new(name.as_ref());
         schema.create_schema(&mut connection).await;
-        schema.create_cluster_table(&mut connection).await;
-        schema.create_record_table(&mut connection).await;
+        schema.create_all_tables(&mut connection).await;
 
         // Register with the coordinator.
 
