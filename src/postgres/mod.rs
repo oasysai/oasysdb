@@ -8,6 +8,7 @@ pub use data::*;
 // Import common dependencies below.
 use crate::types::Metric;
 use async_trait::async_trait;
+use sqlx::FromRow;
 use sqlx::PgConnection;
 
 type SchemaName = Box<str>;
@@ -19,17 +20,30 @@ type TableName = Box<str>;
 /// - metric: Formula used to calculate distance.
 /// - dimension: Vector dimension.
 /// - density: Number of records in each cluster.
-#[derive(Debug)]
-pub struct Parameters {
+#[derive(Debug, FromRow)]
+pub struct NodeParameters {
+    #[sqlx(try_from = "String")]
     metric: Metric,
+    #[sqlx(try_from = "i32")]
     dimension: usize,
+    #[sqlx(try_from = "i32")]
     density: usize,
 }
 
-impl Parameters {
-    /// Create a new instance of the node parameters.
-    pub fn new(metric: Metric, dimension: usize) -> Self {
-        Self { metric, dimension, density: 128 }
+impl NodeParameters {
+    /// Create a new parameters with default values.
+    ///
+    /// Default values:
+    /// - metric: Euclidean distance
+    /// - density: 128
+    pub fn new(dimension: usize) -> Self {
+        Self { dimension, metric: Metric::Euclidean, density: 128 }
+    }
+
+    /// Override the default metric of the node.
+    pub fn with_metric(mut self, metric: Metric) -> Self {
+        self.metric = metric;
+        self
     }
 
     /// Override the default density of the node.

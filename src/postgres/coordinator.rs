@@ -6,6 +6,7 @@ use super::*;
 /// to the coordinator node. By default, the schema name is coordinator.
 ///
 /// The schema contains the following tables:
+/// - parameters: Storing node parameters.
 /// - clusters: Storing cluster information.
 /// - connections: Storing data node connections.
 /// - subclusters: Storing sub-cluster information.
@@ -43,7 +44,7 @@ impl CoordinatorSchema {
     }
 
     /// Return the table name storing the node parameters.
-    fn parameter_table(&self) -> TableName {
+    pub fn parameter_table(&self) -> TableName {
         format!("{}.parameters", self.schema()).into_boxed_str()
     }
 
@@ -63,7 +64,7 @@ impl CoordinatorSchema {
     /// - metric: Metric used to calculate distance.
     /// - dimension: Vector dimension.
     /// - density: Number of records in each cluster.
-    async fn create_parameter_table(&self, connection: &mut PgConnection) {
+    pub async fn create_parameter_table(&self, connection: &mut PgConnection) {
         let table = self.parameter_table();
         sqlx::query(&format!(
             "CREATE TABLE IF NOT EXISTS {table} (
