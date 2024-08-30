@@ -22,7 +22,9 @@ pub trait NodeSchema {
     fn schema(&self) -> SchemaName;
 
     /// Return the table name storing cluster data.
-    fn cluster_table(&self) -> TableName;
+    fn cluster_table(&self) -> TableName {
+        format!("{}.clusters", self.schema()).into_boxed_str()
+    }
 
     /// Create a new schema belonging to a node in the database.
     async fn create_schema(&self, connection: &mut PgConnection) {

@@ -17,10 +17,6 @@ impl NodeSchema for DataSchema {
     fn schema(&self) -> SchemaName {
         self.schema.to_owned()
     }
-
-    fn cluster_table(&self) -> TableName {
-        format!("{}.clusters", self.schema()).into_boxed_str()
-    }
 }
 
 impl DataSchema {
