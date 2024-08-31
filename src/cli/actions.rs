@@ -1,12 +1,11 @@
 use super::*;
 use oasysdb::nodes::{CoordinatorNode, DataNode};
+use oasysdb::postgres::NodeParameters;
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
 use std::future::Future;
-use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
-use url::Url;
 
 fn block_on<F: Future>(future: F) -> F::Output {
     let rt = Runtime::new().expect("Failed to create a Tokio runtime");
@@ -23,13 +22,27 @@ pub fn coordinator_handler(args: &ArgMatches) {
 }
 
 async fn coordinator_start_handler(args: &ArgMatches) {
-    let database_url = args
-        .get_one::<String>("db")
-        .expect("Postgres database URL is required with --db flag")
-        .parse::<Url>()
-        .expect("Invalid Postgres database URL");
+    let database_url = args.get_one::<Url>("db").unwrap().to_owned();
+    let params = match args.get_one::<usize>("dim") {
+        Some(dimension) => {
+            let params = NodeParameters::new(*dimension);
 
-    let node = CoordinatorNode::new(database_url).await;
+            let params = match args.get_one::<Metric>("metric") {
+                Some(metric) => params.with_metric(*metric),
+                None => params,
+            };
+
+            let params = match args.get_one::<usize>("density") {
+                Some(density) => params.with_density(*density),
+                None => params,
+            };
+
+            Some(params)
+        }
+        None => None,
+    };
+
+    let node = CoordinatorNode::new(database_url, params).await;
     start_coordinator_server(Arc::new(node)).await.unwrap();
 }
 
@@ -57,19 +70,15 @@ pub fn data_handler(args: &ArgMatches) {
 }
 
 async fn data_join_handler(args: &ArgMatches) {
-    let database_url = args
-        .get_one::<String>("db")
-        .expect("Please provide Postgres database URL with --db flag")
-        .parse::<Url>()
-        .expect("Invalid Postgres database URL");
+    // Unwrap is safe because the argument is validated by clap.
+    let name = args.get_one::<String>("name").unwrap().as_str();
+    let database_url = args.get_one::<Url>("db").unwrap().to_owned();
 
     let coordinator_url = args
-        .get_one::<String>("coordinator_url")
-        .unwrap()
-        .parse::<SocketAddr>()
-        .expect("Invalid coordinator node address");
+        .get_one::<SocketAddr>("coordinator_url")
+        .expect("Coordinator address is required to join the cluster")
+        .to_owned();
 
-    let name = args.get_one::<String>("name").unwrap().as_str();
     let node = DataNode::new(name, coordinator_url, database_url).await;
     join_data_server(Arc::new(node)).await.unwrap();
 }

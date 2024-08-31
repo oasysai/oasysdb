@@ -14,6 +14,26 @@ fn coordinator_start() -> Command {
     Command::new("start")
         .about("Start server as the coordinator node")
         .arg(shared_arg_database_url())
+        .arg(coordinator_arg_metric())
+        .arg(coordinator_arg_dimension())
+        .arg(coordinator_arg_density())
+}
+
+fn coordinator_arg_dimension() -> Arg {
+    arg!(--dim <dimension> "Vector dimension")
+        .value_parser(clap::value_parser!(usize))
+        .allow_negative_numbers(false)
+}
+
+fn coordinator_arg_metric() -> Arg {
+    arg!(--metric <metric> "Metric to calculate distance between vectors")
+        .value_parser(clap::value_parser!(Metric))
+}
+
+fn coordinator_arg_density() -> Arg {
+    arg!(--density <density> "Number of records per cluster")
+        .value_parser(clap::value_parser!(usize))
+        .allow_negative_numbers(false)
 }
 
 // Data subcommands section.
@@ -28,13 +48,25 @@ pub fn data() -> Command {
 fn data_join() -> Command {
     Command::new("join")
         .about("Start and join server as a data node in the cluster")
-        .arg(arg!(<name> "Name of the data node"))
-        .arg(arg!(<coordinator_url> "Coordinator server URL"))
+        .arg(data_arg_name())
+        .arg(data_arg_coordinator_url())
         .arg(shared_arg_database_url())
+}
+
+fn data_arg_name() -> Arg {
+    arg!(<name> "Name of the data node").required(true)
+}
+
+fn data_arg_coordinator_url() -> Arg {
+    arg!(<coordinator_url> "Coordinator server address")
+        .required(true)
+        .value_parser(clap::value_parser!(SocketAddr))
 }
 
 // Shared arguments section.
 
 fn shared_arg_database_url() -> Arg {
     arg!(--db <database_url> "PostgreSQL database URL")
+        .required(true)
+        .value_parser(clap::value_parser!(Url))
 }

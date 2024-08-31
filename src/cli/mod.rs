@@ -1,7 +1,10 @@
 // Common module dependencies.
 use clap::{ArgMatches, Command};
+use oasysdb::types::Metric;
 use std::error::Error;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use url::Url;
 
 mod actions;
 mod commands;

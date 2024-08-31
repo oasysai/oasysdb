@@ -10,7 +10,7 @@ type CoordinatorURL = SocketAddr;
 type ServerResult<T> = StandardResult<Response<T>, Status>;
 
 // Import common modules below.
-use crate::postgres::{CoordinatorSchema, DataSchema, NodeSchema};
+use crate::postgres::*;
 use crate::protos;
 use sqlx::{Connection, PgConnection};
 use std::net::SocketAddr;

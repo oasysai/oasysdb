@@ -4,6 +4,8 @@ use regex::Regex;
 
 type NodeName = Box<str>;
 
+// TODO: Add parameters to the data node.
+
 /// Data node server definition.
 ///
 /// Data nodes are responsible for managing the records and data processing

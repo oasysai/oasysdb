@@ -36,19 +36,23 @@ impl NodeParameters {
     /// Default values:
     /// - metric: Euclidean distance
     /// - density: 128
-    pub fn new(dimension: usize) -> Self {
-        Self { dimension, metric: Metric::Euclidean, density: 128 }
+    pub fn new(dimension: impl Into<usize>) -> Self {
+        Self {
+            dimension: dimension.into(),
+            metric: Metric::Euclidean,
+            density: 128,
+        }
     }
 
     /// Override the default metric of the node.
-    pub fn with_metric(mut self, metric: Metric) -> Self {
-        self.metric = metric;
+    pub fn with_metric(mut self, metric: impl Into<Metric>) -> Self {
+        self.metric = metric.into();
         self
     }
 
     /// Override the default density of the node.
-    pub fn with_density(mut self, density: usize) -> Self {
-        self.density = density;
+    pub fn with_density(mut self, density: impl Into<usize>) -> Self {
+        self.density = density.into();
         self
     }
 
@@ -117,6 +121,8 @@ pub mod test_utils {
     use super::*;
     use sqlx::Row;
     use url::Url as DatabaseURL;
+
+    pub const DIMENSION: usize = 768;
 
     /// Return a database URL for testing purposes.
     pub fn database_url() -> DatabaseURL {

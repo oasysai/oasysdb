@@ -8,13 +8,19 @@ use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 /// which will horizontally extend OasysDB processing capabilities.
 #[derive(Debug)]
 pub struct CoordinatorNode {
+    params: NodeParameters,
     database_url: DatabaseURL,
     schema: CoordinatorSchema,
 }
 
 impl CoordinatorNode {
     /// Create a new coordinator node instance.
-    pub async fn new(database_url: impl Into<DatabaseURL>) -> Self {
+    /// - `database_url`: URL to the Postgres database.
+    /// - `params`: Parameters to configure new coordinator node.
+    pub async fn new(
+        database_url: impl Into<DatabaseURL>,
+        params: Option<NodeParameters>,
+    ) -> Self {
         let database_url = database_url.into();
         let mut connection = PgConnection::connect(database_url.as_ref())
             .await
@@ -24,9 +30,49 @@ impl CoordinatorNode {
         schema.create_schema(&mut connection).await;
         schema.create_all_tables(&mut connection).await;
 
-        // TODO: create new or restore state from database.
+        let parameter_table = schema.parameter_table();
+        let existing_params: Option<NodeParameters> = sqlx::query_as(&format!(
+            "SELECT metric, dimension, density
+            FROM {parameter_table}
+            WHERE singleton IS TRUE"
+        ))
+        .fetch_optional(&mut connection)
+        .await
+        .expect("Failed to fetch parameters from the database");
 
-        Self { database_url, schema }
+        let params = match existing_params {
+            Some(params) => params,
+            None => {
+                let params = params.expect(
+                    "Parameters are required for a new node:\n\
+                    - dimension: Vector dimensionality\n\
+                    - metric: Distance metric (default: euclidean)\n\
+                    - density: Number of data per cluster (default: 128)",
+                );
+
+                // The parameters are static and should only be inserted once.
+                sqlx::query(&format!(
+                    "INSERT INTO {parameter_table} (metric, dimension, density)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (singleton) DO NOTHING"
+                ))
+                .bind(params.metric().as_str())
+                .bind(params.dimension() as i32)
+                .bind(params.density() as i32)
+                .execute(&mut connection)
+                .await
+                .expect("Failed to insert parameters into the database");
+
+                params
+            }
+        };
+
+        Self { database_url, schema, params }
+    }
+
+    /// Return the coordinator node parameters.
+    pub fn params(&self) -> &NodeParameters {
+        &self.params
     }
 
     /// Return the configured database URL.
@@ -65,7 +111,9 @@ mod tests {
             .expect("Failed to connect to Postgres database");
 
         drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
-        CoordinatorNode::new(db).await;
+
+        let params = NodeParameters::new(DIMENSION);
+        CoordinatorNode::new(db, Some(params)).await;
 
         let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
         assert_eq!(tables.len(), 4);
