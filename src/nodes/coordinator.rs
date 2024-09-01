@@ -46,8 +46,8 @@ impl CoordinatorNode {
                 let params = params.expect(
                     "Parameters are required for a new node:\n\
                     - dimension: Vector dimensionality\n\
-                    - metric: Distance metric (default: euclidean)\n\
-                    - density: Number of data per cluster (default: 128)",
+                    - metric: Distance metric (Default: Euclidean)\n\
+                    - density: Number of data per cluster (Default: 128)",
                 );
 
                 // The parameters are static and should only be inserted once.
@@ -56,9 +56,9 @@ impl CoordinatorNode {
                     VALUES ($1, $2, $3)
                     ON CONFLICT (singleton) DO NOTHING"
                 ))
-                .bind(params.metric().as_str())
-                .bind(params.dimension() as i32)
-                .bind(params.density() as i32)
+                .bind(params.metric.as_str())
+                .bind(params.dimension as i32)
+                .bind(params.density as i32)
                 .execute(&mut connection)
                 .await
                 .expect("Failed to insert parameters into the database");
@@ -100,8 +100,14 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
 mod tests {
     use super::*;
     use crate::postgres::test_utils::*;
+    use crate::types::Metric;
 
     const COORDINATOR_SCHEMA: &str = "coordinator";
+    const PARAMS: NodeParameters = NodeParameters {
+        metric: Metric::Euclidean,
+        dimension: 768,
+        density: 128,
+    };
 
     #[tokio::test]
     async fn test_coordinator_node_new() {
@@ -111,9 +117,7 @@ mod tests {
             .expect("Failed to connect to Postgres database");
 
         drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
-
-        let params = NodeParameters::new(DIMENSION);
-        CoordinatorNode::new(db, Some(params)).await;
+        CoordinatorNode::new(db, Some(PARAMS)).await;
 
         let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
         assert_eq!(tables.len(), 4);

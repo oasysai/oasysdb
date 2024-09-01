@@ -25,19 +25,15 @@ async fn coordinator_start_handler(args: &ArgMatches) {
     let database_url = args.get_one::<Url>("db").unwrap().to_owned();
     let params = match args.get_one::<usize>("dim") {
         Some(dimension) => {
-            let params = NodeParameters::new(*dimension);
-
-            let params = match args.get_one::<Metric>("metric") {
-                Some(metric) => params.with_metric(*metric),
-                None => params,
-            };
-
-            let params = match args.get_one::<usize>("density") {
-                Some(density) => params.with_density(*density),
-                None => params,
-            };
-
-            Some(params)
+            // Unwrap is safe because we provide default values in the
+            // command configuration in commands.rs file.
+            let metric = args.get_one::<Metric>("metric").unwrap();
+            let density = args.get_one::<usize>("density").unwrap();
+            Some(NodeParameters {
+                metric: *metric,
+                dimension: *dimension,
+                density: *density,
+            })
         }
         None => None,
     };

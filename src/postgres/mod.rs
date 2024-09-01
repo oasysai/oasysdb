@@ -1,76 +1,19 @@
 mod coordinator;
 mod data;
+mod rows;
 
 // Re-export types from submodules.
 pub use coordinator::*;
 pub use data::*;
+pub use rows::*;
 
 // Import common dependencies below.
 use crate::types::Metric;
 use async_trait::async_trait;
-use sqlx::FromRow;
 use sqlx::PgConnection;
 
 type SchemaName = Box<str>;
 type TableName = Box<str>;
-
-/// Node's index parameters.
-///
-/// Fields:
-/// - metric: Formula used to calculate distance.
-/// - dimension: Vector dimension.
-/// - density: Number of records in each cluster.
-#[derive(Debug, FromRow)]
-pub struct NodeParameters {
-    #[sqlx(try_from = "String")]
-    metric: Metric,
-    #[sqlx(try_from = "i32")]
-    dimension: usize,
-    #[sqlx(try_from = "i32")]
-    density: usize,
-}
-
-impl NodeParameters {
-    /// Create a new parameters with default values.
-    ///
-    /// Default values:
-    /// - metric: Euclidean distance
-    /// - density: 128
-    pub fn new(dimension: impl Into<usize>) -> Self {
-        Self {
-            dimension: dimension.into(),
-            metric: Metric::Euclidean,
-            density: 128,
-        }
-    }
-
-    /// Override the default metric of the node.
-    pub fn with_metric(mut self, metric: impl Into<Metric>) -> Self {
-        self.metric = metric.into();
-        self
-    }
-
-    /// Override the default density of the node.
-    pub fn with_density(mut self, density: impl Into<usize>) -> Self {
-        self.density = density.into();
-        self
-    }
-
-    /// Return the metric configured for the node.
-    pub fn metric(&self) -> &Metric {
-        &self.metric
-    }
-
-    /// Return the set vector dimension of the node.
-    pub fn dimension(&self) -> usize {
-        self.dimension
-    }
-
-    /// Return the density of the node.
-    pub fn density(&self) -> usize {
-        self.density
-    }
-}
 
 /// Trait of a node schema in Postgres database.
 ///
@@ -121,8 +64,6 @@ pub mod test_utils {
     use super::*;
     use sqlx::Row;
     use url::Url as DatabaseURL;
-
-    pub const DIMENSION: usize = 768;
 
     /// Return a database URL for testing purposes.
     pub fn database_url() -> DatabaseURL {

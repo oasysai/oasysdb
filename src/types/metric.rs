@@ -45,7 +45,8 @@ impl Metric {
 
 impl From<&str> for Metric {
     fn from(value: &str) -> Self {
-        match value {
+        let value = value.to_lowercase();
+        match value.as_str() {
             COSINE => Metric::Cosine,
             EUCLIDEAN => Metric::Euclidean,
             _ => panic!("Metric should be cosine or euclidean"),

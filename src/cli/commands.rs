@@ -27,11 +27,13 @@ fn coordinator_arg_dimension() -> Arg {
 
 fn coordinator_arg_metric() -> Arg {
     arg!(--metric <metric> "Metric to calculate distance between vectors")
+        .default_value(Metric::Euclidean.as_str())
         .value_parser(clap::value_parser!(Metric))
 }
 
 fn coordinator_arg_density() -> Arg {
     arg!(--density <density> "Number of records per cluster")
+        .default_value("128")
         .value_parser(clap::value_parser!(usize))
         .allow_negative_numbers(false)
 }

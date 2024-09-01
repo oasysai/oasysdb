@@ -7,7 +7,7 @@ service CoordinatorNode {
     rpc RegisterNode(RegisterNodeRequest) returns (google.protobuf.Empty);
 }
 
-// section: RegisterNode
+// Section: RegisterNode
     message RegisterNodeRequest {
         string name = 1;
         string address = 2; // Public data node address -> IP:PORT
