@@ -90,36 +90,65 @@ impl CoordinatorNode {
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
     async fn register_node(
         &self,
-        _request: Request<protos::RegisterNodeRequest>,
-    ) -> ServerResult<()> {
-        Ok(Response::new(()))
+        request: Request<protos::DataNodeConnection>,
+    ) -> ServerResult<protos::NodeParameters> {
+        let mut conn = PgConnection::connect(self.database_url().as_ref())
+            .await
+            .map_err(|_| Status::internal("Failed to connect to Postgres"))?;
+
+        let node = request.into_inner();
+        let connection_table = self.schema().connection_table();
+        sqlx::query(&format!(
+            "INSERT INTO {connection_table} (name, address)
+            VALUES ($1, $2)
+            ON CONFLICT (name) DO UPDATE SET address = $2"
+        ))
+        .bind(&node.name)
+        .bind(&node.address)
+        .execute(&mut conn)
+        .await
+        .map_err(|_| Status::internal("Failed to register node"))?;
+
+        tracing::info!("data node \"{}\" has been registered", &node.name);
+        Ok(Response::new(self.params().to_owned().into()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::postgres::test_utils::*;
-    use crate::types::Metric;
+    use crate::postgres::test_utils;
 
     const COORDINATOR_SCHEMA: &str = "coordinator";
-    const PARAMS: NodeParameters = NodeParameters {
-        metric: Metric::Euclidean,
-        dimension: 768,
-        density: 128,
-    };
 
     #[tokio::test]
     async fn test_coordinator_node_new() {
-        let db = database_url();
-        let mut connection = PgConnection::connect(&db.to_string())
-            .await
-            .expect("Failed to connect to Postgres database");
+        coordinator_node_mock_server().await;
+    }
 
-        drop_schema(&mut connection, COORDINATOR_SCHEMA).await;
-        CoordinatorNode::new(db, Some(PARAMS)).await;
+    #[tokio::test]
+    async fn test_coordinator_node_register_node() {
+        let coordinator = coordinator_node_mock_server().await;
+        let request = Request::new(protos::DataNodeConnection {
+            name: "c12eb363".to_string(),
+            address: "0.0.0.0:2510".to_string(),
+        });
 
-        let tables = get_tables(&mut connection, COORDINATOR_SCHEMA).await;
-        assert_eq!(tables.len(), 4);
+        let response = coordinator.register_node(request).await.unwrap();
+        let params = response.into_inner();
+        assert_eq!(params.dimension, 768);
+    }
+
+    async fn coordinator_node_mock_server() -> Arc<CoordinatorNode> {
+        let params = test_utils::node_parameters();
+        let db = test_utils::database_url();
+
+        let mut conn = PgConnection::connect(&db.to_string()).await.unwrap();
+        test_utils::drop_schema(&mut conn, COORDINATOR_SCHEMA).await;
+
+        let coordinator = CoordinatorNode::new(db, Some(params)).await;
+        test_utils::assert_table_count(&mut conn, COORDINATOR_SCHEMA, 4).await;
+
+        Arc::new(coordinator)
     }
 }

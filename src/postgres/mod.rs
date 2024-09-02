@@ -65,6 +65,18 @@ pub mod test_utils {
     use sqlx::Row;
     use url::Url as DatabaseURL;
 
+    /// Return the default node parameters for testing purposes.
+    /// - metric: Euclidean
+    /// - dimension: 768
+    /// - density: 128
+    pub fn node_parameters() -> NodeParameters {
+        NodeParameters {
+            metric: Metric::Euclidean,
+            dimension: 768,
+            density: 128,
+        }
+    }
+
     /// Return a database URL for testing purposes.
     pub fn database_url() -> DatabaseURL {
         let url = "postgres://postgres:password@0.0.0.0:5432/postgres";
@@ -84,22 +96,24 @@ pub mod test_utils {
         .expect("Failed to drop the schema");
     }
 
-    pub async fn get_tables(
+    /// Assert the number of tables in a schema to the value.
+    pub async fn assert_table_count(
         connection: &mut PgConnection,
         schema: impl AsRef<str>,
-    ) -> Vec<String> {
-        sqlx::query(
-            "SELECT table_name
+        expected: usize,
+    ) {
+        let count = sqlx::query(
+            "SELECT COUNT(*)
             FROM information_schema.tables
             WHERE table_schema = $1
             AND table_type = 'BASE TABLE'",
         )
         .bind(schema.as_ref())
-        .fetch_all(connection)
+        .fetch_one(connection)
         .await
         .unwrap()
-        .into_iter()
-        .map(|row| row.get::<String, _>(0))
-        .collect()
+        .get::<i64, usize>(0) as usize;
+
+        assert_eq!(count, expected);
     }
 }
