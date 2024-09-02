@@ -1,11 +1,15 @@
 use super::*;
 use oasysdb::nodes::{CoordinatorNode, DataNode};
 use oasysdb::postgres::NodeParameters;
+use oasysdb::protos::coordinator_node_client::CoordinatorNodeClient;
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
+use oasysdb::protos::DataNodeConnection;
+use reqwest::get;
 use std::future::Future;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
+use tonic::Request;
 
 fn block_on<F: Future>(future: F) -> F::Output {
     let rt = Runtime::new().expect("Failed to create a Tokio runtime");
@@ -66,16 +70,34 @@ pub fn data_handler(args: &ArgMatches) {
 }
 
 async fn data_join_handler(args: &ArgMatches) {
-    // Unwrap is safe because the argument is validated by clap.
+    // Unwrap is safe because the arguments are validated by clap.
     let name = args.get_one::<String>("name").unwrap().as_str();
     let database_url = args.get_one::<Url>("db").unwrap().to_owned();
+    let coordinator_url = {
+        let addr = args.get_one::<SocketAddr>("coordinator_url").unwrap();
+        format!("http://{addr}")
+    };
 
-    let coordinator_url = args
-        .get_one::<SocketAddr>("coordinator_url")
-        .expect("Coordinator address is required to join the cluster")
-        .to_owned();
+    let host = get("https://api.ipify.org")
+        .await
+        .expect("Failed to retrieve host address")
+        .text()
+        .await
+        .unwrap();
 
-    let node = DataNode::new(name, coordinator_url, database_url).await;
+    let request = Request::new(DataNodeConnection {
+        name: name.to_string(),
+        address: format!("http://{host}:2510"),
+    });
+
+    let mut client = CoordinatorNodeClient::connect(coordinator_url)
+        .await
+        .expect("Failed to connect to coordinator node");
+
+    let response = client.register_node(request).await.unwrap();
+    let params = NodeParameters::from(response.into_inner());
+
+    let node = DataNode::new(name, params, database_url).await;
     join_data_server(Arc::new(node)).await.unwrap();
 }
 

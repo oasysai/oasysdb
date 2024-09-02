@@ -1,7 +1,14 @@
-[package]
-name = "oasysdb"
+[workspace]
+members = []
+
+[workspace.package]
 version = "0.8.0"
 edition = "2021"
+
+[package]
+name = "oasysdb"
+version = { workspace = true }
+edition = { workspace = true }
 authors = ["Edwin Kys"]
 
 [dependencies]
@@ -29,6 +36,7 @@ regex = "1.10.6"
 url = "2.5.2"
 rand = "0.8.5"
 async-trait = "0.1.81"
+reqwest = "0.12.7"
 
 [dependencies.sqlx]
 version = "0.8.0"
