@@ -73,8 +73,8 @@ async fn data_join_handler(args: &ArgMatches) {
     // Unwrap is safe because the arguments are validated by clap.
     let name = args.get_one::<String>("name").unwrap().as_str();
     let database_url = args.get_one::<Url>("db").unwrap().to_owned();
-    let coordinator_url = {
-        let addr = args.get_one::<SocketAddr>("coordinator_url").unwrap();
+    let coordinator_addr = {
+        let addr = args.get_one::<SocketAddr>("coordinator_addr").unwrap();
         format!("http://{addr}")
     };
 
@@ -90,7 +90,7 @@ async fn data_join_handler(args: &ArgMatches) {
         address: format!("http://{host}:2510"),
     });
 
-    let mut client = CoordinatorNodeClient::connect(coordinator_url)
+    let mut client = CoordinatorNodeClient::connect(coordinator_addr)
         .await
         .expect("Failed to connect to coordinator node");
 

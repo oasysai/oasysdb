@@ -51,7 +51,7 @@ fn data_join() -> Command {
     Command::new("join")
         .about("Start and join server as a data node in the cluster")
         .arg(data_arg_name())
-        .arg(data_arg_coordinator_url())
+        .arg(data_arg_coordinator_addr())
         .arg(shared_arg_database_url())
 }
 
@@ -59,8 +59,8 @@ fn data_arg_name() -> Arg {
     arg!(<name> "Name of the data node").required(true)
 }
 
-fn data_arg_coordinator_url() -> Arg {
-    arg!(<coordinator_url> "Coordinator server address")
+fn data_arg_coordinator_addr() -> Arg {
+    arg!(<coordinator_addr> "Coordinator server address")
         .required(true)
         .value_parser(clap::value_parser!(SocketAddr))
 }
