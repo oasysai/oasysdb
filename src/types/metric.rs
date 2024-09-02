@@ -1,4 +1,5 @@
 use super::*;
+use crate::protos;
 use simsimd::SpatialSimilarity;
 
 // Distance name constants.
@@ -57,6 +58,15 @@ impl From<&str> for Metric {
 impl From<String> for Metric {
     fn from(value: String) -> Self {
         Metric::from(value.as_str())
+    }
+}
+
+impl From<protos::Metric> for Metric {
+    fn from(value: protos::Metric) -> Self {
+        match value {
+            protos::Metric::Cosine => Metric::Cosine,
+            protos::Metric::Euclidean => Metric::Euclidean,
+        }
     }
 }
 

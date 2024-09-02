@@ -4,11 +4,23 @@ package coordinator;
 import "google/protobuf/empty.proto";
 
 service CoordinatorNode {
-    rpc RegisterNode(RegisterNodeRequest) returns (google.protobuf.Empty);
+    rpc RegisterNode(DataNodeConnection) returns (NodeParameters);
 }
 
 // Section: RegisterNode
-    message RegisterNodeRequest {
+    message DataNodeConnection {
         string name = 1;
         string address = 2; // Public data node address -> IP:PORT
+    }
+
+    message NodeParameters {
+        Metric metric = 1;
+        int32 dimension = 2;
+        int32 density = 3;
+    }
+
+// Shared Types
+    enum Metric {
+        COSINE = 0;
+        EUCLIDEAN = 1;
     }
