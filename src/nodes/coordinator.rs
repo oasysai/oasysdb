@@ -16,58 +16,58 @@ pub struct CoordinatorNode {
 impl CoordinatorNode {
     /// Create a new coordinator node instance.
     /// - `database_url`: URL to the Postgres database.
-    /// - `params`: Parameters to configure new coordinator node.
-    pub async fn new(
-        database_url: impl Into<DatabaseURL>,
-        params: Option<NodeParameters>,
-    ) -> Self {
+    pub async fn new(database_url: impl Into<DatabaseURL>) -> Self {
         let database_url = database_url.into();
         let mut connection = PgConnection::connect(database_url.as_ref())
             .await
             .expect("Failed to connect to Postgres database");
 
         let schema = CoordinatorSchema::new();
-        schema.create_schema(&mut connection).await;
-        schema.create_all_tables(&mut connection).await;
+        let parameter_table = schema.parameter_table();
+        let params: NodeParameters = sqlx::query_as(&format!(
+            "SELECT metric, dimension, density
+            FROM {parameter_table}"
+        ))
+        .fetch_one(&mut connection)
+        .await
+        .expect("Configure the coordinator node first");
+
+        Self { params, database_url, schema }
+    }
+
+    /// Configure the coordinator node with parameters.
+    /// - `database_url`: URL to the Postgres database.
+    /// - `params`: Coordinator node parameters.
+    pub async fn configure(
+        database_url: impl Into<DatabaseURL>,
+        params: impl Into<NodeParameters>,
+    ) {
+        let params = params.into();
+        let database_url = database_url.into();
+
+        let mut conn = PgConnection::connect(database_url.as_ref())
+            .await
+            .expect("Failed to connect to Postgres database");
+
+        let schema = CoordinatorSchema::new();
+        schema.create_schema(&mut conn).await;
+        schema.create_all_tables(&mut conn).await;
+
+        tracing::info!("database is provisioned for coordinator node");
 
         let parameter_table = schema.parameter_table();
-        let existing_params: Option<NodeParameters> = sqlx::query_as(&format!(
-            "SELECT metric, dimension, density
-            FROM {parameter_table}
-            WHERE singleton IS TRUE"
+        sqlx::query(&format!(
+            "INSERT INTO {parameter_table} (metric, dimension, density)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (singleton)
+            DO UPDATE SET metric = $1, dimension = $2, density = $3"
         ))
-        .fetch_optional(&mut connection)
+        .bind(params.metric.as_str())
+        .bind(params.dimension as i32)
+        .bind(params.density as i32)
+        .execute(&mut conn)
         .await
-        .expect("Failed to fetch parameters from the database");
-
-        let params = match existing_params {
-            Some(params) => params,
-            None => {
-                let params = params.expect(
-                    "Parameters are required for a new node:\n\
-                    - dimension: Vector dimensionality\n\
-                    - metric: Distance metric (Default: Euclidean)\n\
-                    - density: Number of data per cluster (Default: 128)",
-                );
-
-                // The parameters are static and should only be inserted once.
-                sqlx::query(&format!(
-                    "INSERT INTO {parameter_table} (metric, dimension, density)
-                    VALUES ($1, $2, $3)
-                    ON CONFLICT (singleton) DO NOTHING"
-                ))
-                .bind(params.metric.as_str())
-                .bind(params.dimension as i32)
-                .bind(params.density as i32)
-                .execute(&mut connection)
-                .await
-                .expect("Failed to insert parameters into the database");
-
-                params
-            }
-        };
-
-        Self { database_url, schema, params }
+        .expect("Failed to configure the coordinator node");
     }
 
     /// Return the coordinator node parameters.
@@ -145,8 +145,9 @@ mod tests {
 
         let mut conn = PgConnection::connect(&db.to_string()).await.unwrap();
         test_utils::drop_schema(&mut conn, COORDINATOR_SCHEMA).await;
+        CoordinatorNode::configure(db.to_owned(), params).await;
 
-        let coordinator = CoordinatorNode::new(db, Some(params)).await;
+        let coordinator = CoordinatorNode::new(db).await;
         test_utils::assert_table_count(&mut conn, COORDINATOR_SCHEMA, 4).await;
 
         Arc::new(coordinator)

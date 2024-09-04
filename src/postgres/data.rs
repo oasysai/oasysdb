@@ -26,7 +26,7 @@ impl NodeSchema for DataSchema {
 }
 
 impl DataSchema {
-    /// Create a new data schema instance based on the node name.
+    /// Create a new data schema based on the node name.
     pub fn new(node: impl Into<SchemaName>) -> Self {
         let schema = format!("data_{}", node.into()).into_boxed_str();
         Self { schema }

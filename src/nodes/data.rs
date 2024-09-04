@@ -42,6 +42,8 @@ impl DataNode {
         schema.create_schema(&mut connection).await;
         schema.create_all_tables(&mut connection).await;
 
+        tracing::info!("database is provisioned for data node: {name}");
+
         Self { name, params, database_url, schema }
     }
 

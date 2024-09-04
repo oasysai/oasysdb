@@ -28,37 +28,41 @@ fn env_database_url() -> Url {
 
 pub fn coordinator_handler(args: &ArgMatches) {
     match args.subcommand() {
-        Some(("start", args)) => block_on(coordinator_start_handler(args)),
+        Some(("start", _)) => block_on(coordinator_start_handler()),
+        Some(("config", args)) => block_on(coordinator_config_handler(args)),
         _ => unreachable!(),
     }
 }
 
-async fn coordinator_start_handler(args: &ArgMatches) {
+async fn coordinator_start_handler() {
     let database_url = env_database_url();
-    let params = match args.get_one::<usize>("dim") {
-        Some(dimension) => {
-            // Unwrap is safe because we provide default values in the
-            // command configuration in commands.rs file.
-            let metric = args.get_one::<Metric>("metric").unwrap();
-            let density = args.get_one::<usize>("density").unwrap();
-            Some(NodeParameters {
-                metric: *metric,
-                dimension: *dimension,
-                density: *density,
-            })
-        }
-        None => None,
+    let node = CoordinatorNode::new(database_url).await;
+    start_coordinator_server(Arc::new(node)).await.unwrap();
+}
+
+async fn coordinator_config_handler(args: &ArgMatches) {
+    let database_url = env_database_url();
+
+    // Unwrap is safe because we have validation and default values in the
+    // command configuration in commands.rs file.
+    let dimension = args.get_one::<usize>("dim").unwrap();
+    let metric = args.get_one::<Metric>("metric").unwrap();
+    let density = args.get_one::<usize>("density").unwrap();
+
+    let params = NodeParameters {
+        metric: *metric,
+        dimension: *dimension,
+        density: *density,
     };
 
-    let node = CoordinatorNode::new(database_url, params).await;
-    start_coordinator_server(Arc::new(node)).await.unwrap();
+    CoordinatorNode::configure(database_url, params).await;
 }
 
 async fn start_coordinator_server(
     service: Arc<CoordinatorNode>,
 ) -> Result<(), Box<dyn Error>> {
     let addr: SocketAddr = "[::]:2505".parse()?;
-    tracing::info!("starting coordinator server at port {}", addr.port());
+    tracing::info!("coordinator server is ready at port {}", addr.port());
 
     Server::builder()
         .add_service(CoordinatorNodeServer::new(service))
@@ -114,7 +118,7 @@ async fn join_data_server(
     service: Arc<DataNode>,
 ) -> Result<(), Box<dyn Error>> {
     let addr: SocketAddr = "[::]:2510".parse()?;
-    tracing::info!("starting data node server at port {}", addr.port());
+    tracing::info!("data node server is ready at port {}", addr.port());
 
     Server::builder()
         .add_service(DataNodeServer::new(service))
