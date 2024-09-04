@@ -6,6 +6,7 @@ use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
 use oasysdb::protos::DataNodeConnection;
 use reqwest::get;
+use std::env;
 use std::future::Future;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
@@ -14,6 +15,13 @@ use tonic::Request;
 fn block_on<F: Future>(future: F) -> F::Output {
     let rt = Runtime::new().expect("Failed to create a Tokio runtime");
     rt.block_on(future)
+}
+
+fn env_database_url() -> Url {
+    env::var("DATABASE_URL")
+        .expect("Please set DATABASE_URL environment variable")
+        .parse::<Url>()
+        .expect("Failed to parse the database URL")
 }
 
 // Coordinator action handlers.
@@ -26,7 +34,7 @@ pub fn coordinator_handler(args: &ArgMatches) {
 }
 
 async fn coordinator_start_handler(args: &ArgMatches) {
-    let database_url = args.get_one::<Url>("db").unwrap().to_owned();
+    let database_url = env_database_url();
     let params = match args.get_one::<usize>("dim") {
         Some(dimension) => {
             // Unwrap is safe because we provide default values in the
@@ -70,9 +78,10 @@ pub fn data_handler(args: &ArgMatches) {
 }
 
 async fn data_join_handler(args: &ArgMatches) {
+    let database_url = env_database_url();
+
     // Unwrap is safe because the arguments are validated by clap.
     let name = args.get_one::<String>("name").unwrap().as_str();
-    let database_url = args.get_one::<Url>("db").unwrap().to_owned();
     let coordinator_addr = {
         let addr = args.get_one::<SocketAddr>("coordinator_addr").unwrap();
         format!("http://{addr}")

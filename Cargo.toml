@@ -37,6 +37,7 @@ url = "2.5.2"
 rand = "0.8.5"
 async-trait = "0.1.81"
 reqwest = "0.12.7"
+dotenv = "0.15.0"
 
 [dependencies.sqlx]
 version = "0.8.0"

@@ -13,7 +13,6 @@ pub fn coordinator() -> Command {
 fn coordinator_start() -> Command {
     Command::new("start")
         .about("Start server as the coordinator node")
-        .arg(shared_arg_database_url())
         .arg(coordinator_arg_metric())
         .arg(coordinator_arg_dimension())
         .arg(coordinator_arg_density())
@@ -52,7 +51,6 @@ fn data_join() -> Command {
         .about("Start and join server as a data node in the cluster")
         .arg(data_arg_name())
         .arg(data_arg_coordinator_addr())
-        .arg(shared_arg_database_url())
 }
 
 fn data_arg_name() -> Arg {
@@ -63,12 +61,4 @@ fn data_arg_coordinator_addr() -> Arg {
     arg!(<coordinator_addr> "Coordinator server address")
         .required(true)
         .value_parser(clap::value_parser!(SocketAddr))
-}
-
-// Shared arguments section.
-
-fn shared_arg_database_url() -> Arg {
-    arg!(--db <database_url> "PostgreSQL database URL")
-        .required(true)
-        .value_parser(clap::value_parser!(Url))
 }

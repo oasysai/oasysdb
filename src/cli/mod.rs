@@ -1,5 +1,6 @@
 // Common module dependencies.
 use clap::{ArgMatches, Command};
+use dotenv::dotenv;
 use oasysdb::types::Metric;
 use std::error::Error;
 use std::net::SocketAddr;
@@ -10,6 +11,8 @@ mod actions;
 mod commands;
 
 pub fn run() {
+    dotenv().ok();
+
     let command = Command::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .about("Interface to setup and manage OasysDB servers")
