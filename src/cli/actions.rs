@@ -4,7 +4,7 @@ use oasysdb::postgres::NodeParameters;
 use oasysdb::protos::coordinator_node_client::CoordinatorNodeClient;
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
-use oasysdb::protos::DataNodeConnection;
+use oasysdb::protos::NodeConnection;
 use reqwest::get;
 use std::env;
 use std::future::Future;
@@ -98,7 +98,7 @@ async fn data_join_handler(args: &ArgMatches) {
         .await
         .unwrap();
 
-    let request = Request::new(DataNodeConnection {
+    let request = Request::new(NodeConnection {
         name: name.to_string(),
         address: format!("http://{host}:2510"),
     });

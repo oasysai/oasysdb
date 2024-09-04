@@ -57,12 +57,12 @@ impl From<NodeParameters> for protos::NodeParameters {
 /// - name: Unique data node name.
 /// - address: Node's address, IP address and port.
 #[derive(Debug)]
-pub struct DataNodeConnection {
+pub struct NodeConnection {
     pub name: NodeName,
     pub address: SocketAddr,
 }
 
-impl FromRow<'_, PgRow> for DataNodeConnection {
+impl FromRow<'_, PgRow> for NodeConnection {
     fn from_row(row: &PgRow) -> DatabaseResult<Self> {
         let name = row.try_get("name")?;
         let address = row

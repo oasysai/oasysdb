@@ -90,7 +90,7 @@ impl CoordinatorNode {
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
     async fn register_node(
         &self,
-        request: Request<protos::DataNodeConnection>,
+        request: Request<protos::NodeConnection>,
     ) -> ServerResult<protos::NodeParameters> {
         let mut conn = PgConnection::connect(self.database_url().as_ref())
             .await
@@ -129,7 +129,7 @@ mod tests {
     #[tokio::test]
     async fn test_coordinator_node_register_node() {
         let coordinator = coordinator_node_mock_server().await;
-        let request = Request::new(protos::DataNodeConnection {
+        let request = Request::new(protos::NodeConnection {
             name: "c12eb363".to_string(),
             address: "0.0.0.0:2510".to_string(),
         });

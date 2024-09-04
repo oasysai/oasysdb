@@ -4,11 +4,11 @@ package coordinator;
 import "google/protobuf/empty.proto";
 
 service CoordinatorNode {
-    rpc RegisterNode(DataNodeConnection) returns (NodeParameters);
+    rpc RegisterNode(NodeConnection) returns (NodeParameters);
 }
 
 // Section: RegisterNode
-    message DataNodeConnection {
+    message NodeConnection {
         string name = 1;
         string address = 2; // Public data node address -> IP:PORT
     }
