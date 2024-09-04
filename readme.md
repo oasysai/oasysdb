@@ -33,3 +33,6 @@ working on improving it and we expect the API and functionality to change. We do
 not recommend using this in production yet. If you do, however, please let us
 know so we can help you with any issues you might encounter as promptly as
 possible.
+
+[docs]: https://docs.oasysdb.com
+[discord]: https://discord.gg/bDhQrkqNP4
