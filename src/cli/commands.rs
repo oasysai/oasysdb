@@ -1,5 +1,5 @@
 use super::*;
-use clap::{arg, Arg};
+use clap::arg;
 
 // Coordinator subcommands section.
 
@@ -34,7 +34,7 @@ fn coordinator_config() -> Command {
         .allow_negative_numbers(false);
 
     Command::new("config")
-        .about("Configure the coordinator node")
+        .about("Configure the coordinator node parameters")
         .arg(arg_metric)
         .arg(arg_dimension)
         .arg(arg_density)
@@ -50,18 +50,21 @@ pub fn data() -> Command {
 }
 
 fn data_join() -> Command {
+    let arg_name = arg!(<name> "Name of the data node").required(true);
+
+    let arg_coordinator_addr =
+        arg!(<coordinator_addr> "Coordinator server address")
+            .required(true)
+            .value_parser(clap::value_parser!(SocketAddr));
+
+    let arg_port = arg!(--port <port> "Port to listen on")
+        .default_value("2510")
+        .value_parser(clap::value_parser!(u16))
+        .allow_negative_numbers(false);
+
     Command::new("join")
         .about("Start and join server as a data node in the cluster")
-        .arg(data_arg_name())
-        .arg(data_arg_coordinator_addr())
-}
-
-fn data_arg_name() -> Arg {
-    arg!(<name> "Name of the data node").required(true)
-}
-
-fn data_arg_coordinator_addr() -> Arg {
-    arg!(<coordinator_addr> "Coordinator server address")
-        .required(true)
-        .value_parser(clap::value_parser!(SocketAddr))
+        .arg(arg_name)
+        .arg(arg_coordinator_addr)
+        .arg(arg_port)
 }

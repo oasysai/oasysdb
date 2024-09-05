@@ -37,7 +37,16 @@ pub fn coordinator_handler(args: &ArgMatches) {
 async fn coordinator_start_handler() {
     let database_url = env_database_url();
     let node = CoordinatorNode::new(database_url).await;
-    start_coordinator_server(Arc::new(node)).await.unwrap();
+
+    let server = CoordinatorNodeServer::new(Arc::new(node));
+    let serve = "[::]:2505".parse::<SocketAddr>().unwrap();
+    tracing::info!("coordinator server is ready at port {}", serve.port());
+
+    Server::builder()
+        .add_service(server)
+        .serve(serve)
+        .await
+        .expect("Failed to start coordinator server");
 }
 
 async fn coordinator_config_handler(args: &ArgMatches) {
@@ -58,20 +67,6 @@ async fn coordinator_config_handler(args: &ArgMatches) {
     CoordinatorNode::configure(database_url, params).await;
 }
 
-async fn start_coordinator_server(
-    service: Arc<CoordinatorNode>,
-) -> Result<(), Box<dyn Error>> {
-    let addr: SocketAddr = "[::]:2505".parse()?;
-    tracing::info!("coordinator server is ready at port {}", addr.port());
-
-    Server::builder()
-        .add_service(CoordinatorNodeServer::new(service))
-        .serve(addr)
-        .await?;
-
-    Ok(())
-}
-
 // Data action handlers.
 
 pub fn data_handler(args: &ArgMatches) {
@@ -86,10 +81,11 @@ async fn data_join_handler(args: &ArgMatches) {
 
     // Unwrap is safe because the arguments are validated by clap.
     let name = args.get_one::<String>("name").unwrap().as_str();
-    let coordinator_addr = {
-        let addr = args.get_one::<SocketAddr>("coordinator_addr").unwrap();
-        format!("http://{addr}")
-    };
+    let port = args.get_one::<u16>("port").unwrap();
+    let coordinator_addr = format!(
+        "http://{}",
+        args.get_one::<SocketAddr>("coordinator_addr").unwrap()
+    );
 
     let host = get("https://api.ipify.org")
         .await
@@ -100,7 +96,7 @@ async fn data_join_handler(args: &ArgMatches) {
 
     let request = Request::new(NodeConnection {
         name: name.to_string(),
-        address: format!("http://{host}:2510"),
+        address: format!("{host}:{port}"),
     });
 
     let mut client = CoordinatorNodeClient::connect(coordinator_addr)
@@ -109,21 +105,15 @@ async fn data_join_handler(args: &ArgMatches) {
 
     let response = client.register_node(request).await.unwrap();
     let params = NodeParameters::from(response.into_inner());
-
     let node = DataNode::new(name, params, database_url).await;
-    join_data_server(Arc::new(node)).await.unwrap();
-}
 
-async fn join_data_server(
-    service: Arc<DataNode>,
-) -> Result<(), Box<dyn Error>> {
-    let addr: SocketAddr = "[::]:2510".parse()?;
-    tracing::info!("data node server is ready at port {}", addr.port());
+    let server = DataNodeServer::new(Arc::new(node));
+    let serve = format!("[::]:{port}").parse::<SocketAddr>().unwrap();
+    tracing::info!("data node server is ready at port {}", serve.port());
 
     Server::builder()
-        .add_service(DataNodeServer::new(service))
-        .serve(addr)
-        .await?;
-
-    Ok(())
+        .add_service(server)
+        .serve(serve)
+        .await
+        .expect("Failed to start data node server");
 }
