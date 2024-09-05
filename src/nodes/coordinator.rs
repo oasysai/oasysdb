@@ -97,6 +97,10 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             .map_err(|_| Status::internal("Failed to connect to Postgres"))?;
 
         let node = request.into_inner();
+        if node.address.parse::<SocketAddr>().is_err() {
+            return Err(Status::invalid_argument("Invalid node address"));
+        }
+
         let connection_table = self.schema().connection_table();
         sqlx::query(&format!(
             "INSERT INTO {connection_table} (name, address)
