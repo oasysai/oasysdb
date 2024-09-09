@@ -94,9 +94,23 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
 
     async fn insert(
         &self,
-        _request: Request<protos::Record>,
+        request: Request<protos::Record>,
     ) -> ServerResult<()> {
-        unimplemented!()
+        let record = request.into_inner();
+        let protos::Record { vector, metadata } = record;
+
+        if vector.len() != self.params().dimension {
+            return Err(Status::invalid_argument(format!(
+                "Expected vector dimension of {}, but got {}",
+                self.params().dimension,
+                vector.len()
+            )));
+        }
+
+        let _vector: Vector = vector.into();
+        let _metadata: Metadata = metadata.into();
+
+        Ok(Response::new(()))
     }
 
     async fn register_node(

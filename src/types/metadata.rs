@@ -1,5 +1,24 @@
 use super::*;
 use crate::protos;
+use std::collections::HashMap;
+
+/// Metadata of a vector record.
+///
+/// Metadata is a key-value store that can be used to store additional context
+/// about a vector such as the source document of the vector.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Metadata(HashMap<String, Option<Value>>);
+
+impl From<HashMap<String, protos::Value>> for Metadata {
+    fn from(metadata: HashMap<String, protos::Value>) -> Self {
+        let mut map = HashMap::new();
+        for (key, value) in metadata {
+            map.insert(key, value.into());
+        }
+
+        Self(map)
+    }
+}
 
 /// Metadata value of a vector record.
 ///

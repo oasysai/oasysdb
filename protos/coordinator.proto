@@ -28,12 +28,8 @@ service CoordinatorNode {
     }
 
     message Record {
-        Vector vector = 1;
+        repeated float vector = 1;
         map<string, Value> metadata = 2;
-    }
-
-    message Vector {
-        repeated float data = 1;
     }
 
     message Value {

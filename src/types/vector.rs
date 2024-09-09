@@ -1,5 +1,4 @@
 use super::*;
-use crate::protos;
 
 /// Vector data structure.
 ///
@@ -36,11 +35,5 @@ impl Vector {
 impl From<Vec<f32>> for Vector {
     fn from(value: Vec<f32>) -> Self {
         Vector(value.into_boxed_slice())
-    }
-}
-
-impl From<protos::Vector> for Vector {
-    fn from(value: protos::Vector) -> Self {
-        Vector(value.data.into_boxed_slice())
     }
 }
