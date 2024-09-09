@@ -4,6 +4,7 @@ package coordinator;
 import "google/protobuf/empty.proto";
 
 service CoordinatorNode {
+    rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
     rpc RegisterNode(NodeConnection) returns (NodeParameters);
 }
 

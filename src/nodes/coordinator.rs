@@ -88,6 +88,10 @@ impl CoordinatorNode {
 
 #[async_trait]
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
+    async fn heartbeat(&self, _request: Request<()>) -> ServerResult<()> {
+        Ok(Response::new(()))
+    }
+
     async fn register_node(
         &self,
         request: Request<protos::NodeConnection>,

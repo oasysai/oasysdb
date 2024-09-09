@@ -1,4 +1,8 @@
 syntax = "proto3";
 package data;
 
-service DataNode {}
+import "google/protobuf/empty.proto";
+
+service DataNode {
+    rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
+}

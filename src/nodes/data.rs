@@ -69,7 +69,11 @@ impl DataNode {
 }
 
 #[async_trait]
-impl ProtoDataNode for Arc<DataNode> {}
+impl ProtoDataNode for Arc<DataNode> {
+    async fn heartbeat(&self, _request: Request<()>) -> ServerResult<()> {
+        Ok(Response::new(()))
+    }
+}
 
 #[cfg(test)]
 mod tests {
