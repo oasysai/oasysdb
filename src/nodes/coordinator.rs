@@ -92,6 +92,13 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         Ok(Response::new(()))
     }
 
+    async fn insert(
+        &self,
+        _request: Request<protos::Record>,
+    ) -> ServerResult<()> {
+        unimplemented!()
+    }
+
     async fn register_node(
         &self,
         request: Request<protos::NodeConnection>,

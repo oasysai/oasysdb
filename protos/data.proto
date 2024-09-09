@@ -1,6 +1,7 @@
 syntax = "proto3";
 package data;
 
+import "coordinator.proto";
 import "google/protobuf/empty.proto";
 
 service DataNode {

@@ -5,6 +5,7 @@ import "google/protobuf/empty.proto";
 
 service CoordinatorNode {
     rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Insert(Record) returns (google.protobuf.Empty);
     rpc RegisterNode(NodeConnection) returns (NodeParameters);
 }
 
@@ -24,4 +25,22 @@ service CoordinatorNode {
     enum Metric {
         COSINE = 0;
         EUCLIDEAN = 1;
+    }
+
+    message Record {
+        Vector vector = 1;
+        map<string, Value> metadata = 2;
+    }
+
+    message Vector {
+        repeated float data = 1;
+    }
+
+    message Value {
+        oneof data {
+            string text = 1;
+            int32 integer = 2;
+            float float = 3;
+            bool boolean = 4;
+        }
     }
