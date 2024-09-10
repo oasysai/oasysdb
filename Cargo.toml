@@ -12,8 +12,9 @@ edition = { workspace = true }
 authors = ["Edwin Kys"]
 
 [dependencies]
-uuid = { version = "1.10.0", features = ["v4"] }
+uuid = { version = "1.10.0", features = ["serde", "v4"] }
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
+futures = "0.3.30"
 clap = "4.5.16"
 
 # gRPC-related dependencies
@@ -22,6 +23,7 @@ prost = "0.13.1"
 
 # Serialization-related dependencies
 serde = { version = "1.0.208", features = ["derive"] }
+bincode = "1.3.3"
 
 # Parallelism-related dependencies
 simsimd = "5.0.1"
@@ -42,7 +44,7 @@ dotenv = "0.15.0"
 [dependencies.sqlx]
 version = "0.8.0"
 default-features = false
-features = ["postgres", "runtime-tokio", "macros"]
+features = ["postgres", "runtime-tokio", "macros", "uuid"]
 
 [build-dependencies]
 tonic-build = "0.12"
