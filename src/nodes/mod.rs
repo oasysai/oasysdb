@@ -36,14 +36,18 @@ trait NodeExt {
     /// Return the schema configuration of the node.
     fn schema(&self) -> &impl NodeSchema;
 
+    /// Return connection to the node's Postgres database.
+    async fn connect(&self) -> Result<PgConnection, Status> {
+        PgConnection::connect(self.database_url().as_ref())
+            .await
+            .map_err(|_| Status::internal("Failed to connect to Postgres"))
+    }
+
     async fn find_nearest_cluster(
         &self,
         vector: &Vector,
     ) -> Result<Option<Cluster>, Status> {
-        let mut conn = PgConnection::connect(self.database_url().as_ref())
-            .await
-            .map_err(|_| Status::internal("Failed to connect to Postgres"))?;
-
+        let mut conn = self.connect().await?;
         let cluster_table = self.schema().cluster_table();
         let query = format!("SELECT id, centroid FROM {cluster_table}");
         let mut stream = sqlx::query(&query).fetch(&mut conn);
@@ -68,5 +72,20 @@ trait NodeExt {
         }
 
         Ok(nearest_cluster)
+    }
+
+    async fn insert_cluster(&self, centroid: &Vector) -> Result<(), Status> {
+        let mut conn = self.connect().await?;
+        let cluster_table = self.schema().cluster_table();
+        sqlx::query(&format!(
+            "INSERT INTO {cluster_table} (centroid)
+            VALUES ($1)"
+        ))
+        .bind(centroid.as_slice())
+        .execute(&mut conn)
+        .await
+        .map_err(|_| Status::internal("Failed to insert cluster"))?;
+
+        Ok(())
     }
 }
