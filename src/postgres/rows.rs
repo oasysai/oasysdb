@@ -2,11 +2,13 @@
 
 use super::*;
 use crate::protos;
+use crate::types::Vector;
 use sqlx::postgres::PgRow;
 use sqlx::Error as DatabaseError;
 use sqlx::Result as DatabaseResult;
 use sqlx::{FromRow, Row};
 use std::net::SocketAddr;
+use uuid::Uuid;
 
 type NodeName = Box<str>;
 
@@ -71,5 +73,29 @@ impl FromRow<'_, PgRow> for NodeConnection {
             .map_err(|_| DatabaseError::Decode("node address".into()))?;
 
         Ok(Self { name, address })
+    }
+}
+
+/// IVF index cluster reference.
+///
+/// Fields:
+/// - id: Cluster's identifier, UUID.
+/// - centroid: Centroid vector.
+#[derive(Debug)]
+pub struct Cluster {
+    pub id: Uuid,
+    pub centroid: Vector,
+}
+
+impl FromRow<'_, PgRow> for Cluster {
+    fn from_row(row: &PgRow) -> DatabaseResult<Self> {
+        let id = row.try_get("id")?;
+        let centroid = {
+            let bytea = row.try_get::<Vec<u8>, _>("centroid")?;
+            bincode::deserialize(&bytea)
+                .map_err(|e| sqlx::Error::Decode(Box::new(e)))?
+        };
+
+        Ok(Self { id, centroid })
     }
 }
