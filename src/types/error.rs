@@ -1,11 +1,7 @@
 use std::fmt::{Display, Formatter, Result as FormatResult};
-use std::result::Result as StandardResult;
 
 // Import external error types below.
 use std::error::Error as StandardError;
-
-/// Result with OasysDB custom error type.
-pub type Result<T> = StandardResult<T, Error>;
 
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq)]
