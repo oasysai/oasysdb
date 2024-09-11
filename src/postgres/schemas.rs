@@ -1,5 +1,49 @@
 use super::*;
 
+/// Trait of a node schema in Postgres database.
+///
+/// The schema of a coordinator node and a data node are mostly different. This
+/// trait defines the common methods for both types of nodes.
+#[async_trait]
+pub trait NodeSchema {
+    /// Return the schema name of the node.
+    fn schema(&self) -> SchemaName;
+
+    /// Return the table name storing cluster data.
+    fn cluster_table(&self) -> TableName {
+        format!("{}.clusters", self.schema()).into_boxed_str()
+    }
+
+    /// Create a new schema belonging to a node in the database.
+    async fn create_schema(&self, connection: &mut PgConnection) {
+        sqlx::query(&format!("CREATE SCHEMA IF NOT EXISTS {}", self.schema()))
+            .execute(connection)
+            .await
+            .expect("Failed to create the schema");
+    }
+
+    /// Create all tables required by the node.
+    async fn create_all_tables(&self, connection: &mut PgConnection);
+
+    /// Create a table to store cluster data.
+    ///
+    /// Columns:
+    /// - id: Cluster ID.
+    /// - centroid: Centroid vector of the cluster.
+    async fn create_cluster_table(&self, connection: &mut PgConnection) {
+        let table = self.cluster_table();
+        sqlx::query(&format!(
+            "CREATE TABLE IF NOT EXISTS {table} (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                centroid BYTEA NOT NULL
+            )"
+        ))
+        .execute(connection)
+        .await
+        .expect("Failed to create cluster table");
+    }
+}
+
 /// Database schema for a coordinator node.
 ///
 /// The coordinator schema is used to isolate and manage the tables dedicated
@@ -130,5 +174,67 @@ impl CoordinatorSchema {
         .execute(connection)
         .await
         .expect("Failed to create the subcluster table");
+    }
+}
+
+/// Database schema for a data node.
+///
+/// Data node schema name is dynamically generated based on the node name
+/// which is user-defined.
+///
+/// Tables:
+/// - clusters: Storing cluster information.
+/// - records: Storing vector records.
+#[derive(Debug)]
+pub struct DataSchema {
+    schema: SchemaName, // Full schema name of data node: data_{node_name}
+}
+
+#[async_trait]
+impl NodeSchema for DataSchema {
+    fn schema(&self) -> SchemaName {
+        self.schema.to_owned()
+    }
+
+    async fn create_all_tables(&self, connection: &mut PgConnection) {
+        self.create_cluster_table(connection).await;
+        self.create_record_table(connection).await;
+    }
+}
+
+impl DataSchema {
+    /// Create a new data schema based on the node name.
+    pub fn new(node: impl Into<SchemaName>) -> Self {
+        let schema = format!("data_{}", node.into()).into_boxed_str();
+        Self { schema }
+    }
+
+    /// Return the name of the table storing vector records.
+    pub fn record_table(&self) -> TableName {
+        format!("{}.records", self.schema()).into_boxed_str()
+    }
+
+    /// Create a table to store vector records.
+    ///
+    /// Columns:
+    /// - id: Record ID.
+    /// - cluster_id: Cluster ID assigned for the record.
+    /// - vector: Record vector as a byte array.
+    /// - data: Additional metadata as a JSON object.
+    pub async fn create_record_table(&self, connection: &mut PgConnection) {
+        let record_table = self.record_table();
+        let cluster_table = self.cluster_table();
+
+        sqlx::query(&format!(
+            "CREATE TABLE IF NOT EXISTS {record_table} (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                cluster_id UUID NOT NULL REFERENCES {cluster_table} (id),
+                vector BYTEA NOT NULL,
+                data JSONB
+            )"
+        ))
+        .execute(connection)
+        .await
+        .expect("Failed to create the data record table");
     }
 }
