@@ -69,19 +69,18 @@ impl CoordinatorNode {
         .await
         .expect("Failed to configure the coordinator node");
     }
+}
 
-    /// Return the coordinator node parameters.
-    pub fn params(&self) -> &NodeParameters {
+impl NodeExt for CoordinatorNode {
+    fn params(&self) -> &NodeParameters {
         &self.params
     }
 
-    /// Return the configured database URL.
-    pub fn database_url(&self) -> &DatabaseURL {
+    fn database_url(&self) -> &DatabaseURL {
         &self.database_url
     }
 
-    /// Return the schema configured for the coordinator node.
-    pub fn schema(&self) -> &CoordinatorSchema {
+    fn schema(&self) -> &impl NodeSchema {
         &self.schema
     }
 }
@@ -97,18 +96,16 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         request: Request<protos::Record>,
     ) -> ServerResult<()> {
         let record = request.into_inner();
-        let protos::Record { vector, metadata } = record;
-
-        if vector.len() != self.params().dimension {
+        if record.vector.len() != self.params().dimension {
             return Err(Status::invalid_argument(format!(
                 "Expected vector dimension of {}, but got {}",
                 self.params().dimension,
-                vector.len()
+                record.vector.len()
             )));
         }
 
-        let _vector: Vector = vector.into();
-        let _metadata: Metadata = metadata.into();
+        let vector = Vector::from(record.vector);
+        let _nearest_cluster = self.find_nearest_cluster(&vector).await?;
 
         Ok(Response::new(()))
     }
@@ -126,7 +123,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             return Err(Status::invalid_argument("Invalid node address"));
         }
 
-        let connection_table = self.schema().connection_table();
+        let connection_table = self.schema.connection_table();
         sqlx::query(&format!(
             "INSERT INTO {connection_table} (name, address)
             VALUES ($1, $2)

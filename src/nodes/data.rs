@@ -51,19 +51,18 @@ impl DataNode {
     pub fn name(&self) -> &NodeName {
         &self.name
     }
+}
 
-    /// Return the parameters configured for the data node.
-    pub fn params(&self) -> &NodeParameters {
+impl NodeExt for DataNode {
+    fn params(&self) -> &NodeParameters {
         &self.params
     }
 
-    /// Return the configured database URL.
-    pub fn database_url(&self) -> &DatabaseURL {
+    fn database_url(&self) -> &DatabaseURL {
         &self.database_url
     }
 
-    /// Return the schema configured for the data node.
-    pub fn schema(&self) -> &DataSchema {
+    fn schema(&self) -> &impl NodeSchema {
         &self.schema
     }
 }
