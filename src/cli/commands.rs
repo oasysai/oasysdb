@@ -30,7 +30,7 @@ fn coordinator_config() -> Command {
             .value_parser(clap::value_parser!(Metric));
 
     let arg_density = arg!(--density <density> "Number of records per cluster")
-        .default_value("128")
+        .default_value("256")
         .value_parser(clap::value_parser!(usize))
         .allow_negative_numbers(false);
 

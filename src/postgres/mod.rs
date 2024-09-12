@@ -22,12 +22,12 @@ pub mod test_utils {
     /// Return the default node parameters for testing purposes.
     /// - metric: Euclidean
     /// - dimension: 768
-    /// - density: 128
+    /// - density: 256
     pub fn node_parameters() -> NodeParameters {
         NodeParameters {
             metric: Metric::Euclidean,
             dimension: 768,
-            density: 128,
+            density: 256,
         }
     }
 
