@@ -32,6 +32,7 @@ impl CoordinatorNode {
         .await
         .expect("Configure the coordinator node first");
 
+        tracing::info!("coordinator initialized with parameters: {params:?}");
         Self { params, database_url, schema }
     }
 
@@ -105,7 +106,12 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         }
 
         let vector = Vector::from(record.vector);
-        let _nearest_cluster = self.find_nearest_cluster(&vector).await?;
+        let nearest_cluster = self.find_nearest_cluster(&vector).await?;
+
+        match nearest_cluster {
+            None => self.insert_cluster(&vector).await?,
+            Some(_cluster) => unimplemented!(),
+        }
 
         Ok(Response::new(()))
     }
@@ -114,10 +120,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         &self,
         request: Request<protos::NodeConnection>,
     ) -> ServerResult<protos::NodeParameters> {
-        let mut conn = PgConnection::connect(self.database_url().as_ref())
-            .await
-            .map_err(|_| Status::internal("Failed to connect to Postgres"))?;
-
+        let mut conn = self.connect().await?;
         let node = request.into_inner();
         if node.address.parse::<SocketAddr>().is_err() {
             return Err(Status::invalid_argument("Invalid node address"));
@@ -135,7 +138,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         .await
         .map_err(|_| Status::internal("Failed to register node"))?;
 
-        tracing::info!("data node \"{}\" has been registered", &node.name);
+        tracing::info!("data node \"{}\" has joined the cluster", &node.name);
         Ok(Response::new(self.params().to_owned().into()))
     }
 }

@@ -18,15 +18,16 @@ fn coordinator_start() -> Command {
 }
 
 fn coordinator_config() -> Command {
-    let arg_metric =
-        arg!(--metric <metric> "Metric to calculate distance between vectors")
-            .default_value(Metric::Euclidean.as_str())
-            .value_parser(clap::value_parser!(Metric));
-
     let arg_dimension = arg!(--dim <dimension> "Vector dimension")
         .required(true)
         .value_parser(clap::value_parser!(usize))
         .allow_negative_numbers(false);
+
+    // List optional arguments below.
+    let arg_metric =
+        arg!(--metric <metric> "Metric to calculate distance between vectors")
+            .default_value(Metric::Euclidean.as_str())
+            .value_parser(clap::value_parser!(Metric));
 
     let arg_density = arg!(--density <density> "Number of records per cluster")
         .default_value("128")
@@ -35,8 +36,8 @@ fn coordinator_config() -> Command {
 
     Command::new("config")
         .about("Configure the coordinator node parameters")
-        .arg(arg_metric)
         .arg(arg_dimension)
+        .arg(arg_metric)
         .arg(arg_density)
 }
 

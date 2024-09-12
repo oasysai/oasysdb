@@ -16,6 +16,7 @@ pub trait NodeSchema {
 
     /// Create a new schema belonging to a node in the database.
     async fn create_schema(&self, connection: &mut PgConnection) {
+        tracing::info!("creating a database schema: {}", self.schema());
         sqlx::query(&format!("CREATE SCHEMA IF NOT EXISTS {}", self.schema()))
             .execute(connection)
             .await
@@ -74,6 +75,7 @@ impl NodeSchema for CoordinatorSchema {
     }
 
     async fn create_all_tables(&self, connection: &mut PgConnection) {
+        tracing::info!("creating tables for the coordinator node");
         self.create_parameter_table(connection).await;
         self.create_cluster_table(connection).await;
         self.create_connection_table(connection).await;
@@ -197,6 +199,7 @@ impl NodeSchema for DataSchema {
     }
 
     async fn create_all_tables(&self, connection: &mut PgConnection) {
+        tracing::info!("creating tables for the data node.");
         self.create_cluster_table(connection).await;
         self.create_record_table(connection).await;
     }

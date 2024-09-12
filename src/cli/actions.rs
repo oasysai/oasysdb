@@ -40,7 +40,7 @@ async fn coordinator_start_handler() {
 
     let server = CoordinatorNodeServer::new(Arc::new(node));
     let serve = "[::]:2505".parse::<SocketAddr>().unwrap();
-    tracing::info!("coordinator server is ready at port {}", serve.port());
+    tracing::info!("coordinator server is running at port {}", serve.port());
 
     Server::builder()
         .add_service(server)
@@ -99,17 +99,19 @@ async fn data_join_handler(args: &ArgMatches) {
         address: format!("{host}:{port}"),
     });
 
+    tracing::info!("joining the coordinator at {coordinator_addr}");
     let mut client = CoordinatorNodeClient::connect(coordinator_addr)
         .await
         .expect("Failed to connect to coordinator node");
 
     let response = client.register_node(request).await.unwrap();
     let params = NodeParameters::from(response.into_inner());
-    let node = DataNode::new(name, params, database_url).await;
+    tracing::info!("running node with parameters: {params:?}");
 
+    let node = DataNode::new(name, params, database_url).await;
     let server = DataNodeServer::new(Arc::new(node));
     let serve = format!("[::]:{port}").parse::<SocketAddr>().unwrap();
-    tracing::info!("data node server is ready at port {}", serve.port());
+    tracing::info!("data node server is running at port {}", serve.port());
 
     Server::builder()
         .add_service(server)
