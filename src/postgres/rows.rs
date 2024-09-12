@@ -28,8 +28,17 @@ pub struct NodeParameters {
     pub density: usize,
 }
 
-impl From<protos::NodeParameters> for NodeParameters {
-    fn from(value: protos::NodeParameters) -> Self {
+impl NodeParameters {
+    pub fn trace(&self) {
+        tracing::info!("running the configured node parameters:");
+        tracing::info!("metric: {}", self.metric.as_str());
+        tracing::info!("dimension: {}", self.dimension);
+        tracing::info!("density: {}", self.density);
+    }
+}
+
+impl From<protos::RegisterNodeResponse> for NodeParameters {
+    fn from(value: protos::RegisterNodeResponse) -> Self {
         Self {
             metric: value.metric().into(),
             dimension: value.dimension as usize,
@@ -38,7 +47,7 @@ impl From<protos::NodeParameters> for NodeParameters {
     }
 }
 
-impl From<NodeParameters> for protos::NodeParameters {
+impl From<NodeParameters> for protos::RegisterNodeResponse {
     fn from(value: NodeParameters) -> Self {
         let metric = match value.metric {
             Metric::Cosine => protos::Metric::Cosine,

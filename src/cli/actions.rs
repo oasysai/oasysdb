@@ -4,7 +4,7 @@ use oasysdb::postgres::NodeParameters;
 use oasysdb::protos::coordinator_node_client::CoordinatorNodeClient;
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
-use oasysdb::protos::NodeConnection;
+use oasysdb::protos::RegisterNodeRequest;
 use reqwest::get;
 use std::env;
 use std::future::Future;
@@ -82,10 +82,9 @@ async fn data_join_handler(args: &ArgMatches) {
     // Unwrap is safe because the arguments are validated by clap.
     let name = args.get_one::<String>("name").unwrap().as_str();
     let port = args.get_one::<u16>("port").unwrap();
-    let coordinator_addr = format!(
-        "http://{}",
-        args.get_one::<SocketAddr>("coordinator_addr").unwrap()
-    );
+    let coordinator_addr = args
+        .get_one::<SocketAddr>("coordinator_addr")
+        .expect("Please provide a valid coordinator address");
 
     let host = get("https://api.ipify.org")
         .await
@@ -94,19 +93,21 @@ async fn data_join_handler(args: &ArgMatches) {
         .await
         .unwrap();
 
-    let request = Request::new(NodeConnection {
+    let request = Request::new(RegisterNodeRequest {
         name: name.to_string(),
-        address: format!("{host}:{port}"),
+        host,
+        port: *port as i32,
     });
 
     tracing::info!("joining the coordinator at {coordinator_addr}");
-    let mut client = CoordinatorNodeClient::connect(coordinator_addr)
+    let addr = format!("http://{coordinator_addr}");
+    let mut client = CoordinatorNodeClient::connect(addr)
         .await
         .expect("Failed to connect to coordinator node");
 
     let response = client.register_node(request).await.unwrap();
     let params = NodeParameters::from(response.into_inner());
-    tracing::info!("running node with parameters: {params:?}");
+    params.trace();
 
     let node = DataNode::new(name, params, database_url).await;
     let server = DataNodeServer::new(Arc::new(node));

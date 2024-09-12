@@ -1,10 +1,8 @@
 // Initialize modules without publicizing them.
-mod metadata;
 mod metric;
 mod vector;
 
 // Re-export types from the modules.
-pub use metadata::*;
 pub use metric::*;
 pub use vector::*;
 

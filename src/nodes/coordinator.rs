@@ -32,7 +32,7 @@ impl CoordinatorNode {
         .await
         .expect("Configure the coordinator node first");
 
-        tracing::info!("coordinator initialized with parameters: {params:?}");
+        params.trace();
         Self { params, database_url, schema }
     }
 
@@ -70,19 +70,21 @@ impl CoordinatorNode {
         .await
         .expect("Failed to configure the coordinator node");
     }
-}
 
-impl NodeExt for CoordinatorNode {
-    fn params(&self) -> &NodeParameters {
+    /// Return the parameters of the coordinator node.
+    pub fn params(&self) -> &NodeParameters {
         &self.params
     }
 
+    /// Return the schema configuration of the coordinator node.
+    pub fn schema(&self) -> &CoordinatorSchema {
+        &self.schema
+    }
+}
+
+impl NodeExt for CoordinatorNode {
     fn database_url(&self) -> &DatabaseURL {
         &self.database_url
-    }
-
-    fn schema(&self) -> &impl NodeSchema {
-        &self.schema
     }
 }
 
@@ -92,37 +94,14 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         Ok(Response::new(()))
     }
 
-    async fn insert(
-        &self,
-        request: Request<protos::Record>,
-    ) -> ServerResult<()> {
-        let record = request.into_inner();
-        if record.vector.len() != self.params().dimension {
-            return Err(Status::invalid_argument(format!(
-                "Expected vector dimension of {}, but got {}",
-                self.params().dimension,
-                record.vector.len()
-            )));
-        }
-
-        let vector = Vector::from(record.vector);
-        let nearest_cluster = self.find_nearest_cluster(&vector).await?;
-
-        match nearest_cluster {
-            None => self.insert_cluster(&vector).await?,
-            Some(_cluster) => unimplemented!(),
-        }
-
-        Ok(Response::new(()))
-    }
-
     async fn register_node(
         &self,
-        request: Request<protos::NodeConnection>,
-    ) -> ServerResult<protos::NodeParameters> {
+        request: Request<protos::RegisterNodeRequest>,
+    ) -> ServerResult<protos::RegisterNodeResponse> {
         let mut conn = self.connect().await?;
         let node = request.into_inner();
-        if node.address.parse::<SocketAddr>().is_err() {
+        let address = format!("{}:{}", &node.host, &node.port);
+        if address.parse::<SocketAddr>().is_err() {
             return Err(Status::invalid_argument("Invalid node address"));
         }
 
@@ -133,7 +112,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             ON CONFLICT (name) DO UPDATE SET address = $2"
         ))
         .bind(&node.name)
-        .bind(&node.address)
+        .bind(&address)
         .execute(&mut conn)
         .await
         .map_err(|_| Status::internal("Failed to register node"))?;
@@ -158,7 +137,7 @@ mod tests {
     #[tokio::test]
     async fn test_coordinator_node_register_node() {
         let coordinator = coordinator_node_mock_server().await;
-        let request = Request::new(protos::NodeConnection {
+        let request = Request::new(protos::RegisterNodeRequest {
             name: "c12eb363".to_string(),
             address: "0.0.0.0:2510".to_string(),
         });
