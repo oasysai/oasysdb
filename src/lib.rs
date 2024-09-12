@@ -2,6 +2,8 @@
 #![warn(missing_debug_implementations)]
 #![doc = include_str!("../readme.md")]
 
+/// Module for machine learning algorithms.
+pub mod ml;
 /// Module for coordinator and data node server implementations.
 pub mod nodes;
 /// Module for PostgreSQL database utilities.
