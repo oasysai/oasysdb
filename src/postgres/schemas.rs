@@ -51,6 +51,7 @@ pub trait NodeSchema {
 /// to the coordinator node. By default, the schema name is coordinator.
 ///
 /// The schema contains the following tables:
+/// - states: Storing coordinator node states.
 /// - parameters: Storing node parameters.
 /// - clusters: Storing cluster information.
 /// - connections: Storing data node connections.
@@ -76,7 +77,10 @@ impl NodeSchema for CoordinatorSchema {
 
     async fn create_all_tables(&self, connection: &mut PgConnection) {
         tracing::info!("creating tables for the coordinator node");
+
+        self.create_state_table(connection).await;
         self.create_parameter_table(connection).await;
+
         self.create_cluster_table(connection).await;
         self.create_connection_table(connection).await;
         self.create_subcluster_table(connection).await;
@@ -87,6 +91,11 @@ impl CoordinatorSchema {
     /// Create a new instance of the coordinator schema.
     pub fn new() -> Self {
         Self { schema: "coordinator".into() }
+    }
+
+    /// Return the table name storing the node states.
+    pub fn state_table(&self) -> TableName {
+        format!("{}.states", self.schema()).into_boxed_str()
     }
 
     /// Return the table name storing the node parameters.
@@ -102,6 +111,25 @@ impl CoordinatorSchema {
     /// Return the name of the table storing sub-clusters.
     pub fn subcluster_table(&self) -> TableName {
         format!("{}.subclusters", self.schema()).into_boxed_str()
+    }
+
+    /// Create a table to store node states.
+    ///
+    /// Columns:
+    /// - initialized: Whether the node is initialized.
+    pub async fn create_state_table(&self, connection: &mut PgConnection) {
+        let table = self.state_table();
+        sqlx::query(&format!(
+            "CREATE TABLE IF NOT EXISTS {table} (
+                singleton BOOLEAN PRIMARY KEY DEFAULT true,
+                initialized BOOLEAN NOT NULL,
+
+                CONSTRAINT single_row CHECK (singleton)
+            )"
+        ))
+        .execute(connection)
+        .await
+        .expect("Failed to create the state table");
     }
 
     /// Create a table to store node parameters.

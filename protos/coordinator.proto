@@ -6,6 +6,7 @@ import "google/protobuf/empty.proto";
 service CoordinatorNode {
     rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
     rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+    rpc Initialize(InitializeRequest) returns (google.protobuf.Empty);
 }
 
 // Section: RegisterNode
@@ -19,6 +20,12 @@ service CoordinatorNode {
         Metric metric = 1;
         int32 dimension = 2;
         int32 density = 3;
+    }
+
+// Section: Initialize
+    message InitializeRequest {
+        repeated Record records = 1;
+        float sampling = 2;
     }
 
 // Shared Types

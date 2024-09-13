@@ -8,6 +8,7 @@ use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 /// which will horizontally extend OasysDB processing capabilities.
 #[derive(Debug)]
 pub struct CoordinatorNode {
+    state: CoordinatorState,
     params: NodeParameters,
     database_url: DatabaseURL,
     schema: CoordinatorSchema,
@@ -32,8 +33,17 @@ impl CoordinatorNode {
         .await
         .expect("Configure the coordinator node first");
 
+        let state_table = schema.state_table();
+        let state: CoordinatorState = sqlx::query_as(&format!(
+            "SELECT initialized
+            FROM {state_table}"
+        ))
+        .fetch_one(&mut connection)
+        .await
+        .unwrap();
+
         params.trace();
-        Self { params, database_url, schema }
+        Self { state, params, database_url, schema }
     }
 
     /// Configure the coordinator node with parameters.
@@ -54,7 +64,7 @@ impl CoordinatorNode {
         schema.create_schema(&mut conn).await;
         schema.create_all_tables(&mut conn).await;
 
-        tracing::info!("database is provisioned for coordinator node");
+        tracing::info!("the database is provisioned for the coordinator");
 
         let parameter_table = schema.parameter_table();
         sqlx::query(&format!(
@@ -68,7 +78,24 @@ impl CoordinatorNode {
         .bind(params.density as i32)
         .execute(&mut conn)
         .await
-        .expect("Failed to configure the coordinator node");
+        .expect("Failed to configure the node parameters");
+
+        let state_table = schema.state_table();
+        sqlx::query(&format!(
+            "INSERT INTO {state_table} (initialized)
+            VALUES ($1)
+            ON CONFLICT (singleton)
+            DO UPDATE SET initialized = $1"
+        ))
+        .bind(false)
+        .execute(&mut conn)
+        .await
+        .expect("Failed to configure the coordinator state");
+    }
+
+    /// Return the state of the coordinator node.
+    pub fn state(&self) -> &CoordinatorState {
+        &self.state
     }
 
     /// Return the parameters of the coordinator node.
@@ -120,6 +147,13 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         tracing::info!("data node \"{}\" has joined the cluster", &node.name);
         Ok(Response::new(self.params().to_owned().into()))
     }
+
+    async fn initialize(
+        &self,
+        _request: Request<protos::InitializeRequest>,
+    ) -> ServerResult<()> {
+        unimplemented!();
+    }
 }
 
 #[cfg(test)]
@@ -139,7 +173,8 @@ mod tests {
         let coordinator = coordinator_node_mock_server().await;
         let request = Request::new(protos::RegisterNodeRequest {
             name: "c12eb363".to_string(),
-            address: "0.0.0.0:2510".to_string(),
+            host: "0.0.0.0".to_string(),
+            port: 2510,
         });
 
         let response = coordinator.register_node(request).await.unwrap();
@@ -156,7 +191,7 @@ mod tests {
         CoordinatorNode::configure(db.to_owned(), params).await;
 
         let coordinator = CoordinatorNode::new(db).await;
-        test_utils::assert_table_count(&mut conn, COORDINATOR_SCHEMA, 4).await;
+        test_utils::assert_table_count(&mut conn, COORDINATOR_SCHEMA, 5).await;
 
         Arc::new(coordinator)
     }

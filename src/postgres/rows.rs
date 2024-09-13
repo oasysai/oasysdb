@@ -12,6 +12,15 @@ use uuid::Uuid;
 
 type NodeName = Box<str>;
 
+/// Coordinator node state object.
+///
+/// Fields:
+/// - initialized: Whether the node index is initialized.
+#[derive(Debug, Clone, FromRow)]
+pub struct CoordinatorState {
+    pub initialized: bool,
+}
+
 /// Node's index parameters.
 ///
 /// Fields:
