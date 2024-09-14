@@ -7,17 +7,17 @@ use super::*;
 #[async_trait]
 pub trait NodeSchema {
     /// Return the schema name of the node.
-    fn schema(&self) -> SchemaName;
+    fn name(&self) -> SchemaName;
 
     /// Return the table name storing cluster data.
     fn cluster_table(&self) -> TableName {
-        format!("{}.clusters", self.schema()).into_boxed_str()
+        format!("{}.clusters", self.name()).into_boxed_str()
     }
 
     /// Create a new schema belonging to a node in the database.
-    async fn create_schema(&self, connection: &mut PgConnection) {
-        tracing::info!("creating a database schema: {}", self.schema());
-        sqlx::query(&format!("CREATE SCHEMA IF NOT EXISTS {}", self.schema()))
+    async fn create(&self, connection: &mut PgConnection) {
+        tracing::info!("creating a database schema: {}", self.name());
+        sqlx::query(&format!("CREATE SCHEMA IF NOT EXISTS {}", self.name()))
             .execute(connection)
             .await
             .expect("Failed to create the schema");
@@ -43,6 +43,20 @@ pub trait NodeSchema {
         .await
         .expect("Failed to create cluster table");
     }
+
+    /// Return true if the schema exists in the database.
+    async fn exists(&self, connection: &mut PgConnection) -> bool {
+        let schema_name = self.name();
+        let row = sqlx::query(&format!(
+            "SELECT schema_name FROM information_schema.schemata
+            WHERE schema_name = '{schema_name}'"
+        ))
+        .fetch_optional(connection)
+        .await
+        .expect("Failed to check if schema exists");
+
+        row.is_some()
+    }
 }
 
 /// Database schema for a coordinator node.
@@ -60,7 +74,7 @@ pub trait NodeSchema {
 /// P.S. Sub-clusters are clusters from the data nodes.
 #[derive(Debug)]
 pub struct CoordinatorSchema {
-    schema: SchemaName,
+    name: SchemaName,
 }
 
 impl Default for CoordinatorSchema {
@@ -71,8 +85,8 @@ impl Default for CoordinatorSchema {
 
 #[async_trait]
 impl NodeSchema for CoordinatorSchema {
-    fn schema(&self) -> SchemaName {
-        self.schema.to_owned()
+    fn name(&self) -> SchemaName {
+        self.name.to_owned()
     }
 
     async fn create_all_tables(&self, connection: &mut PgConnection) {
@@ -90,27 +104,27 @@ impl NodeSchema for CoordinatorSchema {
 impl CoordinatorSchema {
     /// Create a new instance of the coordinator schema.
     pub fn new() -> Self {
-        Self { schema: "coordinator".into() }
+        Self { name: "odb_coordinator".into() }
     }
 
     /// Return the table name storing the node states.
     pub fn state_table(&self) -> TableName {
-        format!("{}.states", self.schema()).into_boxed_str()
+        format!("{}.states", self.name()).into_boxed_str()
     }
 
     /// Return the table name storing the node parameters.
     pub fn parameter_table(&self) -> TableName {
-        format!("{}.parameters", self.schema()).into_boxed_str()
+        format!("{}.parameters", self.name()).into_boxed_str()
     }
 
     /// Return the name of the table storing data node connections.
     pub fn connection_table(&self) -> TableName {
-        format!("{}.connections", self.schema()).into_boxed_str()
+        format!("{}.connections", self.name()).into_boxed_str()
     }
 
     /// Return the name of the table storing sub-clusters.
     pub fn subcluster_table(&self) -> TableName {
-        format!("{}.subclusters", self.schema()).into_boxed_str()
+        format!("{}.subclusters", self.name()).into_boxed_str()
     }
 
     /// Create a table to store node states.
@@ -218,13 +232,13 @@ impl CoordinatorSchema {
 /// - records: Storing vector records.
 #[derive(Debug)]
 pub struct DataSchema {
-    schema: SchemaName, // Full schema name of data node: data_{node_name}
+    name: SchemaName, // Full schema name of data node: odb_node_{node_name}
 }
 
 #[async_trait]
 impl NodeSchema for DataSchema {
-    fn schema(&self) -> SchemaName {
-        self.schema.to_owned()
+    fn name(&self) -> SchemaName {
+        self.name.to_owned()
     }
 
     async fn create_all_tables(&self, connection: &mut PgConnection) {
@@ -237,13 +251,13 @@ impl NodeSchema for DataSchema {
 impl DataSchema {
     /// Create a new data schema based on the node name.
     pub fn new(node: impl Into<SchemaName>) -> Self {
-        let schema = format!("data_{}", node.into()).into_boxed_str();
-        Self { schema }
+        let name = format!("odb_node_{}", node.into()).into_boxed_str();
+        Self { name }
     }
 
     /// Return the name of the table storing vector records.
     pub fn record_table(&self) -> TableName {
-        format!("{}.records", self.schema()).into_boxed_str()
+        format!("{}.records", self.name()).into_boxed_str()
     }
 
     /// Create a table to store vector records.

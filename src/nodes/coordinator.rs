@@ -62,10 +62,11 @@ impl CoordinatorNode {
             .expect("Failed to connect to Postgres database");
 
         let schema = CoordinatorSchema::new();
-        schema.create_schema(&mut conn).await;
-        schema.create_all_tables(&mut conn).await;
-
-        tracing::info!("the database is provisioned for the coordinator");
+        if !schema.exists(&mut conn).await {
+            schema.create(&mut conn).await;
+            schema.create_all_tables(&mut conn).await;
+            tracing::info!("the database is provisioned for the coordinator");
+        }
 
         let parameter_table = schema.parameter_table();
         sqlx::query(&format!(
@@ -92,6 +93,8 @@ impl CoordinatorNode {
         .execute(&mut conn)
         .await
         .expect("Failed to configure the coordinator state");
+
+        tracing::info!("the coordinator node is configured successfully");
     }
 
     /// Return the parameters of the coordinator node.
@@ -265,7 +268,7 @@ mod tests {
     use super::*;
     use crate::postgres::test_utils;
 
-    const COORDINATOR_SCHEMA: &str = "coordinator";
+    const COORDINATOR_SCHEMA: &str = "odb_coordinator";
 
     #[tokio::test]
     async fn test_coordinator_node_new() {

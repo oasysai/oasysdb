@@ -39,10 +39,11 @@ impl DataNode {
             .expect("Failed to connect to Postgres database");
 
         let schema = DataSchema::new(name.as_ref());
-        schema.create_schema(&mut connection).await;
-        schema.create_all_tables(&mut connection).await;
-
-        tracing::info!("database is provisioned for data node: {name}");
+        if !schema.exists(&mut connection).await {
+            schema.create(&mut connection).await;
+            schema.create_all_tables(&mut connection).await;
+            tracing::info!("database is provisioned for data node: {name}");
+        }
 
         Self { name, params, database_url, schema }
     }
@@ -81,7 +82,7 @@ mod tests {
     use super::*;
     use crate::postgres::test_utils;
 
-    const DATA_SCHEMA: &str = "data_";
+    const DATA_SCHEMA: &str = "odb_node_";
 
     #[tokio::test]
     async fn test_data_node_new() {
