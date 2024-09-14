@@ -123,6 +123,7 @@ impl CoordinatorSchema {
             "CREATE TABLE IF NOT EXISTS {table} (
                 singleton BOOLEAN PRIMARY KEY DEFAULT true,
                 initialized BOOLEAN NOT NULL,
+                node_count INTEGER NOT NULL DEFAULT 0,
 
                 CONSTRAINT single_row CHECK (singleton)
             )"

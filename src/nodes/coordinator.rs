@@ -1,5 +1,6 @@
 use super::*;
 use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
+use tokio::sync::Mutex;
 
 /// Coordinator node definition.
 ///
@@ -8,7 +9,7 @@ use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 /// which will horizontally extend OasysDB processing capabilities.
 #[derive(Debug)]
 pub struct CoordinatorNode {
-    state: CoordinatorState,
+    state: Mutex<CoordinatorState>,
     params: NodeParameters,
     database_url: DatabaseURL,
     schema: CoordinatorSchema,
@@ -35,7 +36,7 @@ impl CoordinatorNode {
 
         let state_table = schema.state_table();
         let state: CoordinatorState = sqlx::query_as(&format!(
-            "SELECT initialized
+            "SELECT initialized, node_count
             FROM {state_table}"
         ))
         .fetch_one(&mut connection)
@@ -43,7 +44,7 @@ impl CoordinatorNode {
         .unwrap();
 
         params.trace();
-        Self { state, params, database_url, schema }
+        Self { state: state.into(), params, database_url, schema }
     }
 
     /// Configure the coordinator node with parameters.
@@ -93,11 +94,6 @@ impl CoordinatorNode {
         .expect("Failed to configure the coordinator state");
     }
 
-    /// Return the state of the coordinator node.
-    pub fn state(&self) -> &CoordinatorState {
-        &self.state
-    }
-
     /// Return the parameters of the coordinator node.
     pub fn params(&self) -> &NodeParameters {
         &self.params
@@ -132,6 +128,9 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             return Err(Status::invalid_argument("Invalid node address"));
         }
 
+        // TODO: If the cluster is initialized and the node is a new node,
+        // transfer some subcluster and records to the new node.
+
         let connection_table = self.schema.connection_table();
         sqlx::query(&format!(
             "INSERT INTO {connection_table} (name, address)
@@ -144,15 +143,58 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         .await
         .map_err(|_| Status::internal("Failed to register node"))?;
 
+        let state_table = self.schema.state_table();
+        sqlx::query(&format!(
+            "UPDATE {state_table}
+            SET node_count = node_count + 1"
+        ))
+        .execute(&mut conn)
+        .await
+        .map_err(|_| Status::internal("Failed to update node count"))?;
+
         tracing::info!("data node \"{}\" has joined the cluster", &node.name);
         Ok(Response::new(self.params().to_owned().into()))
     }
 
     async fn initialize(
         &self,
-        _request: Request<protos::InitializeRequest>,
+        request: Request<protos::InitializeRequest>,
     ) -> ServerResult<()> {
-        unimplemented!();
+        let mut state = self.state.lock().await;
+        if state.initialized {
+            let message = "The coordinator node is already initialized";
+            return Err(Status::failed_precondition(message));
+        }
+
+        let request = request.into_inner();
+        let protos::InitializeRequest { records, sampling } = request;
+
+        if sampling <= 0.0 || sampling > 1.0 {
+            let message = "Sampling rate must be in the range of 0 and 1";
+            return Err(Status::invalid_argument(message));
+        }
+
+        let min_samples = self.params().density * 8 * state.node_count;
+        let sample_size = (records.len() as f32 * sampling).round() as usize;
+        if sample_size < min_samples {
+            let message = format!("The minimum sample size is {min_samples}");
+            return Err(Status::invalid_argument(message));
+        }
+
+        let mut conn = self.connect().await?;
+
+        let state_table = self.schema.state_table();
+        sqlx::query(&format!(
+            "UPDATE {state_table}
+            SET initialized = $1"
+        ))
+        .bind(true)
+        .execute(&mut conn)
+        .await
+        .map_err(|_| Status::internal("Failed to update the state"))?;
+
+        state.initialized = true;
+        Ok(Response::new(()))
     }
 }
 
