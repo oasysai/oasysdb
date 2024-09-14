@@ -121,38 +121,35 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         &self,
         request: Request<protos::RegisterNodeRequest>,
     ) -> ServerResult<protos::RegisterNodeResponse> {
-        let mut conn = self.connect().await?;
         let node = request.into_inner();
         let address = format!("{}:{}", &node.host, &node.port);
         if address.parse::<SocketAddr>().is_err() {
             return Err(Status::invalid_argument("Invalid node address"));
         }
 
-        // TODO: If the cluster is initialized and the node is a new node,
-        // transfer some subcluster and records to the new node.
-
+        let mut conn = self.connect().await?;
         let connection_table = self.schema.connection_table();
-        sqlx::query(&format!(
-            "INSERT INTO {connection_table} (name, address)
-            VALUES ($1, $2)
-            ON CONFLICT (name) DO UPDATE SET address = $2"
+        let existing_node: Option<NodeConnection> = sqlx::query_as(&format!(
+            "SELECT name, address
+            FROM {connection_table}
+            WHERE name = $1"
         ))
         .bind(&node.name)
-        .bind(&address)
-        .execute(&mut conn)
+        .fetch_optional(&mut conn)
         .await
-        .map_err(|_| Status::internal("Failed to register node"))?;
+        .map_err(|_| Status::internal("Failed to retrieve a node detail"))?;
 
-        let state_table = self.schema.state_table();
-        sqlx::query(&format!(
-            "UPDATE {state_table}
-            SET node_count = node_count + 1"
-        ))
-        .execute(&mut conn)
-        .await
-        .map_err(|_| Status::internal("Failed to update node count"))?;
+        match existing_node {
+            Some(_) => self.register_existing_node(&mut conn, &node).await?,
+            None => {
+                self.register_new_node(&mut conn, &node).await?;
+                self.increment_node_count(&mut conn).await?
 
-        tracing::info!("data node \"{}\" has joined the cluster", &node.name);
+                // TODO: If the cluster is initialized transfer some subcluster
+                // and records to the new node to balance the load.
+            }
+        };
+
         Ok(Response::new(self.params().to_owned().into()))
     }
 
@@ -195,6 +192,71 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
 
         state.initialized = true;
         Ok(Response::new(()))
+    }
+}
+
+impl CoordinatorNode {
+    async fn increment_node_count(
+        &self,
+        conn: &mut PgConnection,
+    ) -> Result<(), Status> {
+        let state_table = self.schema.state_table();
+        sqlx::query(&format!(
+            "UPDATE {state_table}
+            SET node_count = node_count + 1"
+        ))
+        .execute(conn)
+        .await
+        .map_err(|_| Status::internal("Failed to update node count"))?;
+
+        let mut state = self.state.lock().await;
+        state.node_count += 1;
+        Ok(())
+    }
+
+    async fn register_existing_node(
+        &self,
+        conn: &mut PgConnection,
+        node: &protos::RegisterNodeRequest,
+    ) -> Result<(), Status> {
+        let connection_table = self.schema.connection_table();
+        let address = format!("{}:{}", &node.host, &node.port);
+
+        sqlx::query(&format!(
+            "UPDATE {connection_table}
+            SET address = $1
+            WHERE name = $2"
+        ))
+        .bind(&address)
+        .bind(&node.name)
+        .execute(conn)
+        .await
+        .map_err(|_| Status::internal("Failed to update existing node"))?;
+
+        tracing::info!("data node \"{}\" rejoins the cluster", &node.name);
+        Ok(())
+    }
+
+    async fn register_new_node(
+        &self,
+        conn: &mut PgConnection,
+        node: &protos::RegisterNodeRequest,
+    ) -> Result<(), Status> {
+        let connection_table = self.schema.connection_table();
+        let address = format!("{}:{}", &node.host, &node.port);
+
+        sqlx::query(&format!(
+            "INSERT INTO {connection_table} (name, address)
+            VALUES ($1, $2)"
+        ))
+        .bind(&node.name)
+        .bind(&address)
+        .execute(conn)
+        .await
+        .map_err(|_| Status::internal("Failed to register new node"))?;
+
+        tracing::info!("registered a new data node: {}", &node.name);
+        Ok(())
     }
 }
 
