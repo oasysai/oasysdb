@@ -12,18 +12,6 @@ use uuid::Uuid;
 
 type NodeName = Box<str>;
 
-/// Coordinator node state object.
-///
-/// Fields:
-/// - initialized: Whether the node index is initialized.
-/// - node_count: Number of data nodes in the cluster.
-#[derive(Debug, Clone, FromRow)]
-pub struct CoordinatorState {
-    pub initialized: bool,
-    #[sqlx(try_from = "i32")]
-    pub node_count: usize,
-}
-
 /// Node's index parameters.
 ///
 /// Fields:

@@ -1,6 +1,5 @@
 use super::*;
 use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
-use tokio::sync::Mutex;
 
 /// Coordinator node definition.
 ///
@@ -9,7 +8,6 @@ use tokio::sync::Mutex;
 /// which will horizontally extend OasysDB processing capabilities.
 #[derive(Debug)]
 pub struct CoordinatorNode {
-    state: Mutex<CoordinatorState>,
     params: NodeParameters,
     database_url: DatabaseURL,
     schema: CoordinatorSchema,
@@ -34,17 +32,8 @@ impl CoordinatorNode {
         .await
         .expect("Configure the coordinator node first");
 
-        let state_table = schema.state_table();
-        let state: CoordinatorState = sqlx::query_as(&format!(
-            "SELECT initialized, node_count
-            FROM {state_table}"
-        ))
-        .fetch_one(&mut connection)
-        .await
-        .unwrap();
-
         params.trace();
-        Self { state: state.into(), params, database_url, schema }
+        Self {  params, database_url, schema }
     }
 
     /// Configure the coordinator node with parameters.
@@ -81,18 +70,6 @@ impl CoordinatorNode {
         .execute(&mut conn)
         .await
         .expect("Failed to configure the node parameters");
-
-        let state_table = schema.state_table();
-        sqlx::query(&format!(
-            "INSERT INTO {state_table} (initialized)
-            VALUES ($1)
-            ON CONFLICT (singleton)
-            DO UPDATE SET initialized = $1"
-        ))
-        .bind(false)
-        .execute(&mut conn)
-        .await
-        .expect("Failed to configure the coordinator state");
 
         tracing::info!("the coordinator node is configured successfully");
     }
@@ -147,7 +124,6 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             Some(_) => self.register_existing_node(&mut conn, &node).await?,
             None => {
                 self.register_new_node(&mut conn, &node).await?;
-                self.increment_node_count(&mut conn).await?
 
                 // TODO: If the cluster is initialized transfer some subcluster
                 // and records to the new node to balance the load.
@@ -159,24 +135,6 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
 }
 
 impl CoordinatorNode {
-    async fn increment_node_count(
-        &self,
-        conn: &mut PgConnection,
-    ) -> Result<(), Status> {
-        let state_table = self.schema.state_table();
-        sqlx::query(&format!(
-            "UPDATE {state_table}
-            SET node_count = node_count + 1"
-        ))
-        .execute(conn)
-        .await
-        .map_err(|_| Status::internal("Failed to update node count"))?;
-
-        let mut state = self.state.lock().await;
-        state.node_count += 1;
-        Ok(())
-    }
-
     async fn register_existing_node(
         &self,
         conn: &mut PgConnection,

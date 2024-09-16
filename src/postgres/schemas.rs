@@ -31,12 +31,14 @@ pub trait NodeSchema {
     /// Columns:
     /// - id: Cluster ID.
     /// - centroid: Centroid vector of the cluster.
+    /// - count: Records in the cluster.
     async fn create_cluster_table(&self, connection: &mut PgConnection) {
         let table = self.cluster_table();
         sqlx::query(&format!(
             "CREATE TABLE IF NOT EXISTS {table} (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                centroid BYTEA NOT NULL
+                centroid BYTEA NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0
             )"
         ))
         .execute(connection)
@@ -65,7 +67,6 @@ pub trait NodeSchema {
 /// to the coordinator node. By default, the schema name is coordinator.
 ///
 /// The schema contains the following tables:
-/// - states: Storing coordinator node states.
 /// - parameters: Storing node parameters.
 /// - clusters: Storing cluster information.
 /// - connections: Storing data node connections.
@@ -91,10 +92,7 @@ impl NodeSchema for CoordinatorSchema {
 
     async fn create_all_tables(&self, connection: &mut PgConnection) {
         tracing::info!("creating tables for the coordinator node");
-
-        self.create_state_table(connection).await;
         self.create_parameter_table(connection).await;
-
         self.create_cluster_table(connection).await;
         self.create_connection_table(connection).await;
         self.create_subcluster_table(connection).await;
@@ -105,11 +103,6 @@ impl CoordinatorSchema {
     /// Create a new instance of the coordinator schema.
     pub fn new() -> Self {
         Self { name: "odb_coordinator".into() }
-    }
-
-    /// Return the table name storing the node states.
-    pub fn state_table(&self) -> TableName {
-        format!("{}.states", self.name()).into_boxed_str()
     }
 
     /// Return the table name storing the node parameters.
@@ -125,26 +118,6 @@ impl CoordinatorSchema {
     /// Return the name of the table storing sub-clusters.
     pub fn subcluster_table(&self) -> TableName {
         format!("{}.subclusters", self.name()).into_boxed_str()
-    }
-
-    /// Create a table to store node states.
-    ///
-    /// Columns:
-    /// - initialized: Whether the node is initialized.
-    pub async fn create_state_table(&self, connection: &mut PgConnection) {
-        let table = self.state_table();
-        sqlx::query(&format!(
-            "CREATE TABLE IF NOT EXISTS {table} (
-                singleton BOOLEAN PRIMARY KEY DEFAULT true,
-                initialized BOOLEAN NOT NULL,
-                node_count INTEGER NOT NULL DEFAULT 0,
-
-                CONSTRAINT single_row CHECK (singleton)
-            )"
-        ))
-        .execute(connection)
-        .await
-        .expect("Failed to create the state table");
     }
 
     /// Create a table to store node parameters.
@@ -183,12 +156,14 @@ impl CoordinatorSchema {
     /// Columns:
     /// - name: Unique name of the data node.
     /// - address: Network address to connect to the data node.
+    /// - count: Number of sub-clusters in the data node.
     pub async fn create_connection_table(&self, connection: &mut PgConnection) {
         let table = self.connection_table();
         sqlx::query(&format!(
             "CREATE TABLE IF NOT EXISTS {table} (
                 name TEXT PRIMARY KEY,
                 address TEXT NOT NULL
+                count INTEGER NOT NULL DEFAULT 0
             )"
         ))
         .execute(connection)
@@ -200,9 +175,10 @@ impl CoordinatorSchema {
     ///
     /// Columns:
     /// - id: Unique ID of the data node cluster.
-    /// - connection_name: Data node name of the sub-cluster.
+    /// - node_name: Data node name of the sub-cluster.
     /// - cluster_id: Cluster ID assigned for the sub-cluster.
     /// - centroid: Centroid vector as a byte array.
+    /// - count: Number of records in the sub-cluster.
     pub async fn create_subcluster_table(&self, connection: &mut PgConnection) {
         let subcluster_table = self.subcluster_table();
         let connection_table = self.connection_table();
@@ -212,9 +188,10 @@ impl CoordinatorSchema {
         sqlx::query(&format!(
             "CREATE TABLE IF NOT EXISTS {subcluster_table} (
                 id UUID PRIMARY KEY,
-                connection_name TEXT NOT NULL REFERENCES {connection_table} (name),
+                node_name TEXT NOT NULL REFERENCES {connection_table} (name),
                 cluster_id UUID NOT NULL REFERENCES {cluster_table} (id),
                 centroid BYTEA NOT NULL
+                count INTEGER NOT NULL DEFAULT 0
             )"
         ))
         .execute(connection)
