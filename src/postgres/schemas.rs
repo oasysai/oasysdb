@@ -208,6 +208,7 @@ impl CoordinatorSchema {
         let connection_table = self.connection_table();
         let cluster_table = self.cluster_table();
 
+        // The ID maps to the cluster ID in the data node.
         sqlx::query(&format!(
             "CREATE TABLE IF NOT EXISTS {subcluster_table} (
                 id UUID PRIMARY KEY,

@@ -117,6 +117,7 @@ impl NodeExt for CoordinatorNode {
 #[async_trait]
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
     async fn heartbeat(&self, _request: Request<()>) -> ServerResult<()> {
+        // TODO: Check the heartbeat of all the data nodes in the cluster.
         Ok(Response::new(()))
     }
 
@@ -154,47 +155,6 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         };
 
         Ok(Response::new(self.params().to_owned().into()))
-    }
-
-    async fn initialize(
-        &self,
-        request: Request<protos::InitializeRequest>,
-    ) -> ServerResult<()> {
-        let mut state = self.state.lock().await;
-        if state.initialized {
-            let message = "The coordinator node is already initialized";
-            return Err(Status::failed_precondition(message));
-        }
-
-        let request = request.into_inner();
-        let protos::InitializeRequest { records, sampling } = request;
-
-        if sampling <= 0.0 || sampling > 1.0 {
-            let message = "Sampling rate must be in the range of 0 and 1";
-            return Err(Status::invalid_argument(message));
-        }
-
-        let min_samples = self.params().density * 8 * state.node_count;
-        let sample_size = (records.len() as f32 * sampling).round() as usize;
-        if sample_size < min_samples {
-            let message = format!("The minimum sample size is {min_samples}");
-            return Err(Status::invalid_argument(message));
-        }
-
-        let mut conn = self.connect().await?;
-
-        let state_table = self.schema.state_table();
-        sqlx::query(&format!(
-            "UPDATE {state_table}
-            SET initialized = $1"
-        ))
-        .bind(true)
-        .execute(&mut conn)
-        .await
-        .map_err(|_| Status::internal("Failed to update the state"))?;
-
-        state.initialized = true;
-        Ok(Response::new(()))
     }
 }
 
