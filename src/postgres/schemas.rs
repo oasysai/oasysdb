@@ -162,7 +162,7 @@ impl CoordinatorSchema {
         sqlx::query(&format!(
             "CREATE TABLE IF NOT EXISTS {table} (
                 name TEXT PRIMARY KEY,
-                address TEXT NOT NULL
+                address TEXT NOT NULL,
                 count INTEGER NOT NULL DEFAULT 0
             )"
         ))
@@ -190,7 +190,7 @@ impl CoordinatorSchema {
                 id UUID PRIMARY KEY,
                 node_name TEXT NOT NULL REFERENCES {connection_table} (name),
                 cluster_id UUID NOT NULL REFERENCES {cluster_table} (id),
-                centroid BYTEA NOT NULL
+                centroid BYTEA NOT NULL,
                 count INTEGER NOT NULL DEFAULT 0
             )"
         ))

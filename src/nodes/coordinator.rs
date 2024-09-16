@@ -216,7 +216,7 @@ mod tests {
         CoordinatorNode::configure(db.to_owned(), params).await;
 
         let coordinator = CoordinatorNode::new(db).await;
-        test_utils::assert_table_count(&mut conn, COORDINATOR_SCHEMA, 5).await;
+        test_utils::assert_table_count(&mut conn, COORDINATOR_SCHEMA, 4).await;
 
         Arc::new(coordinator)
     }
