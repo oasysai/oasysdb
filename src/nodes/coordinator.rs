@@ -33,7 +33,7 @@ impl CoordinatorNode {
         .expect("Configure the coordinator node first");
 
         params.trace();
-        Self {  params, database_url, schema }
+        Self { params, database_url, schema }
     }
 
     /// Configure the coordinator node with parameters.
@@ -93,16 +93,27 @@ impl NodeExt for CoordinatorNode {
 
 #[async_trait]
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
-    async fn heartbeat(&self, _request: Request<()>) -> ServerResult<()> {
+    async fn healthcheck(
+        &self,
+        _request: Request<protos::HealthcheckRequest>,
+    ) -> ServerResult<protos::HealthcheckResponse> {
         // TODO: Check the heartbeat of all the data nodes in the cluster.
-        Ok(Response::new(()))
+        Ok(Response::new(protos::HealthcheckResponse {}))
     }
 
     async fn register_node(
         &self,
         request: Request<protos::RegisterNodeRequest>,
     ) -> ServerResult<protos::RegisterNodeResponse> {
-        let node = request.into_inner();
+        let connection = request.into_inner().connection;
+        let node = match connection {
+            Some(node) => node,
+            None => {
+                let message = "Node connection is required to register a node";
+                return Err(Status::invalid_argument(message));
+            }
+        };
+
         let address = format!("{}:{}", &node.host, &node.port);
         if address.parse::<SocketAddr>().is_err() {
             return Err(Status::invalid_argument("Invalid node address"));
@@ -130,7 +141,9 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             }
         };
 
-        Ok(Response::new(self.params().to_owned().into()))
+        Ok(Response::new(protos::RegisterNodeResponse {
+            parameters: Some(self.params().to_owned().into()),
+        }))
     }
 }
 
@@ -138,7 +151,7 @@ impl CoordinatorNode {
     async fn register_existing_node(
         &self,
         conn: &mut PgConnection,
-        node: &protos::RegisterNodeRequest,
+        node: &protos::NodeConnection,
     ) -> Result<(), Status> {
         let connection_table = self.schema.connection_table();
         let address = format!("{}:{}", &node.host, &node.port);
@@ -161,17 +174,17 @@ impl CoordinatorNode {
     async fn register_new_node(
         &self,
         conn: &mut PgConnection,
-        node: &protos::RegisterNodeRequest,
+        node: &protos::NodeConnection,
     ) -> Result<(), Status> {
         let connection_table = self.schema.connection_table();
-        let address = format!("{}:{}", &node.host, &node.port);
+        let address = format!("{}:{}", node.host, node.port);
 
         sqlx::query(&format!(
             "INSERT INTO {connection_table} (name, address)
             VALUES ($1, $2)"
         ))
         .bind(&node.name)
-        .bind(&address)
+        .bind(address)
         .execute(conn)
         .await
         .map_err(|_| Status::internal("Failed to register new node"))?;
@@ -197,13 +210,15 @@ mod tests {
     async fn test_coordinator_node_register_node() {
         let coordinator = coordinator_node_mock_server().await;
         let request = Request::new(protos::RegisterNodeRequest {
-            name: "c12eb363".to_string(),
-            host: "0.0.0.0".to_string(),
-            port: 2510,
+            connection: Some(protos::NodeConnection {
+                name: "c12eb363".to_string(),
+                host: "0.0.0.0".to_string(),
+                port: 2510,
+            }),
         });
 
         let response = coordinator.register_node(request).await.unwrap();
-        let params = response.into_inner();
+        let params = response.into_inner().parameters.unwrap();
         assert_eq!(params.dimension, 768);
     }
 

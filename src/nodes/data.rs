@@ -72,8 +72,11 @@ impl NodeExt for DataNode {
 
 #[async_trait]
 impl ProtoDataNode for Arc<DataNode> {
-    async fn heartbeat(&self, _request: Request<()>) -> ServerResult<()> {
-        Ok(Response::new(()))
+    async fn heartbeat(
+        &self,
+        _request: Request<protos::HeartbeatRequest>,
+    ) -> ServerResult<protos::HeartbeatResponse> {
+        Ok(Response::new(protos::HeartbeatResponse {}))
     }
 }
 

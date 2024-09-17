@@ -37,8 +37,8 @@ impl NodeParameters {
     }
 }
 
-impl From<protos::RegisterNodeResponse> for NodeParameters {
-    fn from(value: protos::RegisterNodeResponse) -> Self {
+impl From<protos::NodeParameters> for NodeParameters {
+    fn from(value: protos::NodeParameters) -> Self {
         Self {
             metric: value.metric().into(),
             dimension: value.dimension as usize,
@@ -47,7 +47,7 @@ impl From<protos::RegisterNodeResponse> for NodeParameters {
     }
 }
 
-impl From<NodeParameters> for protos::RegisterNodeResponse {
+impl From<NodeParameters> for protos::NodeParameters {
     fn from(value: NodeParameters) -> Self {
         let metric = match value.metric {
             Metric::Cosine => protos::Metric::Cosine,

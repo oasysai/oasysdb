@@ -4,7 +4,7 @@ use oasysdb::postgres::NodeParameters;
 use oasysdb::protos::coordinator_node_client::CoordinatorNodeClient;
 use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
 use oasysdb::protos::data_node_server::DataNodeServer;
-use oasysdb::protos::RegisterNodeRequest;
+use oasysdb::protos::{NodeConnection, RegisterNodeRequest};
 use reqwest::get;
 use std::env;
 use std::future::Future;
@@ -94,9 +94,11 @@ async fn data_join_handler(args: &ArgMatches) {
         .unwrap();
 
     let request = Request::new(RegisterNodeRequest {
-        name: name.to_string(),
-        host,
-        port: *port as i32,
+        connection: Some(NodeConnection {
+            name: name.to_string(),
+            host,
+            port: *port as i32,
+        }),
     });
 
     tracing::info!("joining the coordinator at {coordinator_addr}");
@@ -106,7 +108,12 @@ async fn data_join_handler(args: &ArgMatches) {
         .expect("Failed to connect to coordinator node");
 
     let response = client.register_node(request).await.unwrap();
-    let params = NodeParameters::from(response.into_inner());
+    let params: NodeParameters = response
+        .into_inner()
+        .parameters
+        .expect("Failed to retrieve parameters")
+        .into();
+
     params.trace();
 
     let node = DataNode::new(name, params, database_url).await;
