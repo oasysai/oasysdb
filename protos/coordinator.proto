@@ -1,33 +1,43 @@
 syntax = "proto3";
 package coordinator;
 
-import "google/protobuf/empty.proto";
-
 service CoordinatorNode {
-    rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Healthcheck(HealthcheckRequest) returns (HealthcheckResponse);
     rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
 }
 
-// Section: RegisterNode
-    message RegisterNodeRequest {
-        string name = 1;
-        string host = 2;
-        int32 port = 3;
-    }
+// Section: Healthcheck
+message HealthcheckRequest {}
+message HealthcheckResponse {}
 
-    message RegisterNodeResponse {
-        Metric metric = 1;
-        int32 dimension = 2;
-        int32 density = 3;
-    }
+// Section: RegisterNode
+message RegisterNodeRequest {
+    NodeConnection connection = 1;
+}
+
+message RegisterNodeResponse {
+    NodeParameters parameters = 1;
+}
 
 // Shared Types
-    enum Metric {
-        COSINE = 0;
-        EUCLIDEAN = 1;
-    }
+enum Metric {
+    COSINE = 0;
+    EUCLIDEAN = 1;
+}
 
-    message Record {
-        repeated float vector = 1;
-        string metadata = 2; // JSON string
-    }
+message NodeConnection {
+    string name = 1;
+    string host = 2;
+    int32 port = 3;
+}
+
+message NodeParameters {
+    Metric metric = 1;
+    int32 dimension = 2;
+    int32 density = 3;
+}
+
+message Record {
+    repeated float vector = 1;
+    string metadata = 2;
+}

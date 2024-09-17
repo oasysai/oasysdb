@@ -1,9 +1,10 @@
 syntax = "proto3";
 package data;
 
-import "coordinator.proto";
-import "google/protobuf/empty.proto";
-
 service DataNode {
-    rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 }
+
+// Section: Heartbeat
+message HeartbeatRequest {}
+message HeartbeatResponse {}
