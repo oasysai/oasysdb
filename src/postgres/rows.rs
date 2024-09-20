@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use super::*;
-use crate::protos;
+use crate::protoc;
 use crate::types::Vector;
 use sqlx::postgres::PgRow;
 use sqlx::Error as DatabaseError;
@@ -37,8 +37,8 @@ impl NodeParameters {
     }
 }
 
-impl From<protos::NodeParameters> for NodeParameters {
-    fn from(value: protos::NodeParameters) -> Self {
+impl From<protoc::NodeParameters> for NodeParameters {
+    fn from(value: protoc::NodeParameters) -> Self {
         Self {
             metric: value.metric().into(),
             dimension: value.dimension as usize,
@@ -47,11 +47,11 @@ impl From<protos::NodeParameters> for NodeParameters {
     }
 }
 
-impl From<NodeParameters> for protos::NodeParameters {
+impl From<NodeParameters> for protoc::NodeParameters {
     fn from(value: NodeParameters) -> Self {
         let metric = match value.metric {
-            Metric::Cosine => protos::Metric::Cosine,
-            Metric::Euclidean => protos::Metric::Euclidean,
+            Metric::Cosine => protoc::Metric::Cosine,
+            Metric::Euclidean => protoc::Metric::Euclidean,
         };
 
         Self {

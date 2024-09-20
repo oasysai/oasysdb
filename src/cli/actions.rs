@@ -1,10 +1,10 @@
 use super::*;
 use oasysdb::nodes::{CoordinatorNode, DataNode};
 use oasysdb::postgres::NodeParameters;
-use oasysdb::protos::coordinator_node_client::CoordinatorNodeClient;
-use oasysdb::protos::coordinator_node_server::CoordinatorNodeServer;
-use oasysdb::protos::data_node_server::DataNodeServer;
-use oasysdb::protos::{NodeConnection, RegisterNodeRequest};
+use oasysdb::protoc::coordinator_node_client::CoordinatorNodeClient;
+use oasysdb::protoc::coordinator_node_server::CoordinatorNodeServer;
+use oasysdb::protoc::{NodeConnection, RegisterNodeRequest};
+use oasysdb::protod::data_node_server::DataNodeServer;
 use reqwest::get;
 use std::env;
 use std::future::Future;

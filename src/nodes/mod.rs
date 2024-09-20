@@ -10,7 +10,6 @@ type ServerResult<T> = StandardResult<Response<T>, Status>;
 
 // Import common modules below.
 use crate::postgres::*;
-use crate::protos;
 use sqlx::{Connection, PgConnection};
 use std::net::SocketAddr;
 use std::result::Result as StandardResult;

@@ -1,5 +1,5 @@
 use super::*;
-use crate::protos;
+use crate::protoc;
 use simsimd::SpatialSimilarity;
 
 // Distance name constants.
@@ -61,11 +61,11 @@ impl From<String> for Metric {
     }
 }
 
-impl From<protos::Metric> for Metric {
-    fn from(value: protos::Metric) -> Self {
+impl From<protoc::Metric> for Metric {
+    fn from(value: protoc::Metric) -> Self {
         match value {
-            protos::Metric::Cosine => Metric::Cosine,
-            protos::Metric::Euclidean => Metric::Euclidean,
+            protoc::Metric::Cosine => Metric::Cosine,
+            protoc::Metric::Euclidean => Metric::Euclidean,
         }
     }
 }

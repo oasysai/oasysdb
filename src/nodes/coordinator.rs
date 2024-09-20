@@ -1,5 +1,6 @@
 use super::*;
-use protos::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
+use crate::protoc;
+use protoc::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 
 /// Coordinator node definition.
 ///
@@ -95,16 +96,16 @@ impl NodeExt for CoordinatorNode {
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
     async fn healthcheck(
         &self,
-        _request: Request<protos::HealthcheckRequest>,
-    ) -> ServerResult<protos::HealthcheckResponse> {
+        _request: Request<protoc::HealthcheckRequest>,
+    ) -> ServerResult<protoc::HealthcheckResponse> {
         // TODO: Check the heartbeat of all the data nodes in the cluster.
-        Ok(Response::new(protos::HealthcheckResponse {}))
+        Ok(Response::new(protoc::HealthcheckResponse {}))
     }
 
     async fn register_node(
         &self,
-        request: Request<protos::RegisterNodeRequest>,
-    ) -> ServerResult<protos::RegisterNodeResponse> {
+        request: Request<protoc::RegisterNodeRequest>,
+    ) -> ServerResult<protoc::RegisterNodeResponse> {
         let connection = request.into_inner().connection;
         let node = match connection {
             Some(node) => node,
@@ -141,7 +142,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             }
         };
 
-        Ok(Response::new(protos::RegisterNodeResponse {
+        Ok(Response::new(protoc::RegisterNodeResponse {
             parameters: Some(self.params().to_owned().into()),
         }))
     }
@@ -151,7 +152,7 @@ impl CoordinatorNode {
     async fn register_existing_node(
         &self,
         conn: &mut PgConnection,
-        node: &protos::NodeConnection,
+        node: &protoc::NodeConnection,
     ) -> Result<(), Status> {
         let connection_table = self.schema.connection_table();
         let address = format!("{}:{}", &node.host, &node.port);
@@ -174,7 +175,7 @@ impl CoordinatorNode {
     async fn register_new_node(
         &self,
         conn: &mut PgConnection,
-        node: &protos::NodeConnection,
+        node: &protoc::NodeConnection,
     ) -> Result<(), Status> {
         let connection_table = self.schema.connection_table();
         let address = format!("{}:{}", node.host, node.port);
@@ -209,8 +210,8 @@ mod tests {
     #[tokio::test]
     async fn test_coordinator_node_register_node() {
         let coordinator = coordinator_node_mock_server().await;
-        let request = Request::new(protos::RegisterNodeRequest {
-            connection: Some(protos::NodeConnection {
+        let request = Request::new(protoc::RegisterNodeRequest {
+            connection: Some(protoc::NodeConnection {
                 name: "c12eb363".to_string(),
                 host: "0.0.0.0".to_string(),
                 port: 2510,

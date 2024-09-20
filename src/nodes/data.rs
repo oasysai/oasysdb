@@ -1,5 +1,6 @@
 use super::*;
-use protos::data_node_server::DataNode as ProtoDataNode;
+use crate::protod;
+use protod::data_node_server::DataNode as ProtoDataNode;
 use regex::Regex;
 
 type NodeName = Box<str>;
@@ -74,9 +75,9 @@ impl NodeExt for DataNode {
 impl ProtoDataNode for Arc<DataNode> {
     async fn heartbeat(
         &self,
-        _request: Request<protos::HeartbeatRequest>,
-    ) -> ServerResult<protos::HeartbeatResponse> {
-        Ok(Response::new(protos::HeartbeatResponse {}))
+        _request: Request<protod::HeartbeatRequest>,
+    ) -> ServerResult<protod::HeartbeatResponse> {
+        Ok(Response::new(protod::HeartbeatResponse {}))
     }
 }
 
