@@ -2,13 +2,13 @@ syntax = "proto3";
 package coordinator;
 
 service CoordinatorNode {
-    rpc Healthcheck(HealthcheckRequest) returns (HealthcheckResponse);
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
     rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
 }
 
-// Section: Healthcheck
-message HealthcheckRequest {}
-message HealthcheckResponse {}
+// Section: Heartbeat
+message HeartbeatRequest {}
+message HeartbeatResponse {}
 
 // Section: RegisterNode
 message RegisterNodeRequest {

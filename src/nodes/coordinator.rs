@@ -94,12 +94,12 @@ impl NodeExt for CoordinatorNode {
 
 #[async_trait]
 impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
-    async fn healthcheck(
+    async fn heartbeat(
         &self,
-        _request: Request<protoc::HealthcheckRequest>,
-    ) -> ServerResult<protoc::HealthcheckResponse> {
+        _request: Request<protoc::HeartbeatRequest>,
+    ) -> ServerResult<protoc::HeartbeatResponse> {
         // TODO: Check the heartbeat of all the data nodes in the cluster.
-        Ok(Response::new(protoc::HealthcheckResponse {}))
+        Ok(Response::new(protoc::HeartbeatResponse {}))
     }
 
     async fn register_node(
