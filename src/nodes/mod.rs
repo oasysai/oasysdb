@@ -40,7 +40,7 @@ trait NodeExt {
     }
 
     /// Insert a new cluster into the node's database.
-    async fn insert_cluster(
+    async fn _insert_cluster(
         &self,
         conn: &mut PgConnection,
         centroid: &Vector,

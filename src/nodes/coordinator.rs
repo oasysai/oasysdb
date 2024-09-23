@@ -175,7 +175,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         match cluster {
             Some(_cluster) => {}
             None => {
-                let _cid = self.insert_cluster(&mut conn, &vector).await?;
+                let _cid = self._insert_cluster(&mut conn, &vector).await?;
             }
         }
 
@@ -307,7 +307,7 @@ mod tests {
         for i in 1..11 {
             let centroid = vec![i as f32; dimension];
             let id = coordinator
-                .insert_cluster(&mut conn, &centroid.into())
+                ._insert_cluster(&mut conn, &centroid.into())
                 .await
                 .unwrap();
 
