@@ -78,19 +78,62 @@ impl ProtoDataNode for Arc<DataNode> {
     ) -> ServerResult<protod::HeartbeatResponse> {
         Ok(Response::new(protod::HeartbeatResponse {}))
     }
+
+    async fn insert_cluster(
+        &self,
+        request: Request<protod::InsertClusterRequest>,
+    ) -> ServerResult<protod::InsertClusterResponse> {
+        let request = request.into_inner();
+        let centroid: Vector = request.centroid.into();
+
+        let mut conn = self.connect().await?;
+        let id = self._insert_cluster(&mut conn, &centroid).await?;
+
+        Ok(Response::new(protod::InsertClusterResponse { id: id.to_string() }))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::postgres::test_utils;
+    use sqlx::Row;
 
     const DATA_SCHEMA: &str = "odb_node_";
 
     #[tokio::test]
     async fn test_data_node_new() {
         let node_name = "49babacf";
-        let schema_name = format!("{DATA_SCHEMA}{node_name}");
+        data_node_mock_server(node_name).await;
+    }
+
+    #[tokio::test]
+    async fn test_data_node_insert_cluster() {
+        let node_name = "d4835657";
+        let node = data_node_mock_server(node_name).await;
+
+        let dimension = node.params().dimension;
+        for _ in 0..10 {
+            let centroid = vec![rand::random::<f32>(); dimension];
+            let request = protod::InsertClusterRequest { centroid };
+            node.insert_cluster(Request::new(request)).await.unwrap();
+        }
+
+        let mut conn = node.connect().await.unwrap();
+        let cluster_table = node.schema().cluster_table();
+        let query = format!("SELECT COUNT(*) FROM {cluster_table}");
+        let count = sqlx::query(&query)
+            .fetch_one(&mut conn)
+            .await
+            .unwrap()
+            .get::<i64, _>(0);
+
+        assert_eq!(count, 10);
+    }
+
+    async fn data_node_mock_server(name: impl Into<NodeName>) -> Arc<DataNode> {
+        let name = name.into();
+        let schema_name = format!("{DATA_SCHEMA}{name}");
 
         let params = test_utils::node_parameters();
         let db = test_utils::database_url();
@@ -100,7 +143,9 @@ mod tests {
             .expect("Failed to connect to Postgres database");
 
         test_utils::drop_schema(&mut conn, &schema_name).await;
-        DataNode::new(node_name, params, db).await;
+        let node = DataNode::new(name, params, db).await;
         test_utils::assert_table_count(&mut conn, &schema_name, 2).await;
+
+        Arc::new(node)
     }
 }
