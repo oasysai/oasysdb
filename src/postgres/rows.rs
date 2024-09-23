@@ -94,17 +94,20 @@ impl FromRow<'_, PgRow> for NodeConnection {
 pub struct Cluster {
     pub id: Uuid,
     pub centroid: Vector,
+    pub count: usize,
 }
 
 impl FromRow<'_, PgRow> for Cluster {
     fn from_row(row: &PgRow) -> DatabaseResult<Self> {
         let id = row.try_get("id")?;
+        let count = row.try_get::<i32, _>("count")? as usize;
+
         let centroid = {
             let bytea = row.try_get::<Vec<u8>, _>("centroid")?;
             bincode::deserialize(&bytea)
                 .map_err(|e| sqlx::Error::Decode(Box::new(e)))?
         };
 
-        Ok(Self { id, centroid })
+        Ok(Self { id, centroid, count })
     }
 }
