@@ -4,6 +4,7 @@ package coordinator;
 service CoordinatorNode {
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
     rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+    rpc Insert(InsertRequest) returns (InsertResponse);
 }
 
 // Section: Heartbeat
@@ -17,6 +18,15 @@ message RegisterNodeRequest {
 
 message RegisterNodeResponse {
     NodeParameters parameters = 1;
+}
+
+// Section: Insert
+message InsertRequest {
+    Record record = 1;
+}
+
+message InsertResponse {
+    string id = 1; // Generated UUID
 }
 
 // Shared Types
@@ -39,5 +49,5 @@ message NodeParameters {
 
 message Record {
     repeated float vector = 1;
-    string metadata = 2;
+    string metadata = 2; // JSON-encoded string
 }

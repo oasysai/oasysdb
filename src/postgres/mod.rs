@@ -26,7 +26,7 @@ pub mod test_utils {
     pub fn node_parameters() -> NodeParameters {
         NodeParameters {
             metric: Metric::Euclidean,
-            dimension: 768,
+            dimension: 128,
             density: 256,
         }
     }

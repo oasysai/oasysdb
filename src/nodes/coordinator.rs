@@ -1,5 +1,6 @@
 use super::*;
 use crate::protoc;
+use futures::StreamExt;
 use protoc::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
 
 /// Coordinator node definition.
@@ -79,16 +80,15 @@ impl CoordinatorNode {
     pub fn params(&self) -> &NodeParameters {
         &self.params
     }
-
-    /// Return the schema configuration of the coordinator node.
-    pub fn schema(&self) -> &CoordinatorSchema {
-        &self.schema
-    }
 }
 
 impl NodeExt for CoordinatorNode {
     fn database_url(&self) -> &DatabaseURL {
         &self.database_url
+    }
+
+    fn schema(&self) -> &impl NodeSchema {
+        &self.schema
     }
 }
 
@@ -146,6 +146,41 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             parameters: Some(self.params().to_owned().into()),
         }))
     }
+
+    async fn insert(
+        &self,
+        request: Request<protoc::InsertRequest>,
+    ) -> ServerResult<protoc::InsertResponse> {
+        let request = request.into_inner();
+        let record = match request.record {
+            Some(record) => record,
+            None => {
+                let message = "Record is required to insert into the database";
+                return Err(Status::invalid_argument(message));
+            }
+        };
+
+        if record.vector.len() != self.params.dimension {
+            return Err(Status::invalid_argument(format!(
+                "Vector dimension mismatch, expected {}, found {}",
+                self.params.dimension,
+                record.vector.len()
+            )));
+        }
+
+        let mut conn = self.connect().await?;
+        let vector: Vector = record.vector.into();
+        let cluster = self.find_nearest_cluster(&mut conn, &vector).await?;
+
+        match cluster {
+            Some(_cluster) => {}
+            None => {
+                let _cid = self.insert_cluster(&mut conn, &vector).await?;
+            }
+        }
+
+        Ok(Response::new(protoc::InsertResponse { id: "1".to_string() }))
+    }
 }
 
 impl CoordinatorNode {
@@ -193,6 +228,43 @@ impl CoordinatorNode {
         tracing::info!("registered a new data node: {}", &node.name);
         Ok(())
     }
+
+    async fn find_nearest_cluster(
+        &self,
+        conn: &mut PgConnection,
+        vector: &Vector,
+    ) -> Result<Option<Cluster>, Status> {
+        let cluster_table = self.schema.cluster_table();
+        let query = format!(
+            "SELECT id, centroid, count
+            FROM {cluster_table}"
+        );
+
+        let mut rows = sqlx::query(&query).fetch(conn);
+        let mut nearest_cluster: Option<Cluster> = None;
+        let mut min_distance = f32::MAX;
+
+        while let Some(row) = rows.next().await {
+            let row = row.map_err(|e| {
+                let message = format!("Failed to retrieve cluster: {e}");
+                Status::internal(message)
+            })?;
+
+            let cluster = Cluster::from_row(&row).map_err(|e| {
+                let message = format!("Failed to downcast cluster type: {e}");
+                Status::internal(message)
+            })?;
+
+            let metric = self.params().metric;
+            let distance = metric.distance(vector, &cluster.centroid);
+            if distance < min_distance {
+                min_distance = distance;
+                nearest_cluster = Some(cluster);
+            }
+        }
+
+        Ok(nearest_cluster)
+    }
 }
 
 #[cfg(test)]
@@ -220,7 +292,35 @@ mod tests {
 
         let response = coordinator.register_node(request).await.unwrap();
         let params = response.into_inner().parameters.unwrap();
-        assert_eq!(params.dimension, 768);
+        assert_eq!(params.dimension, 128);
+    }
+
+    #[tokio::test]
+    async fn test_coordinator_node_find_nearest_cluster() {
+        let coordinator = coordinator_node_mock_server().await;
+        let dimension = coordinator.params().dimension;
+
+        let db = test_utils::database_url();
+        let mut conn = PgConnection::connect(&db.to_string()).await.unwrap();
+
+        let mut ids = Vec::new();
+        for i in 1..11 {
+            let centroid = vec![i as f32; dimension];
+            let id = coordinator
+                .insert_cluster(&mut conn, &centroid.into())
+                .await
+                .unwrap();
+
+            ids.push(id);
+        }
+
+        let query = vec![1.0; dimension];
+        let cluster = coordinator
+            .find_nearest_cluster(&mut conn, &query.into())
+            .await
+            .unwrap();
+
+        assert_eq!(cluster.unwrap().id, ids[0]);
     }
 
     async fn coordinator_node_mock_server() -> Arc<CoordinatorNode> {
