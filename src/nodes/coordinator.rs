@@ -123,7 +123,7 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
         let mut conn = self.connect().await?;
         let connection_table = self.schema.connection_table();
         let existing_node: Option<NodeConnection> = sqlx::query_as(&format!(
-            "SELECT name, address
+            "SELECT name, address, count
             FROM {connection_table}
             WHERE name = $1"
         ))

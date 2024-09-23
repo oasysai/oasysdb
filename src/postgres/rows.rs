@@ -67,21 +67,25 @@ impl From<NodeParameters> for protoc::NodeParameters {
 /// Fields:
 /// - name: Unique data node name.
 /// - address: Node's address, IP address and port.
+/// - count: Number of sub-clusters in the node.
 #[derive(Debug)]
 pub struct NodeConnection {
     pub name: NodeName,
     pub address: SocketAddr,
+    pub count: usize,
 }
 
 impl FromRow<'_, PgRow> for NodeConnection {
     fn from_row(row: &PgRow) -> DatabaseResult<Self> {
         let name = row.try_get("name")?;
+        let count = row.try_get::<i32, _>("count")? as usize;
+
         let address = row
             .try_get::<String, _>("address")?
             .parse::<SocketAddr>()
             .map_err(|_| DatabaseError::Decode("node address".into()))?;
 
-        Ok(Self { name, address })
+        Ok(Self { name, address, count })
     }
 }
 
