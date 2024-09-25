@@ -1,7 +1,9 @@
 use super::*;
-use crate::protoc;
+use crate::{protoc, protod};
 use futures::StreamExt;
 use protoc::coordinator_node_server::CoordinatorNode as ProtoCoordinatorNode;
+use protod::data_node_client::DataNodeClient;
+use tonic::transport::Channel;
 
 /// Coordinator node definition.
 ///
@@ -176,6 +178,12 @@ impl ProtoCoordinatorNode for Arc<CoordinatorNode> {
             Some(_cluster) => {}
             None => {
                 let _cid = self._insert_cluster(&mut conn, &vector).await?;
+
+                let node = self.find_smallest_node(&mut conn).await?;
+                let mut client = self.connect_to_node(&node).await?;
+                let _sid = self
+                    .insert_subcluster_into_node(&mut client, &vector)
+                    .await?;
             }
         }
 
@@ -264,6 +272,56 @@ impl CoordinatorNode {
         }
 
         Ok(nearest_cluster)
+    }
+
+    async fn find_smallest_node(
+        &self,
+        conn: &mut PgConnection,
+    ) -> Result<NodeConnection, Status> {
+        let connection_table = self.schema.connection_table();
+        let node: NodeConnection = sqlx::query_as(&format!(
+            "SELECT name, address, count
+            FROM {connection_table}
+            ORDER BY count ASC
+            LIMIT 1"
+        ))
+        .fetch_one(conn)
+        .await
+        .map_err(|_| Status::internal("Failed to retrieve the node"))?;
+
+        Ok(node)
+    }
+
+    async fn connect_to_node(
+        &self,
+        node: &NodeConnection,
+    ) -> Result<DataNodeClient<Channel>, Status> {
+        let url = format!("http://{}", node.address);
+        let client = DataNodeClient::connect(url).await.map_err(|e| {
+            let message = format!("Failed to connect to the data node: {e}");
+            Status::internal(message)
+        })?;
+
+        Ok(client)
+    }
+
+    async fn insert_subcluster_into_node(
+        &self,
+        node: &mut DataNodeClient<Channel>,
+        centroid: &Vector,
+    ) -> Result<Uuid, Status> {
+        let request = Request::new(protod::InsertClusterRequest {
+            centroid: centroid.to_vec(),
+        });
+
+        let response = node.insert_cluster(request).await?;
+        let response = response.into_inner();
+        let id = response
+            .id
+            .parse::<Uuid>()
+            .map_err(|_| Status::internal("Failed to parse sub-cluster ID"))?;
+
+        Ok(id)
     }
 }
 
