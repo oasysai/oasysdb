@@ -12,9 +12,7 @@ edition = { workspace = true }
 authors = ["Edwin Kys"]
 
 [dependencies]
-uuid = { version = "1.10.0", features = ["serde", "v4"] }
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
-futures = "0.3.30"
 clap = "4.5.16"
 
 # gRPC-related dependencies
@@ -40,11 +38,6 @@ rand = "0.8.5"
 async-trait = "0.1.81"
 reqwest = "0.12.7"
 dotenv = "0.15.0"
-
-[dependencies.sqlx]
-version = "0.8.0"
-default-features = false
-features = ["postgres", "runtime-tokio", "macros", "uuid"]
 
 [build-dependencies]
 tonic-build = "0.12"

@@ -47,73 +47,11 @@ We'd love to hear about it!
 
 ## Getting started
 
-OasysDB servers are written in Rust. So, you need to have Rust installed on your
-local machine. If you haven't installed Rust yet, you can install it by
-following the instructions on the [Rust Installation Guide][rustup].
+OasysDB is written in Rust. So, you need to have Rust installed on your local
+machine. If you haven't installed Rust yet, you can install it by following the
+instructions on the [Rust Installation Guide][rustup].
 
-### Development environment
-
-After installing Rust and cloning the repository, We recommend you to set up
-your development environment. Both coordinator and data nodes use Postgres as
-their storage backend and thus, you need to have it running on your local
-machine. The command below makes it easy for you to run Postgres using Docker.
-
-```sh
-# Pull and run Postgres image using Docker.
-make setup-dev
-
-# See available make commands.
-make help
-```
-
-After setting up Postgres, you need to set the environment variables listed in
-the .env.example file either in a separate .env file or in your shell
-environment.
-
-### Running OasysDB
-
-After setting up your development environment, you can run the tests to make
-sure everything is working as expected before you start working on some changes.
-
-```sh
-cargo test
-```
-
-If the tests pass, you can check if the servers will run without any issue by
-using OasysDB CLI to start both the coordinator and data nodes in separate
-terminals.
-
-=== "Terminal 1"
-
-    Before starting the coordinator node, we need to configure the parameters.
-    The command below will setup a Postgres schema for the coordinator along
-    with the provided parameters.
-
-    ```sh
-    # We only need to configure the coordinator once.
-    cargo run coordinator config --dim 1536
-
-    # Check the full list of configuration options.
-    cargo run coordinator config --help
-    ```
-
-    After configuring the coordinator, you can start the coordinator node.
-
-    ```sh
-    cargo run coordinator start
-    ```
-
-=== "Terminal 2"
-
-    Data nodes are responsible for storing and processing the vector records.
-    We don't need to configure the data node because the coordinator shares the
-    necessary parameters with the data nodes. You can start the data node using
-    the command below.
-
-    ```sh
-    # Replace <NAME> with a unique name for the data node.
-    cargo run data join <NAME> 0.0.0.0:2505
-    ```
+TODO: Complete the getting started guide.
 
 ## Style guide
 

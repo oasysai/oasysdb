@@ -1,5 +1,4 @@
 use super::*;
-use crate::protoc;
 use simsimd::SpatialSimilarity;
 
 // Distance name constants.
@@ -24,15 +23,12 @@ pub enum Metric {
 
 impl Metric {
     /// Calculate the distance between two vectors.
-    pub fn distance(&self, a: &Vector, b: &Vector) -> f32 {
+    pub fn distance(&self, a: &Vector, b: &Vector) -> Option<f64> {
         let (a, b) = (a.as_slice(), b.as_slice());
-        let d = match self {
+        match self {
             Metric::Euclidean => f32::sqeuclidean(a, b),
             Metric::Cosine => f32::cosine(a, b),
-        };
-
-        // TODO: Handle non-numerical values like NaN.
-        d.unwrap() as f32
+        }
     }
 
     /// Return the metric name as a string slice.
@@ -61,15 +57,6 @@ impl From<String> for Metric {
     }
 }
 
-impl From<protoc::Metric> for Metric {
-    fn from(value: protoc::Metric) -> Self {
-        match value {
-            protoc::Metric::Cosine => Metric::Cosine,
-            protoc::Metric::Euclidean => Metric::Euclidean,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,8 +66,8 @@ mod tests {
         let a = Vector::from(vec![1.0, 2.0, 3.0]);
         let b = Vector::from(vec![4.0, 5.0, 6.0]);
 
-        let euclidean = Metric::Euclidean.distance(&a, &b);
-        let cosine = Metric::Cosine.distance(&a, &b);
+        let euclidean = Metric::Euclidean.distance(&a, &b).unwrap();
+        let cosine = Metric::Cosine.distance(&a, &b).unwrap();
 
         assert_eq!(euclidean, 27.0);
         assert_eq!(cosine.round(), 0.0);
