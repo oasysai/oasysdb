@@ -6,9 +6,3 @@ import "google/protobuf/empty.proto";
 service Database {
     rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
 }
-
-// Shared Types
-enum Metric {
-    COSINE = 0;
-    EUCLIDEAN = 1;
-}
