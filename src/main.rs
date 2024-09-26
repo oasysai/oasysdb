@@ -1,5 +1,7 @@
+mod types;
+
 use clap::{arg, ArgMatches, Command};
-use oasysdb::types::Metric;
+use types::Metric;
 
 fn main() {
     tracing_subscriber::fmt::init();

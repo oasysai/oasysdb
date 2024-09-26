@@ -12,7 +12,7 @@ Please describe the issue you are experiencing in a few sentences.
 
 ### Error Message
 
-If you received an error message, please paste parts of it here.
+If you received an error message, please paste some parts of it here.
 
 ```txt
 

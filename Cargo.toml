@@ -1,14 +1,7 @@
-[workspace]
-members = []
-
-[workspace.package]
-version = "0.8.0"
-edition = "2021"
-
 [package]
 name = "oasysdb"
-version = { workspace = true }
-edition = { workspace = true }
+version = "0.8.0"
+edition = "2021"
 authors = ["Edwin Kys"]
 
 [dependencies]
@@ -32,11 +25,7 @@ tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 
 # Utility dependencies
-regex = "1.10.6"
-url = "2.5.2"
 rand = "0.8.5"
-async-trait = "0.1.81"
-reqwest = "0.12.7"
 dotenv = "0.15.0"
 
 [build-dependencies]
