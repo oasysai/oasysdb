@@ -50,6 +50,8 @@ async fn start_handler(args: &ArgMatches) {
     let database = Database::open();
     let service = DatabaseServer::new(Arc::new(database));
 
+    tracing::info!("The database server is ready on port {port}");
+
     Server::builder()
         .add_service(service)
         .serve(addr)

@@ -7,6 +7,7 @@ pub use database::*;
 
 // Import common dependencies below.
 use crate::types::Metric;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::OpenOptions;

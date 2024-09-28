@@ -1,7 +1,10 @@
 use super::*;
 use crate::protos::database_server::Database as DatabaseService;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 use tonic::{Request, Response, Status};
+
+const TMP_DIR: &str = "tmp";
+const PARAMS_FILE: &str = "odb_params";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Parameters {
@@ -21,7 +24,7 @@ impl Database {
         let dir = Self::dir();
         let db = Database { dir: dir.clone(), params: *params };
 
-        if db.params_file().exists() {
+        if db.dir.join(PARAMS_FILE).exists() {
             let stdin = std::io::stdin();
             let overwrite = {
                 eprint!("Database is already configured. Overwrite? (y/n): ");
@@ -39,12 +42,16 @@ impl Database {
         }
 
         db.setup_dir().expect("Failed to setup database directory");
-        db.persist_as_binary(db.params_file(), db.params)
+        db.persist_as_binary(db.dir.join(PARAMS_FILE), db.params)
             .expect("Failed to persist the parameters");
     }
 
     pub fn open() -> Self {
-        unimplemented!()
+        let dir = Self::dir();
+        let params = Self::load_binary(dir.join(PARAMS_FILE))
+            .expect("Failed to load the parameters");
+
+        Database { dir, params }
     }
 
     fn dir() -> PathBuf {
@@ -52,10 +59,6 @@ impl Database {
             Ok(dir) => PathBuf::from(dir),
             Err(_) => PathBuf::from("oasysdb"),
         }
-    }
-
-    fn tmp_dir(&self) -> PathBuf {
-        self.dir.join("tmp")
     }
 
     fn setup_dir(&self) -> Result<(), Box<dyn Error>> {
@@ -67,8 +70,12 @@ impl Database {
         Ok(())
     }
 
-    fn params_file(&self) -> PathBuf {
-        self.dir.join("odb_params")
+    fn load_binary<T: DeserializeOwned>(
+        path: impl AsRef<Path>,
+    ) -> Result<T, Box<dyn Error>> {
+        let file = OpenOptions::new().read(true).open(path)?;
+        let reader = BufReader::new(file);
+        Ok(bincode::deserialize_from(reader)?)
     }
 
     fn persist_as_binary<T: Serialize>(
@@ -77,7 +84,7 @@ impl Database {
         data: T,
     ) -> Result<(), Box<dyn Error>> {
         let file_name = path.as_ref().file_name().unwrap();
-        let tmp_file = self.tmp_dir().join(file_name);
+        let tmp_file = self.dir.join(TMP_DIR).join(file_name);
         let file = OpenOptions::new()
             .write(true)
             .create(true)
