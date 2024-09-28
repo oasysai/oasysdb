@@ -1,5 +1,6 @@
 # OasysDB tests.
 odb*
+oasysdb*
 
 # Rust stuff.
 debug

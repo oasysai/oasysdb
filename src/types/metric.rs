@@ -15,7 +15,7 @@ const COSINE: &str = "cosine";
 /// We use cosine distance instead of cosine similarity to be consistent with
 /// other distance metrics where a lower value indicates a closer match.
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Metric {
     Euclidean,
     Cosine,
