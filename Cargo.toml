@@ -6,6 +6,7 @@ authors = ["Edwin Kys"]
 
 [dependencies]
 tokio = { version = "1.39.3", features = ["rt-multi-thread", "macros"] }
+uuid = { version = "1.10.0", features = ["v4", "serde"] }
 clap = "4.5.16"
 
 # gRPC-related dependencies
