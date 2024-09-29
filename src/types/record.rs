@@ -1,7 +1,7 @@
 use super::*;
 use uuid::Uuid;
 
-/// Record Identifier.
+/// Record identifier.
 ///
 /// OasysDB should be able to deal with a lot of writes and deletes. Using UUID
 /// version 4 to allow us to generate a lot of IDs with very low probability

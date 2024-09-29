@@ -47,7 +47,7 @@ async fn start_handler(args: &ArgMatches) {
     let port = args.get_one::<u16>("port").unwrap();
     let addr = format!("[::]:{port}").parse().unwrap();
 
-    let database = Database::open();
+    let database = Database::open().expect("Failed to open the database");
     let service = DatabaseServer::new(Arc::new(database));
 
     tracing::info!("The database server is ready on port {port}");

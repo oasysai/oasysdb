@@ -5,7 +5,15 @@ use tonic::{Request, Response, Status};
 
 const TMP_DIR: &str = "tmp";
 const PARAMS_FILE: &str = "odb_params";
+const STORAGE_FILE: &str = "odb_storage";
+const INDEX_FILE: &str = "odb_index";
 
+/// Database parameters.
+///
+/// Fields:
+/// - dimension: Vector dimension.
+/// - metric: Metric to calculate distance.
+/// - density: Max number of records per IVF cluster.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Parameters {
     pub dimension: usize,
@@ -17,12 +25,18 @@ pub struct Parameters {
 pub struct Database {
     dir: PathBuf,
     params: Parameters,
+    index: Index,
+    storage: Storage,
 }
 
 impl Database {
     pub fn configure(params: &Parameters) {
-        let dir = Self::dir();
-        let db = Database { dir: dir.clone(), params: *params };
+        let db = Database {
+            dir: Self::dir(),
+            params: *params,
+            index: Index::new(),
+            storage: Storage::new(),
+        };
 
         if db.dir.join(PARAMS_FILE).exists() {
             let stdin = std::io::stdin();
@@ -37,21 +51,21 @@ impl Database {
                 return;
             }
 
-            fs::remove_dir_all(&dir).expect("Failed to reset the database");
+            fs::remove_dir_all(&db.dir).expect("Failed to reset the database");
             println!("The database has been reset successfully");
         }
 
         db.setup_dir().expect("Failed to setup database directory");
-        db.persist_as_binary(db.dir.join(PARAMS_FILE), db.params)
-            .expect("Failed to persist the parameters");
     }
 
-    pub fn open() -> Self {
+    pub fn open() -> Result<Self, Box<dyn Error>> {
         let dir = Self::dir();
-        let params = Self::load_binary(dir.join(PARAMS_FILE))
-            .expect("Failed to load the parameters");
+        let params = Self::load_binary(dir.join(PARAMS_FILE))?;
+        let index = Self::load_binary(dir.join(INDEX_FILE))?;
+        let storage = Self::load_binary(dir.join(STORAGE_FILE))?;
 
-        Database { dir, params }
+        let db = Database { dir, params, index, storage };
+        Ok(db)
     }
 
     fn dir() -> PathBuf {
@@ -62,10 +76,16 @@ impl Database {
     }
 
     fn setup_dir(&self) -> Result<(), Box<dyn Error>> {
-        if !self.dir.try_exists()? {
-            fs::create_dir_all(&self.dir)?;
-            fs::create_dir_all(self.dir.join("tmp"))?;
+        if self.dir.try_exists()? {
+            return Ok(());
         }
+
+        fs::create_dir_all(&self.dir)?;
+        fs::create_dir_all(self.dir.join("tmp"))?;
+
+        self.persist_as_binary(self.dir.join(PARAMS_FILE), &self.params)?;
+        self.persist_as_binary(self.dir.join(INDEX_FILE), &self.index)?;
+        self.persist_as_binary(self.dir.join(STORAGE_FILE), &self.storage)?;
 
         Ok(())
     }
