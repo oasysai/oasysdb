@@ -4,5 +4,9 @@ package database;
 import "google/protobuf/empty.proto";
 
 service Database {
-    rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Heartbeat(google.protobuf.Empty) returns (HeartbeatResponse);
+}
+
+message HeartbeatResponse {
+    string version = 1;
 }

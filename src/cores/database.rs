@@ -1,4 +1,5 @@
 use super::*;
+use crate::protos;
 use crate::protos::database_server::Database as DatabaseService;
 use std::io::{BufReader, BufWriter};
 use tonic::{Request, Response, Status};
@@ -14,7 +15,7 @@ const INDEX_FILE: &str = "odb_index";
 /// - dimension: Vector dimension.
 /// - metric: Metric to calculate distance.
 /// - density: Max number of records per IVF cluster.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Parameters {
     pub dimension: usize,
     pub metric: Metric,
@@ -123,7 +124,50 @@ impl DatabaseService for Arc<Database> {
     async fn heartbeat(
         &self,
         _request: Request<()>,
-    ) -> Result<Response<()>, Status> {
-        Ok(Response::new(()))
+    ) -> Result<Response<protos::HeartbeatResponse>, Status> {
+        let response = protos::HeartbeatResponse {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+        };
+
+        Ok(Response::new(response))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_open() {
+        let db = setup_db();
+        assert_eq!(db.params, Parameters::default());
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat() {
+        let db = setup_db();
+        let request = Request::new(());
+        let response = db.heartbeat(request).await.unwrap();
+        assert_eq!(response.get_ref().version, env!("CARGO_PKG_VERSION"));
+    }
+
+    fn setup_db() -> Arc<Database> {
+        if Database::dir().exists() {
+            fs::remove_dir_all(Database::dir()).unwrap();
+        }
+
+        let params = Parameters::default();
+        Database::configure(&params);
+        Arc::new(Database::open().unwrap())
+    }
+
+    impl Default for Parameters {
+        fn default() -> Self {
+            Parameters {
+                dimension: 128,
+                metric: Metric::Euclidean,
+                density: 100,
+            }
+        }
     }
 }
