@@ -37,3 +37,33 @@ impl From<Vec<f32>> for Vector {
         Vector(value.into_boxed_slice())
     }
 }
+
+impl TryFrom<protos::Vector> for Vector {
+    type Error = Status;
+    fn try_from(value: protos::Vector) -> Result<Self, Self::Error> {
+        Ok(Vector(value.data.into_boxed_slice()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_random_vector() {
+        let dim = 128;
+        let vector = Vector::random(dim);
+        assert_eq!(vector.len(), dim);
+    }
+
+    impl Vector {
+        pub fn random(dimension: usize) -> Self {
+            let vector = vec![0.0; dimension]
+                .iter()
+                .map(|_| rand::random::<f32>())
+                .collect::<Vec<f32>>();
+
+            Vector(vector.into_boxed_slice())
+        }
+    }
+}

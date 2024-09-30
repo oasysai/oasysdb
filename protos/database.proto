@@ -5,8 +5,36 @@ import "google/protobuf/empty.proto";
 
 service Database {
     rpc Heartbeat(google.protobuf.Empty) returns (HeartbeatResponse);
+    rpc Insert(InsertRequest) returns (InsertResponse);
 }
 
 message HeartbeatResponse {
     string version = 1;
+}
+
+message InsertRequest {
+    Record record = 1;
+}
+
+message InsertResponse {
+    string id = 1;
+}
+
+// List shared types below.
+
+message Record {
+    Vector vector = 1;
+    map<string, Value> metadata = 2;
+}
+
+message Vector {
+    repeated float data = 1;
+}
+
+message Value {
+    oneof value {
+        string text = 1;
+        double number = 2;
+        bool boolean = 4;
+    }
 }
