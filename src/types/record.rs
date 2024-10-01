@@ -1,4 +1,5 @@
 use super::*;
+use std::fmt;
 use uuid::Uuid;
 
 /// Record identifier.
@@ -14,10 +15,11 @@ impl RecordID {
     pub fn new() -> Self {
         RecordID(Uuid::new_v4())
     }
+}
 
-    /// Return the record ID as a string.
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+impl fmt::Display for RecordID {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
