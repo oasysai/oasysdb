@@ -14,6 +14,11 @@ impl Vector {
         self.0.as_ref()
     }
 
+    /// Return as a vector of floating-point numbers.
+    pub fn to_vec(&self) -> Vec<f32> {
+        self.0.to_vec()
+    }
+
     /// Return the length of the vector.
     pub fn len(&self) -> usize {
         self.0.len()
