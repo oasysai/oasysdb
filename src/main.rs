@@ -1,6 +1,7 @@
 mod cores;
 mod protos;
 mod types;
+mod utils;
 
 use clap::{arg, ArgMatches, Command};
 use cores::{Database, Parameters};
