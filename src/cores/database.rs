@@ -171,6 +171,7 @@ impl DatabaseService for Arc<Database> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn test_open() {
@@ -184,6 +185,24 @@ mod tests {
         let request = Request::new(());
         let response = db.heartbeat(request).await.unwrap();
         assert_eq!(response.get_ref().version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[tokio::test]
+    async fn test_insert() {
+        let params = Parameters::default();
+        let db = setup_db();
+
+        let vector = Vector::random(params.dimension);
+        let request = Request::new(protos::InsertRequest {
+            record: Some(protos::Record {
+                vector: Some(vector.into()),
+                metadata: std::collections::HashMap::new(),
+            }),
+        });
+
+        let response = db.insert(request).await.unwrap();
+        assert!(response.get_ref().id.parse::<Uuid>().is_ok());
+        assert_eq!(db.storage.read().unwrap().records().len(), 1);
     }
 
     fn setup_db() -> Arc<Database> {

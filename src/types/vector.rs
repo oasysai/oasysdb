@@ -33,6 +33,12 @@ impl From<Vec<f32>> for Vector {
     }
 }
 
+impl From<Vector> for protos::Vector {
+    fn from(value: Vector) -> Self {
+        protos::Vector { data: value.to_vec() }
+    }
+}
+
 impl TryFrom<protos::Vector> for Vector {
     type Error = Status;
     fn try_from(value: protos::Vector) -> Result<Self, Self::Error> {
