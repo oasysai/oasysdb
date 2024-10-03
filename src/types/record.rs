@@ -27,7 +27,7 @@ impl fmt::Display for RecordID {
 ///
 /// OasysDB doesn't support nested objects in metadata for performance reasons.
 /// We only need to support primitive types for metadata.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Value {
     Text(String),
     Number(f64),
@@ -52,7 +52,7 @@ impl TryFrom<protos::Value> for Value {
 /// This is the main data structure for OasysDB. It contains the vector data
 /// and metadata of the record. Metadata is a key-value store that can be used
 /// to store additional information about the vector.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
     pub vector: Vector,
     pub metadata: HashMap<String, Value>,
