@@ -2,7 +2,7 @@ use super::*;
 use crate::protos;
 use crate::protos::database_server::Database as DatabaseService;
 use std::io::{BufReader, BufWriter};
-use tonic::{Request, Response, Status};
+use tonic::{Request, Response};
 
 const TMP_DIR: &str = "tmp";
 const PARAMS_FILE: &str = "odb_params";
@@ -26,17 +26,21 @@ pub struct Parameters {
 pub struct Database {
     dir: PathBuf,
     params: Parameters,
-    index: Index,
-    storage: Storage,
+    index: RwLock<Index>,
+    storage: RwLock<Storage>,
 }
 
 impl Database {
     pub fn configure(params: &Parameters) {
+        let index = Index::new()
+            .with_metric(params.metric)
+            .with_density(params.density);
+
         let db = Database {
             dir: Self::dir(),
             params: *params,
-            index: Index::new(),
-            storage: Storage::new(),
+            index: RwLock::new(index),
+            storage: RwLock::new(Storage::new()),
         };
 
         if db.dir.join(PARAMS_FILE).exists() {
@@ -84,7 +88,7 @@ impl Database {
         fs::create_dir_all(&self.dir)?;
         fs::create_dir_all(self.dir.join("tmp"))?;
 
-        self.persist_as_binary(self.dir.join(PARAMS_FILE), &self.params)?;
+        self.persist_as_binary(self.dir.join(PARAMS_FILE), self.params)?;
         self.persist_as_binary(self.dir.join(INDEX_FILE), &self.index)?;
         self.persist_as_binary(self.dir.join(STORAGE_FILE), &self.storage)?;
 
@@ -131,6 +135,37 @@ impl DatabaseService for Arc<Database> {
 
         Ok(Response::new(response))
     }
+
+    async fn insert(
+        &self,
+        request: Request<protos::InsertRequest>,
+    ) -> Result<Response<protos::InsertResponse>, Status> {
+        let record = match request.into_inner().record {
+            Some(record) => Record::try_from(record)?,
+            None => return Err(Status::invalid_argument("Record is required")),
+        };
+
+        if record.vector.len() != self.params.dimension {
+            return Err(Status::invalid_argument(format!(
+                "Invalid vector dimension: expected {}, got {}",
+                self.params.dimension,
+                record.vector.len()
+            )));
+        }
+
+        let id = RecordID::new();
+
+        // Insert the record into the storage.
+        // This operation must be done before updating the index. Otherwise,
+        // the index won't have access to the record data.
+        let mut storage = self.storage.write().unwrap();
+        storage.insert(&id, &record)?;
+
+        let mut index = self.index.write().unwrap();
+        index.insert(&id, &record, storage.records())?;
+
+        Ok(Response::new(protos::InsertResponse { id: id.to_string() }))
+    }
 }
 
 #[cfg(test)]
@@ -166,7 +201,7 @@ mod tests {
             Parameters {
                 dimension: 128,
                 metric: Metric::Euclidean,
-                density: 100,
+                density: 64,
             }
         }
     }
