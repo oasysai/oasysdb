@@ -161,6 +161,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_insert_many() {
+        let params = Parameters::default();
+        let mut index = setup_index(&params);
+
+        let mut records = HashMap::new();
+        for _ in 0..1000 {
+            let id = RecordID::new();
+            let vector = Vector::random(params.dimension);
+            let record = Record { vector, metadata: HashMap::new() };
+            records.insert(id, record);
+        }
+
+        for (id, record) in records.iter() {
+            index.insert(id, record, &records).unwrap();
+        }
+
+        assert!(index.centroids.len() > 20);
+    }
+
+    #[test]
     fn test_insert_centroid() {
         let params = Parameters::default();
         let mut index = setup_index(&params);
