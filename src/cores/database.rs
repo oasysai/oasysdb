@@ -174,19 +174,32 @@ impl DatabaseService for Arc<Database> {
         &self,
         request: Request<protos::DeleteRequest>,
     ) -> Result<Response<()>, Status> {
-        let id = match request.into_inner().id.parse::<RecordID>() {
-            Ok(id) => id,
-            Err(_) => {
-                let message = "Record ID should be a string-encoded UUID";
-                return Err(Status::invalid_argument(message));
-            }
-        };
+        let request = request.into_inner();
+        let id = request.id.parse::<RecordID>()?;
 
         let mut index = self.index.write().unwrap();
         index.delete(&id)?;
 
         let mut storage = self.storage.write().unwrap();
         storage.delete(&id)?;
+
+        Ok(Response::new(()))
+    }
+
+    async fn update(
+        &self,
+        request: Request<protos::UpdateRequest>,
+    ) -> Result<Response<()>, Status> {
+        let request = request.into_inner();
+        let id = request.id.parse::<RecordID>()?;
+
+        let mut metadata = HashMap::new();
+        for (key, value) in request.metadata {
+            metadata.insert(key, value.try_into()?);
+        }
+
+        let mut storage = self.storage.write().unwrap();
+        storage.update(&id, &metadata)?;
 
         Ok(Response::new(()))
     }

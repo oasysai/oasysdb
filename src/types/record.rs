@@ -25,9 +25,12 @@ impl fmt::Display for RecordID {
 }
 
 impl FromStr for RecordID {
-    type Err = uuid::Error;
+    type Err = Status;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(RecordID(Uuid::try_parse(s)?))
+        Ok(RecordID(Uuid::try_parse(s).map_err(|_| {
+            let message = "Record ID should be a string-encoded UUID";
+            Status::invalid_argument(message)
+        })?))
     }
 }
 
@@ -35,7 +38,7 @@ impl FromStr for RecordID {
 ///
 /// OasysDB doesn't support nested objects in metadata for performance reasons.
 /// We only need to support primitive types for metadata.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum Value {
     Text(String),
     Number(f64),

@@ -36,6 +36,28 @@ impl Storage {
         Ok(())
     }
 
+    /// Update a record metadata given its ID.
+    ///
+    /// Vector data should be immutable as it is tightly coupled with the
+    /// semantic meaning of the record. If the vector data changes, users
+    /// should create a new record instead.
+    pub fn update(
+        &mut self,
+        id: &RecordID,
+        metadata: &HashMap<String, Value>,
+    ) -> Result<(), Status> {
+        let record = match self.records.get_mut(id) {
+            Some(record) => record,
+            None => {
+                let message = "The specified record is not found";
+                return Err(Status::not_found(message));
+            }
+        };
+
+        record.metadata = metadata.to_owned();
+        Ok(())
+    }
+
     /// Return a reference to the records in the storage.
     pub fn records(&self) -> &HashMap<RecordID, Record> {
         &self.records
@@ -69,5 +91,21 @@ mod tests {
         storage.delete(&id).unwrap();
         assert_eq!(storage.count, 0);
         assert_eq!(storage.count, storage.records.len());
+    }
+
+    #[test]
+    fn test_update() {
+        let mut storage = Storage::new();
+
+        let record = Record::random(128);
+        let id = RecordID::new();
+        storage.insert(&id, &record).unwrap();
+
+        let mut metadata = HashMap::new();
+        metadata.insert("key".to_string(), Value::random());
+        storage.update(&id, &metadata).unwrap();
+
+        let updated_record = storage.records.get(&id).unwrap();
+        assert_eq!(updated_record.metadata, metadata);
     }
 }
