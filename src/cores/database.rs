@@ -142,7 +142,10 @@ impl DatabaseService for Arc<Database> {
     ) -> Result<Response<protos::InsertResponse>, Status> {
         let record = match request.into_inner().record {
             Some(record) => Record::try_from(record)?,
-            None => return Err(Status::invalid_argument("Record is required")),
+            None => {
+                let message = "Record data is required for insertion";
+                return Err(Status::invalid_argument(message));
+            }
         };
 
         if record.vector.len() != self.params.dimension {
@@ -165,6 +168,27 @@ impl DatabaseService for Arc<Database> {
         index.insert(&id, &record, storage.records())?;
 
         Ok(Response::new(protos::InsertResponse { id: id.to_string() }))
+    }
+
+    async fn delete(
+        &self,
+        request: Request<protos::DeleteRequest>,
+    ) -> Result<Response<()>, Status> {
+        let id = match request.into_inner().id.parse::<RecordID>() {
+            Ok(id) => id,
+            Err(_) => {
+                let message = "Record ID should be a string-encoded UUID";
+                return Err(Status::invalid_argument(message));
+            }
+        };
+
+        let mut index = self.index.write().unwrap();
+        index.delete(&id)?;
+
+        let mut storage = self.storage.write().unwrap();
+        storage.delete(&id)?;
+
+        Ok(Response::new(()))
     }
 }
 

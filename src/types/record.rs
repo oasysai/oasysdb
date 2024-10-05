@@ -1,5 +1,6 @@
 use super::*;
 use std::fmt;
+use std::str::FromStr;
 use uuid::Uuid;
 
 /// Record identifier.
@@ -20,6 +21,13 @@ impl RecordID {
 impl fmt::Display for RecordID {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for RecordID {
+    type Err = uuid::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(RecordID(Uuid::try_parse(s)?))
     }
 }
 
@@ -76,5 +84,25 @@ impl TryFrom<protos::Record> for Record {
             .collect::<Result<HashMap<String, Value>, Self::Error>>()?;
 
         Ok(Record { vector, metadata })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::random;
+
+    impl Value {
+        pub fn random() -> Self {
+            Value::Number(random::<f64>())
+        }
+    }
+
+    impl Record {
+        pub fn random(dimension: usize) -> Self {
+            let mut metadata = HashMap::new();
+            metadata.insert("key".to_string(), Value::random());
+            Record { vector: Vector::random(dimension), metadata }
+        }
     }
 }

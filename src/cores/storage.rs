@@ -29,6 +29,13 @@ impl Storage {
         Ok(())
     }
 
+    /// Delete a record from the storage given its ID.
+    pub fn delete(&mut self, id: &RecordID) -> Result<(), Status> {
+        self.records.remove(id);
+        self.count -= 1;
+        Ok(())
+    }
+
     /// Return a reference to the records in the storage.
     pub fn records(&self) -> &HashMap<RecordID, Record> {
         &self.records
@@ -43,12 +50,24 @@ mod tests {
     fn test_insert() {
         let mut storage = Storage::new();
 
-        let vector = Vector::random(128);
-        let record = Record { vector, metadata: HashMap::new() };
+        let record = Record::random(128);
         let id = RecordID::new();
         storage.insert(&id, &record).unwrap();
 
         assert_eq!(storage.count, 1);
+        assert_eq!(storage.count, storage.records.len());
+    }
+
+    #[test]
+    fn test_delete() {
+        let mut storage = Storage::new();
+
+        let record = Record::random(128);
+        let id = RecordID::new();
+        storage.insert(&id, &record).unwrap();
+
+        storage.delete(&id).unwrap();
+        assert_eq!(storage.count, 0);
         assert_eq!(storage.count, storage.records.len());
     }
 }

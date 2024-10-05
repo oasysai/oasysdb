@@ -83,6 +83,32 @@ impl Index {
         Ok(())
     }
 
+    /// Delete a record from the index by its ID.
+    ///
+    /// This method will iterate over all the clusters and remove the record
+    /// from the cluster if it exists. This method doesn't update the value of
+    /// the cluster's centroid.
+    pub fn delete(&mut self, id: &RecordID) -> Result<(), Status> {
+        // Find the cluster and record indices where the record is stored.
+        let cluster_record_index =
+            self.clusters.iter().enumerate().find_map(|(i, cluster)| {
+                cluster.par_iter().position_first(|x| x == id).map(|x| (i, x))
+            });
+
+        if let Some((cluster_ix, record_ix)) = cluster_record_index {
+            // If the cluster has only one record, remove the cluster and
+            // centroid from the index. This won't happen often.
+            if self.clusters[cluster_ix].len() == 1 {
+                self.clusters.remove(cluster_ix);
+                self.centroids.remove(cluster_ix);
+            } else {
+                self.clusters[cluster_ix].remove(record_ix);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Insert a new centroid and cluster into the index.
     /// - vector: Centroid vector.
     fn insert_centroid(&mut self, vector: &Vector) -> ClusterIndex {
@@ -168,8 +194,7 @@ mod tests {
         let mut records = HashMap::new();
         for _ in 0..1000 {
             let id = RecordID::new();
-            let vector = Vector::random(params.dimension);
-            let record = Record { vector, metadata: HashMap::new() };
+            let record = Record::random(params.dimension);
             records.insert(id, record);
         }
 
@@ -178,6 +203,40 @@ mod tests {
         }
 
         assert!(index.centroids.len() > 20);
+    }
+
+    #[test]
+    fn test_delete() {
+        let params = Parameters::default();
+        let mut index = setup_index(&params);
+
+        let mut ids = vec![];
+        for _ in 0..10 {
+            let centroid = Vector::random(params.dimension);
+            let mut cluster = vec![];
+            for _ in 0..10 {
+                let id = RecordID::new();
+                cluster.push(id);
+                ids.push(id);
+            }
+
+            index.centroids.push(centroid);
+            index.clusters.push(cluster);
+        }
+
+        assert_eq!(ids.len(), 100);
+        assert_eq!(index.centroids.len(), 10);
+
+        index.delete(&ids[0]).unwrap();
+        for cluster in index.clusters.iter() {
+            assert!(!cluster.contains(&ids[0]));
+        }
+
+        for i in 1..10 {
+            index.delete(&ids[i]).unwrap();
+        }
+
+        assert_eq!(index.centroids.len(), 9);
     }
 
     #[test]
