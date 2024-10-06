@@ -170,6 +170,20 @@ impl DatabaseService for Arc<Database> {
         Ok(Response::new(protos::InsertResponse { id: id.to_string() }))
     }
 
+    async fn get(
+        &self,
+        request: Request<protos::GetRequest>,
+    ) -> Result<Response<protos::GetResponse>, Status> {
+        let request = request.into_inner();
+        let id = request.id.parse::<RecordID>()?;
+
+        let storage = self.storage.read().unwrap();
+        let record = storage.get(&id)?.to_owned();
+
+        let response = protos::GetResponse { record: Some(record.into()) };
+        Ok(Response::new(response))
+    }
+
     async fn delete(
         &self,
         request: Request<protos::DeleteRequest>,

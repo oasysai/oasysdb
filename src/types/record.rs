@@ -45,6 +45,19 @@ pub enum Value {
     Boolean(bool),
 }
 
+impl From<Value> for protos::Value {
+    fn from(value: Value) -> Self {
+        type ProtoValue = protos::value::Value;
+        let value = match value {
+            Value::Text(text) => ProtoValue::Text(text),
+            Value::Number(number) => ProtoValue::Number(number),
+            Value::Boolean(boolean) => ProtoValue::Boolean(boolean),
+        };
+
+        protos::Value { value: Some(value) }
+    }
+}
+
 impl TryFrom<protos::Value> for Value {
     type Error = Status;
     fn try_from(value: protos::Value) -> Result<Self, Self::Error> {
@@ -67,6 +80,19 @@ impl TryFrom<protos::Value> for Value {
 pub struct Record {
     pub vector: Vector,
     pub metadata: HashMap<String, Value>,
+}
+
+impl From<Record> for protos::Record {
+    fn from(value: Record) -> Self {
+        let vector = value.vector.into();
+        let metadata = value
+            .metadata
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect();
+
+        protos::Record { vector: Some(vector), metadata }
+    }
 }
 
 impl TryFrom<protos::Record> for Record {

@@ -6,6 +6,7 @@ import "google/protobuf/empty.proto";
 service Database {
     rpc Heartbeat(google.protobuf.Empty) returns (HeartbeatResponse);
     rpc Insert(InsertRequest) returns (InsertResponse);
+    rpc Get(GetRequest) returns (GetResponse);
     rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
     rpc Update(UpdateRequest) returns (google.protobuf.Empty);
 }
@@ -20,6 +21,14 @@ message InsertRequest {
 
 message InsertResponse {
     string id = 1;
+}
+
+message GetRequest {
+    string id = 1;
+}
+
+message GetResponse {
+    Record record = 1;
 }
 
 message DeleteRequest {

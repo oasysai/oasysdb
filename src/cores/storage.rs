@@ -29,6 +29,17 @@ impl Storage {
         Ok(())
     }
 
+    /// Retrieve a record from the storage given its ID.
+    pub fn get(&self, id: &RecordID) -> Result<&Record, Status> {
+        let record = self.records.get(id);
+        if record.is_none() {
+            let message = "The specified record is not found";
+            return Err(Status::not_found(message));
+        }
+
+        Ok(record.unwrap())
+    }
+
     /// Delete a record from the storage given its ID.
     pub fn delete(&mut self, id: &RecordID) -> Result<(), Status> {
         self.records.remove(id);
