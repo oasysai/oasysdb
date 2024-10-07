@@ -45,6 +45,36 @@ pub enum Value {
     Boolean(bool),
 }
 
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::from(value.as_str())
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        // Try to parse the value as a number.
+        // This is must be prioritized over boolean parsing.
+        if let Ok(float) = value.parse::<f64>() {
+            return Value::Number(float);
+        }
+
+        if let Ok(boolean) = value.parse::<bool>() {
+            return Value::Boolean(boolean);
+        }
+
+        // Remove quotes from the start and end of the string.
+        // This ensures that we won't have to deal with quotes.
+        let match_quotes = |c: char| c == '\"' || c == '\'';
+        let value = value
+            .trim_start_matches(match_quotes)
+            .trim_end_matches(match_quotes)
+            .to_string();
+
+        Value::Text(value)
+    }
+}
+
 impl From<Value> for protos::Value {
     fn from(value: Value) -> Self {
         type ProtoValue = protos::value::Value;
