@@ -9,7 +9,9 @@ pub use index::*;
 pub use storage::*;
 
 // Import common dependencies below.
+use crate::protos;
 use crate::types::*;
+use crate::utils::kmeans::KMeans;
 use hashbrown::HashMap;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;

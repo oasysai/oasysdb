@@ -9,6 +9,7 @@ service Database {
     rpc Get(GetRequest) returns (GetResponse);
     rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
     rpc Update(UpdateRequest) returns (google.protobuf.Empty);
+    rpc Query(QueryRequest) returns (QueryResponse);
 }
 
 message HeartbeatResponse {
@@ -38,6 +39,28 @@ message DeleteRequest {
 message UpdateRequest {
     string id = 1;
     map<string, Value> metadata = 2;
+}
+
+message QueryRequest {
+    Vector vector = 1;
+    int32 k = 2;
+    string filter = 3;
+    QueryParameters params = 4;
+}
+
+message QueryParameters {
+    int32 probes = 1;
+    float radius = 2;
+}
+
+message QueryResponse {
+    repeated QueryResult results = 1;
+}
+
+message QueryResult {
+    string id = 1;
+    map<string, Value> metadata = 2;
+    float distance = 3;
 }
 
 // List shared types below.

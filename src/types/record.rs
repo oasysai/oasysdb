@@ -8,7 +8,8 @@ use uuid::Uuid;
 /// OasysDB should be able to deal with a lot of writes and deletes. Using UUID
 /// version 4 to allow us to generate a lot of IDs with very low probability
 /// of collision.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct RecordID(Uuid);
 
 impl RecordID {

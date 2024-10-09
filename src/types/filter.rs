@@ -6,9 +6,9 @@ use super::*;
 /// means that we can't use both AND and OR operations in the same filter.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Filters {
-    NONE,
-    AND(Vec<Filter>),
-    OR(Vec<Filter>),
+    None,
+    And(Vec<Filter>),
+    Or(Vec<Filter>),
 }
 
 impl Filters {
@@ -19,9 +19,9 @@ impl Filters {
     /// no filters are provided and we want to include all records.
     pub fn apply(&self, metadata: &HashMap<String, Value>) -> bool {
         match self {
-            Filters::NONE => true,
-            Filters::AND(filters) => filters.iter().all(|f| f.apply(metadata)),
-            Filters::OR(filters) => filters.iter().any(|f| f.apply(metadata)),
+            Filters::None => true,
+            Filters::And(filters) => filters.iter().all(|f| f.apply(metadata)),
+            Filters::Or(filters) => filters.iter().any(|f| f.apply(metadata)),
         }
     }
 }
@@ -30,7 +30,7 @@ impl TryFrom<&str> for Filters {
     type Error = Status;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value.is_empty() {
-            return Ok(Filters::NONE);
+            return Ok(Filters::None);
         }
 
         const OR: &str = " OR ";
@@ -52,8 +52,8 @@ impl TryFrom<&str> for Filters {
             .collect::<Result<_, _>>()?;
 
         let filters = match join {
-            OR => Filters::OR(filters),
-            _ => Filters::AND(filters),
+            OR => Filters::Or(filters),
+            _ => Filters::And(filters),
         };
 
         Ok(filters)
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_filters_from_string() {
         let filters = Filters::try_from("name CONTAINS Ada").unwrap();
-        let expected = Filters::AND(vec![Filter {
+        let expected = Filters::And(vec![Filter {
             key: "name".into(),
             value: "Ada".into(),
             operator: Operator::Contains,
@@ -202,7 +202,7 @@ mod tests {
                 operator: Operator::LessThan,
             };
 
-            Filters::OR(vec![filter_gpa, filter_age])
+            Filters::Or(vec![filter_gpa, filter_age])
         };
 
         assert_eq!(filters, expected);

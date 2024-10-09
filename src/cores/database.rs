@@ -1,6 +1,5 @@
 use super::*;
-use crate::protos;
-use crate::protos::database_server::Database as DatabaseService;
+use protos::database_server::Database as DatabaseService;
 use std::io::{BufReader, BufWriter};
 use tonic::{Request, Response};
 
@@ -20,6 +19,36 @@ pub struct Parameters {
     pub dimension: usize,
     pub metric: Metric,
     pub density: usize,
+}
+
+/// Dynamic query-time parameters.
+///
+/// Fields:
+/// - probes: Suggested number of clusters to visit.
+/// - radius: Maximum distance to include in the result.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct QueryParameters {
+    pub probes: usize,
+    pub radius: f32,
+}
+
+impl Default for QueryParameters {
+    /// Default query parameters:
+    /// - probes: 32
+    /// - radius: ∞
+    fn default() -> Self {
+        QueryParameters { probes: 32, radius: f32::INFINITY }
+    }
+}
+
+impl TryFrom<protos::QueryParameters> for QueryParameters {
+    type Error = Status;
+    fn try_from(value: protos::QueryParameters) -> Result<Self, Self::Error> {
+        Ok(QueryParameters {
+            probes: value.probes as usize,
+            radius: value.radius,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -121,6 +150,18 @@ impl Database {
         fs::rename(&tmp_file, &path)?;
         Ok(())
     }
+
+    fn validate_dimension(&self, vector: &Vector) -> Result<(), Status> {
+        if vector.len() != self.params.dimension {
+            return Err(Status::invalid_argument(format!(
+                "Invalid vector dimension: expected {}, got {}",
+                self.params.dimension,
+                vector.len()
+            )));
+        }
+
+        Ok(())
+    }
 }
 
 #[tonic::async_trait]
@@ -148,13 +189,7 @@ impl DatabaseService for Arc<Database> {
             }
         };
 
-        if record.vector.len() != self.params.dimension {
-            return Err(Status::invalid_argument(format!(
-                "Invalid vector dimension: expected {}, got {}",
-                self.params.dimension,
-                record.vector.len()
-            )));
-        }
+        self.validate_dimension(&record.vector)?;
 
         let id = RecordID::new();
 
@@ -216,6 +251,47 @@ impl DatabaseService for Arc<Database> {
         storage.update(&id, &metadata)?;
 
         Ok(Response::new(()))
+    }
+
+    async fn query(
+        &self,
+        request: Request<protos::QueryRequest>,
+    ) -> Result<Response<protos::QueryResponse>, Status> {
+        let request = request.into_inner();
+        let vector = match request.vector {
+            Some(vector) => Vector::try_from(vector)?,
+            None => {
+                let message = "Vector is required for query operation";
+                return Err(Status::invalid_argument(message));
+            }
+        };
+
+        self.validate_dimension(&vector)?;
+
+        let k = request.k as usize;
+        if k == 0 {
+            let message = "Invalid k value, k must be greater than 0";
+            return Err(Status::invalid_argument(message));
+        }
+
+        let filter = Filters::try_from(request.filter.as_str())?;
+
+        let params = match request.params {
+            Some(params) => QueryParameters::try_from(params)?,
+            None => QueryParameters::default(),
+        };
+
+        let storage = self.storage.read().unwrap();
+        let records = storage.records();
+
+        let index = self.index.read().unwrap();
+        let results = index
+            .query(&vector, k, &filter, &params, records)?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+        Ok(Response::new(protos::QueryResponse { results }))
     }
 }
 
