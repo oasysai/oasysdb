@@ -73,6 +73,11 @@ impl Storage {
     pub fn records(&self) -> &HashMap<RecordID, Record> {
         &self.records
     }
+
+    /// Return the number of records in the storage.
+    pub fn count(&self) -> usize {
+        self.count
+    }
 }
 
 #[cfg(test)]

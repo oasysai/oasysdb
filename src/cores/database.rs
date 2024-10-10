@@ -95,8 +95,8 @@ impl Database {
     pub fn open() -> Result<Self, Box<dyn Error>> {
         let dir = Self::dir();
         let params = Self::load_binary(dir.join(PARAMS_FILE))?;
-        let index = Self::load_binary(dir.join(INDEX_FILE))?;
-        let storage = Self::load_binary(dir.join(STORAGE_FILE))?;
+        let index = RwLock::new(Self::load_binary(dir.join(INDEX_FILE))?);
+        let storage = RwLock::new(Self::load_binary(dir.join(STORAGE_FILE))?);
 
         let db = Database { dir, params, index, storage };
         Ok(db)
@@ -117,9 +117,12 @@ impl Database {
         fs::create_dir_all(&self.dir)?;
         fs::create_dir_all(self.dir.join("tmp"))?;
 
+        let index = self.index.read().unwrap();
+        let storage = self.storage.read().unwrap();
+
         self.persist_as_binary(self.dir.join(PARAMS_FILE), self.params)?;
-        self.persist_as_binary(self.dir.join(INDEX_FILE), &self.index)?;
-        self.persist_as_binary(self.dir.join(STORAGE_FILE), &self.storage)?;
+        self.persist_as_binary(self.dir.join(INDEX_FILE), &*index)?;
+        self.persist_as_binary(self.dir.join(STORAGE_FILE), &*storage)?;
 
         Ok(())
     }
@@ -174,6 +177,29 @@ impl DatabaseService for Arc<Database> {
             version: env!("CARGO_PKG_VERSION").to_string(),
         };
 
+        Ok(Response::new(response))
+    }
+
+    async fn snapshot(
+        &self,
+        _request: Request<()>,
+    ) -> Result<Response<protos::SnapshotResponse>, Status> {
+        let index = self.index.read().unwrap();
+        let storage = self.storage.read().unwrap();
+
+        let index_file = self.dir.join(INDEX_FILE);
+        let storage_file = self.dir.join(STORAGE_FILE);
+
+        self.persist_as_binary(index_file, &*index).map_err(|_| {
+            Status::internal("Failed to persist the index to the disk")
+        })?;
+
+        self.persist_as_binary(storage_file, &*storage).map_err(|_| {
+            Status::internal("Failed to persist the storage to the disk")
+        })?;
+
+        let count = storage.count() as i32;
+        let response = protos::SnapshotResponse { count };
         Ok(Response::new(response))
     }
 
