@@ -95,11 +95,18 @@ impl Database {
     pub fn open() -> Result<Self, Box<dyn Error>> {
         let dir = Self::dir();
         let params = Self::load_binary(dir.join(PARAMS_FILE))?;
-        let index = RwLock::new(Self::load_binary(dir.join(INDEX_FILE))?);
-        let storage = RwLock::new(Self::load_binary(dir.join(STORAGE_FILE))?);
+        let index = Self::load_binary(dir.join(INDEX_FILE))?;
+        let storage: Storage = Self::load_binary(dir.join(STORAGE_FILE))?;
 
-        let db = Database { dir, params, index, storage };
-        Ok(db)
+        let count = storage.count();
+        tracing::info!("Restored {count} record(s) from the disk");
+
+        Ok(Database {
+            dir,
+            params,
+            index: RwLock::new(index),
+            storage: RwLock::new(storage),
+        })
     }
 
     fn dir() -> PathBuf {
@@ -115,15 +122,9 @@ impl Database {
         }
 
         fs::create_dir_all(&self.dir)?;
-        fs::create_dir_all(self.dir.join("tmp"))?;
+        fs::create_dir_all(self.dir.join(TMP_DIR))?;
 
-        let index = self.index.read().unwrap();
-        let storage = self.storage.read().unwrap();
-
-        self.persist_as_binary(self.dir.join(PARAMS_FILE), self.params)?;
-        self.persist_as_binary(self.dir.join(INDEX_FILE), &*index)?;
-        self.persist_as_binary(self.dir.join(STORAGE_FILE), &*storage)?;
-
+        self.create_snapshot()?;
         Ok(())
     }
 
@@ -151,6 +152,18 @@ impl Database {
         let writer = BufWriter::new(file);
         bincode::serialize_into(writer, &data)?;
         fs::rename(&tmp_file, &path)?;
+        Ok(())
+    }
+
+    fn create_snapshot(&self) -> Result<(), Box<dyn Error>> {
+        self.persist_as_binary(self.dir.join(PARAMS_FILE), self.params)?;
+
+        let index = self.index.read().unwrap();
+        self.persist_as_binary(self.dir.join(INDEX_FILE), &*index)?;
+
+        let storage = self.storage.read().unwrap();
+        self.persist_as_binary(self.dir.join(STORAGE_FILE), &*storage)?;
+
         Ok(())
     }
 
@@ -184,21 +197,15 @@ impl DatabaseService for Arc<Database> {
         &self,
         _request: Request<()>,
     ) -> Result<Response<protos::SnapshotResponse>, Status> {
-        let index = self.index.read().unwrap();
+        self.create_snapshot().map_err(|e| {
+            let message = format!("Failed to create a snapshot: {e}");
+            Status::internal(message)
+        })?;
+
         let storage = self.storage.read().unwrap();
-
-        let index_file = self.dir.join(INDEX_FILE);
-        let storage_file = self.dir.join(STORAGE_FILE);
-
-        self.persist_as_binary(index_file, &*index).map_err(|_| {
-            Status::internal("Failed to persist the index to the disk")
-        })?;
-
-        self.persist_as_binary(storage_file, &*storage).map_err(|_| {
-            Status::internal("Failed to persist the storage to the disk")
-        })?;
-
         let count = storage.count() as i32;
+        tracing::info!("Created a snapshot with {count} record(s)");
+
         let response = protos::SnapshotResponse { count };
         Ok(Response::new(response))
     }
@@ -228,6 +235,7 @@ impl DatabaseService for Arc<Database> {
         let mut index = self.index.write().unwrap();
         index.insert(&id, &record, storage.records())?;
 
+        tracing::info!("Inserted a new record with ID: {id}");
         Ok(Response::new(protos::InsertResponse { id: id.to_string() }))
     }
 
@@ -258,6 +266,7 @@ impl DatabaseService for Arc<Database> {
         let mut storage = self.storage.write().unwrap();
         storage.delete(&id)?;
 
+        tracing::info!("Deleted a record with ID: {id}");
         Ok(Response::new(()))
     }
 
@@ -276,6 +285,7 @@ impl DatabaseService for Arc<Database> {
         let mut storage = self.storage.write().unwrap();
         storage.update(&id, &metadata)?;
 
+        tracing::info!("Updated metadata for a record: {id}");
         Ok(Response::new(()))
     }
 
