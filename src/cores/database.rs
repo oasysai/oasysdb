@@ -51,6 +51,22 @@ impl TryFrom<protos::QueryParameters> for QueryParameters {
     }
 }
 
+/// Database snapshot statistics.
+///
+/// The snapshot statistics include the information that might be useful
+/// for monitoring the state of the database. This stats will be returned
+/// by the `create_snapshot` method.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SnapshotStats {
+    pub count: usize,
+}
+
+impl From<SnapshotStats> for protos::SnapshotResponse {
+    fn from(value: SnapshotStats) -> Self {
+        protos::SnapshotResponse { count: value.count as i32 }
+    }
+}
+
 #[derive(Debug)]
 pub struct Database {
     dir: PathBuf,
@@ -155,7 +171,7 @@ impl Database {
         Ok(())
     }
 
-    fn create_snapshot(&self) -> Result<(), Box<dyn Error>> {
+    pub fn create_snapshot(&self) -> Result<SnapshotStats, Box<dyn Error>> {
         self.persist_as_binary(self.dir.join(PARAMS_FILE), self.params)?;
 
         let index = self.index.read().unwrap();
@@ -164,7 +180,10 @@ impl Database {
         let storage = self.storage.read().unwrap();
         self.persist_as_binary(self.dir.join(STORAGE_FILE), &*storage)?;
 
-        Ok(())
+        let count = storage.count();
+        tracing::info!("Created a snapshot with {count} record(s)");
+
+        Ok(SnapshotStats { count })
     }
 
     fn validate_dimension(&self, vector: &Vector) -> Result<(), Status> {
@@ -197,17 +216,12 @@ impl DatabaseService for Arc<Database> {
         &self,
         _request: Request<()>,
     ) -> Result<Response<protos::SnapshotResponse>, Status> {
-        self.create_snapshot().map_err(|e| {
+        let stats = self.create_snapshot().map_err(|e| {
             let message = format!("Failed to create a snapshot: {e}");
             Status::internal(message)
         })?;
 
-        let storage = self.storage.read().unwrap();
-        let count = storage.count() as i32;
-        tracing::info!("Created a snapshot with {count} record(s)");
-
-        let response = protos::SnapshotResponse { count };
-        Ok(Response::new(response))
+        Ok(Response::new(stats.into()))
     }
 
     async fn insert(

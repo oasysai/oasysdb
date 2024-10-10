@@ -8,8 +8,12 @@ use cores::{Database, Parameters};
 use dotenv::dotenv;
 use protos::database_server::DatabaseServer;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 use tonic::transport::Server;
 use types::Metric;
+
+const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(600);
 
 #[tokio::main]
 async fn main() {
@@ -48,13 +52,18 @@ async fn start_handler(args: &ArgMatches) {
     let port = args.get_one::<u16>("port").unwrap();
     let addr = format!("[::]:{port}").parse().unwrap();
 
-    let database = Database::open().expect("Failed to open the database");
-    let service = DatabaseServer::new(Arc::new(database));
+    let db = Arc::new(Database::open().expect("Failed to open the database"));
+
+    let db_clone = db.clone();
+    thread::spawn(move || loop {
+        thread::sleep(SNAPSHOT_INTERVAL);
+        db_clone.create_snapshot().expect("Failed to create a snapshot");
+    });
 
     tracing::info!("Database server is ready on port {port}");
 
     Server::builder()
-        .add_service(service)
+        .add_service(DatabaseServer::new(db))
         .serve(addr)
         .await
         .expect("Failed to start the database");
