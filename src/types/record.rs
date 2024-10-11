@@ -1,282 +1,168 @@
-use crate::types::err::{Error, ErrorCode};
-use half::f16;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use sqlx::any::AnyRow;
-use sqlx::postgres::any::AnyTypeInfoKind as SQLType;
-use sqlx::{Row, ValueRef};
-use std::collections::HashMap;
+use super::*;
+use std::fmt;
+use std::str::FromStr;
+use uuid::Uuid;
 
-/// Column name in the SQL data source table.
-pub type ColumnName = String;
-
-/// Integer-based ID for each record in the index.
+/// Record identifier.
 ///
-/// For this to work properly with SQL as the data source, the column
-/// containing the primary key must be a unique auto-incrementing integer.
-/// Auto-incrementing integer type is important to allow the index to be
-/// updated incrementally.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct RecordID(pub u32);
+/// OasysDB should be able to deal with a lot of writes and deletes. Using UUID
+/// version 4 to allow us to generate a lot of IDs with very low probability
+/// of collision.
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub struct RecordID(Uuid);
 
-/// Record data type stored in non-PQ indices.
-///
-/// This data type contains the vector embedding and additional metadata
-/// which depends on the source configuration. This data type is compatible
-/// with the standard SQL row type.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Record {
-    /// Vector embedding.
-    pub vector: Vector,
-    /// Additional metadata of the record.
-    pub data: HashMap<ColumnName, Option<DataValue>>,
-}
-
-/// Record data type stored in PQ-based indices.
-///
-/// This data type is very similar to the standard Record type
-/// except that the vector stored within is quantized using the
-/// Product Quantization (PQ) method.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RecordPQ {
-    /// Product quantized embedding.
-    pub vector: VectorPQ,
-    /// Additional metadata of the record.
-    pub data: HashMap<ColumnName, Option<DataValue>>,
-}
-
-/// Vector data type for non-PQ indices.
-///
-/// This data type uses the half-precision floating-point format
-/// to store the vector data to reduce the memory footprint by half
-/// compared to the standard f32 format.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(PartialEq, PartialOrd)]
-pub struct Vector(pub Box<[f16]>);
-
-impl Vector {
-    /// Returns the vector data as a vector of f32.
-    pub fn to_vec(&self) -> Vec<f32> {
-        // Don't use parallel iterator here since it actually
-        // slows it down significantly.
-        self.0.iter().map(|v| v.to_f32()).collect()
-    }
-
-    /// Returns the length of the vector.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Checks if the vector is empty.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+impl RecordID {
+    /// Generate a new random record ID using UUID v4.
+    pub fn new() -> Self {
+        RecordID(Uuid::new_v4())
     }
 }
 
-impl From<Vec<f32>> for Vector {
-    fn from(value: Vec<f32>) -> Self {
-        Vector(value.into_par_iter().map(f16::from_f32).collect())
+impl fmt::Display for RecordID {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
-/// Product quantized vector data type stored in the index.
+impl FromStr for RecordID {
+    type Err = Status;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(RecordID(Uuid::try_parse(s).map_err(|_| {
+            let message = "Record ID should be a string-encoded UUID";
+            Status::invalid_argument(message)
+        })?))
+    }
+}
+
+/// Metadata value.
 ///
-/// PQ is a method used to reduce the memory footprint of the vector
-/// data by dividing the vector into sub-vectors and quantizing them.
-/// When performing similarity search, the quantized vectors are used
-/// to reconstruct the original vector along with the codebook.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct VectorPQ(pub Box<[u8]>);
-
-impl VectorPQ {
-    /// Returns the vector data as a vector of u8.
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.0.to_vec()
-    }
-}
-
-impl From<Vec<u8>> for VectorPQ {
-    fn from(value: Vec<u8>) -> Self {
-        VectorPQ(value.into_boxed_slice())
-    }
-}
-
-/// Data types supported as metadata in the index.
-///
-/// These are the corresponding SQL data types of the metadata:
-/// - Boolean: BOOL
-/// - Float: REAL | DOUBLE (Both converted to F32)
-/// - Integer: SMALLINT | INT | BIGINT
-/// - String: TEXT
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum DataValue {
+/// OasysDB doesn't support nested objects in metadata for performance reasons.
+/// We only need to support primitive types for metadata.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub enum Value {
+    Text(String),
+    Number(f64),
     Boolean(bool),
-    Float(f32),
-    Integer(isize),
-    String(String),
 }
 
-// DataValue interoperability with primitive types.
-
-impl From<String> for DataValue {
+impl From<String> for Value {
     fn from(value: String) -> Self {
-        DataValue::from(value.as_str())
+        Value::from(value.as_str())
     }
 }
 
-impl From<&str> for DataValue {
+impl From<&str> for Value {
     fn from(value: &str) -> Self {
-        // Parsing integer must be done before float.
-        // Since integer can be parsed as float but not vice versa.
-        if let Ok(integer) = value.parse::<isize>() {
-            return integer.into();
-        }
-
-        if let Ok(float) = value.parse::<f32>() {
-            return float.into();
+        // Try to parse the value as a number.
+        // This is must be prioritized over boolean parsing.
+        if let Ok(float) = value.parse::<f64>() {
+            return Value::Number(float);
         }
 
         if let Ok(boolean) = value.parse::<bool>() {
-            return boolean.into();
+            return Value::Boolean(boolean);
         }
 
+        // Remove quotes from the start and end of the string.
+        // This ensures that we won't have to deal with quotes.
         let match_quotes = |c: char| c == '\"' || c == '\'';
         let value = value
             .trim_start_matches(match_quotes)
             .trim_end_matches(match_quotes)
             .to_string();
 
-        DataValue::String(value)
+        Value::Text(value)
     }
 }
 
-impl From<f32> for DataValue {
-    fn from(value: f32) -> Self {
-        DataValue::Float(value)
+impl From<Value> for protos::Value {
+    fn from(value: Value) -> Self {
+        type ProtoValue = protos::value::Value;
+        let value = match value {
+            Value::Text(text) => ProtoValue::Text(text),
+            Value::Number(number) => ProtoValue::Number(number),
+            Value::Boolean(boolean) => ProtoValue::Boolean(boolean),
+        };
+
+        protos::Value { value: Some(value) }
     }
 }
 
-impl From<isize> for DataValue {
-    fn from(value: isize) -> Self {
-        DataValue::Integer(value)
-    }
-}
-
-impl From<bool> for DataValue {
-    fn from(value: bool) -> Self {
-        DataValue::Boolean(value)
-    }
-}
-
-pub(crate) trait RowOps {
-    /// Retrieves data from the row based on the column name.
-    /// - `column_name`: Name of the column to retrieve data from.
-    /// - `row`: SQL row containing the data.
-    fn from_row(
-        column_name: impl Into<ColumnName>,
-        row: &AnyRow,
-    ) -> Result<Self, Error>
-    where
-        Self: Sized;
-}
-
-impl RowOps for RecordID {
-    fn from_row(
-        column_name: impl Into<ColumnName>,
-        row: &AnyRow,
-    ) -> Result<Self, Error> {
-        let column_name: String = column_name.into();
-        let id = row.try_get::<i32, &str>(&column_name).map_err(|_| {
-            let code = ErrorCode::InvalidID;
-            let message = "Unable to get integer ID from the row.";
-            Error::new(code, message)
-        })?;
-
-        Ok(RecordID(id as u32))
-    }
-}
-
-impl RowOps for Vector {
-    fn from_row(
-        column_name: impl Into<ColumnName>,
-        row: &AnyRow,
-    ) -> Result<Self, Error> {
-        let column: String = column_name.into();
-        let value = row.try_get_raw::<&str>(&column)?;
-        let value_type = value.type_info().kind();
-
-        if value_type == SQLType::Null {
-            let code = ErrorCode::InvalidVector;
-            let message = "Vector must not be empty or null.";
-            return Err(Error::new(code, message));
-        }
-
-        match value_type {
-            SQLType::Text => {
-                let value = row.try_get::<String, &str>(&column)?;
-                let vector: Vec<f32> = serde_json::from_str(&value)?;
-                Ok(Vector::from(vector))
-            }
-            SQLType::Blob => {
-                let value = row.try_get::<Vec<u8>, &str>(&column)?;
-                let vector: Vec<f32> = bincode::deserialize(&value)?;
-                Ok(Vector::from(vector))
-            }
-            _ => {
-                let code = ErrorCode::InvalidVector;
-                let message = "Vector must be stored as JSON string or blob.";
-                Err(Error::new(code, message))
-            }
+impl TryFrom<protos::Value> for Value {
+    type Error = Status;
+    fn try_from(value: protos::Value) -> Result<Self, Self::Error> {
+        type ProtoValue = protos::value::Value;
+        match value.value {
+            Some(ProtoValue::Text(text)) => Ok(Value::Text(text)),
+            Some(ProtoValue::Number(number)) => Ok(Value::Number(number)),
+            Some(ProtoValue::Boolean(boolean)) => Ok(Value::Boolean(boolean)),
+            None => Err(Status::invalid_argument("Metadata value is required")),
         }
     }
 }
 
-impl RowOps for Option<DataValue> {
-    fn from_row(
-        column_name: impl Into<ColumnName>,
-        row: &AnyRow,
-    ) -> Result<Self, Error> {
-        let column: String = column_name.into();
-        let value = row.try_get_raw::<&str>(&column)?;
-        let value_type = value.type_info().kind();
+/// OasysDB vector record.
+///
+/// This is the main data structure for OasysDB. It contains the vector data
+/// and metadata of the record. Metadata is a key-value store that can be used
+/// to store additional information about the vector.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Record {
+    pub vector: Vector,
+    pub metadata: HashMap<String, Value>,
+}
 
-        if value_type == SQLType::Null {
-            return Ok(None);
-        }
+impl From<Record> for protos::Record {
+    fn from(value: Record) -> Self {
+        let vector = value.vector.into();
+        let metadata = value
+            .metadata
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect();
 
-        if value_type.is_integer() {
-            let value: i64 = row.try_get::<i64, &str>(&column)?;
-            return Ok(Some(DataValue::Integer(value as isize)));
-        }
+        protos::Record { vector: Some(vector), metadata }
+    }
+}
 
-        // Handle types other than null and integer below.
-
-        let data = match value_type {
-            SQLType::Text => {
-                let value = row.try_get::<String, &str>(&column)?;
-                DataValue::String(value.to_string())
-            }
-            SQLType::Bool => {
-                let value: bool = row.try_get::<bool, &str>(&column)?;
-                DataValue::Boolean(value)
-            }
-            SQLType::Real => {
-                let value: f32 = row.try_get::<f32, &str>(&column)?;
-                DataValue::Float(value)
-            }
-            SQLType::Double => {
-                let value: f64 = row.try_get::<f64, &str>(&column)?;
-                DataValue::Float(value as f32)
-            }
-            _ => {
-                let code = ErrorCode::InvalidMetadata;
-                let message = "Unsupported type for OasysDB metadata.";
-                return Err(Error::new(code, message));
+impl TryFrom<protos::Record> for Record {
+    type Error = Status;
+    fn try_from(value: protos::Record) -> Result<Self, Self::Error> {
+        let vector = match value.vector {
+            Some(vector) => Vector::try_from(vector)?,
+            None => {
+                let message = "Vector data should not be empty";
+                return Err(Status::invalid_argument(message));
             }
         };
 
-        Ok(Some(data))
+        let metadata = value
+            .metadata
+            .into_iter()
+            .map(|(k, v)| Ok((k, v.try_into()?)))
+            .collect::<Result<HashMap<String, Value>, Self::Error>>()?;
+
+        Ok(Record { vector, metadata })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::random;
+
+    impl Value {
+        pub fn random() -> Self {
+            Value::Number(random::<f64>())
+        }
+    }
+
+    impl Record {
+        pub fn random(dimension: usize) -> Self {
+            let mut metadata = HashMap::new();
+            metadata.insert("key".to_string(), Value::random());
+            Record { vector: Vector::random(dimension), metadata }
+        }
     }
 }

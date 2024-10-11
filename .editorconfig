@@ -10,5 +10,5 @@ max_line_length = 80
 [*.{rs, py}]
 indent_size = 4
 
-[*.{yml, md, css}]
+[*.{yml, html, css, js, ts, md}]
 indent_size = 2

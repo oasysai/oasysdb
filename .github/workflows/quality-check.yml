@@ -1,0 +1,43 @@
+name: Quality Check
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "clients/**"
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "clients/**"
+
+jobs:
+  quality-check:
+    name: Run All Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Protobuf Compiler
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y protobuf-compiler libprotobuf-dev
+
+      - name: Run Formatter
+        run: cargo fmt -- --check
+
+      - name: Run Linter
+        run: cargo clippy -- -D warnings
+
+      - name: Run Tests
+        run: cargo test --all-features -- --test-threads 1

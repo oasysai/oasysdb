@@ -1,177 +1,204 @@
-use crate::types::distance::DistanceMetric;
-use crate::types::record::Vector;
+use super::*;
 use rand::seq::SliceRandom;
-use rayon::prelude::*;
+use rand::Rng;
+use std::cmp::min;
 use std::rc::Rc;
 
-/// Reference of an array of vectors to be clustered.
+type ClusterIndex = usize;
+
+/// A list of vectors.
 ///
-/// We use RC slice to avoid cloning the entire dataset when passing them
-/// around in the KMeans model. This way, we only clone the references
-/// to the dataset which is much faster and cheaper.
-pub type Vectors<'v> = Rc<[&'v Vector]>;
+/// We use a reference-counted slice to store the vectors. This allows us to
+/// share the vectors around without having to actually clone the vectors.
+type Vectors<'v> = Rc<[&'v Vector]>;
 
-#[derive(Debug, Clone, Copy, Default, Hash)]
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub struct ClusterID(pub u16);
-
-impl ClusterID {
-    pub fn to_usize(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl From<usize> for ClusterID {
-    fn from(value: usize) -> Self {
-        Self(value as u16)
-    }
-}
-
-/// KMeans clustering model.
+/// K-means clustering algorithm.
 ///
-/// KMeans is a simple unsupervised learning algorithm that groups similar
-/// data points into clusters. The algorithm works by iteratively assigning
-/// each data point to the nearest centroid and then recalculating the
-/// centroids of the clusters.
+/// The K-means algorithm is a clustering algorithm that partitions a dataset
+/// into K clusters by iteratively assigning data points to the nearest cluster
+/// centroids and recalculating these centroids until they are stable.
 #[derive(Debug)]
 pub struct KMeans {
-    num_centroids: usize,
-    num_iterations: usize,
-    metric: DistanceMetric,
-    assignment: Vec<ClusterID>, // Cluster assignment for each vector.
-    centroids: Vec<Vector>,     // Centroids of each cluster.
+    assignments: Vec<ClusterIndex>,
+    centroids: Vec<Vector>,
+
+    // Algorithm parameters.
+    metric: Metric,
+    n_clusters: usize,
+    max_iter: usize,
 }
 
 impl KMeans {
-    /// Creates a new KMeans model.
-    /// - `num_centroids`: Number of clusters to create.
-    /// - `num_iterations`: Number of iterations to run the algorithm.
-    /// - `metric`: Distance metric to use for comparing vectors.
-    pub fn new(
-        num_centroids: usize,
-        num_iterations: usize,
-        metric: DistanceMetric,
-    ) -> Self {
+    /// Initialize the K-means algorithm with default parameters.
+    ///
+    /// Default parameters:
+    /// - metric: Euclidean
+    /// - max_iter: 100
+    pub fn new(n_clusters: usize) -> Self {
         Self {
-            num_centroids,
-            num_iterations,
-            metric,
-            assignment: vec![],
-            centroids: vec![],
+            n_clusters,
+            metric: Metric::Euclidean,
+            max_iter: 100,
+            assignments: Vec::new(),
+            centroids: Vec::with_capacity(n_clusters),
         }
     }
 
-    /// Fits the KMeans model to the given vectors.
-    /// - `vectors`: Array of vectors to cluster.
-    pub fn fit(&mut self, vectors: Vectors) {
-        // Cloning the vectors is acceptable because with Rc, we are
-        // only cloning the references, not the actual data.
-        self.centroids = self.initialize_centroids(vectors.clone());
+    /// Configure the metric used for distance calculations.
+    pub fn with_metric(mut self, metric: Metric) -> Self {
+        self.metric = metric;
+        self
+    }
 
-        let mut repeat_count = 0;
-        for _ in 0..self.num_iterations {
-            // If the centroids don't change for n iterations, we assume
-            // that the algorithm has converged and stop the iterations.
-            if repeat_count > 3 {
+    /// Configure the maximum number of iterations to run the algorithm.
+    #[allow(dead_code)]
+    pub fn with_max_iter(mut self, max_iter: usize) -> Self {
+        self.max_iter = max_iter;
+        self
+    }
+
+    /// Train the K-means algorithm with the given vectors.
+    pub fn fit(&mut self, vectors: Vectors) -> Result<(), Box<dyn Error>> {
+        if self.n_clusters > vectors.len() {
+            let message = "Dataset is smaller than cluster configuration.";
+            return Err(message.into());
+        }
+
+        self.centroids = self.initialize_centroids(vectors.clone());
+        self.assignments = vec![0; vectors.len()];
+
+        let mut no_improvement_count = 0;
+        for _ in 0..self.max_iter {
+            if no_improvement_count > 3 {
                 break;
             }
 
-            self.assignment = self.assign_clusters(vectors.clone());
-            let centroids = self.update_centroids(vectors.clone());
+            let assignments = self.assign_clusters(vectors.clone());
 
-            match self.centroids == centroids {
-                true => repeat_count += 1,
-                false => {
-                    self.centroids = centroids;
-                    repeat_count = 0;
-                }
+            // Check at most 1000 assignments for convergence.
+            // This prevents checking the entire dataset for large datasets.
+            let end = min(1000, assignments.len());
+            match assignments[0..end] == self.assignments[0..end] {
+                true => no_improvement_count += 1,
+                false => no_improvement_count = 0,
             }
+
+            self.assignments = assignments;
+            self.centroids = self.update_centroids(vectors.clone());
         }
+
+        Ok(())
     }
 
     fn initialize_centroids(&self, vectors: Vectors) -> Vec<Vector> {
         let mut rng = rand::thread_rng();
-        vectors
-            .choose_multiple(&mut rng, self.num_centroids)
-            .cloned()
-            .map(|vector| vector.to_owned())
-            .collect()
-    }
+        let mut centroids = Vec::with_capacity(self.n_clusters);
 
-    fn assign_clusters(&self, vectors: Vectors) -> Vec<ClusterID> {
-        vectors
-            .into_par_iter()
-            .map(|vector| self.find_nearest_centroid(vector))
-            .collect()
+        // Pick the first centroid randomly.
+        let first_centroid = vectors.choose(&mut rng).cloned().unwrap();
+        centroids.push(first_centroid.to_owned());
+
+        for _ in 1..self.n_clusters {
+            let nearest_centroid_distance = |vector: &&Vector| {
+                centroids
+                    .iter()
+                    .map(|centroid| self.metric.distance(vector, centroid))
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap()
+                    .unwrap()
+            };
+
+            let distances = vectors
+                .par_iter()
+                .map(nearest_centroid_distance)
+                .collect::<Vec<f64>>();
+
+            // Choose the next centroid with probability proportional
+            // to the squared distance.
+            let threshold = rng.gen::<f64>() * distances.iter().sum::<f64>();
+            let mut cumulative_sum = 0.0;
+
+            for (i, distance) in distances.iter().enumerate() {
+                cumulative_sum += distance;
+                if cumulative_sum >= threshold {
+                    centroids.push(vectors[i].clone());
+                    break;
+                }
+            }
+        }
+
+        centroids
     }
 
     fn update_centroids(&self, vectors: Vectors) -> Vec<Vector> {
-        let k = self.num_centroids;
-        let mut counts = vec![0; k];
+        let dimension = vectors[0].len();
+        let mut centroids = vec![vec![0.0; dimension]; self.n_clusters];
+        let mut cluster_count = vec![0; self.n_clusters];
 
-        let mut centroids = {
-            let dimension = vectors[0].len();
-            let zeros = vec![0.0; dimension];
-            vec![zeros; k]
-        };
-
-        for (i, vector) in vectors.iter().enumerate() {
-            let cluster_id = self.assignment[i].0 as usize;
-            counts[cluster_id] += 1;
-
-            centroids[cluster_id]
-                .par_iter_mut()
-                .zip(vector.to_vec().par_iter())
-                .for_each(|(sum, v)| {
-                    *sum += v;
-                });
+        // Sum up vectors assigned to the cluster into the centroid.
+        for (i, cluster_id) in self.assignments.iter().enumerate() {
+            let cluster_id = *cluster_id;
+            cluster_count[cluster_id] += 1;
+            centroids[cluster_id] = centroids[cluster_id]
+                .iter()
+                .zip(vectors[i].as_slice().iter())
+                .map(|(a, b)| a + b)
+                .collect();
         }
 
-        for i in 0..k {
-            if counts[i] == 0 {
+        // Divide the sum by the number of vectors in the cluster.
+        for i in 0..self.n_clusters {
+            // If the cluster is empty, reinitialize the centroid.
+            if cluster_count[i] == 0 {
                 let mut rng = rand::thread_rng();
                 centroids[i] = vectors.choose(&mut rng).unwrap().to_vec();
                 continue;
             }
 
-            centroids[i].par_iter_mut().for_each(|sum| {
-                *sum /= counts[i] as f32;
-            });
+            centroids[i] = centroids[i]
+                .iter()
+                .map(|x| x / cluster_count[i] as f32)
+                .collect();
         }
 
-        centroids.into_iter().map(|v| v.into()).collect()
+        centroids.into_par_iter().map(|centroid| centroid.into()).collect()
     }
 
-    /// Finds the nearest centroid to a given vector.
-    /// - `vector`: Vector to compare with the centroids.
-    pub fn find_nearest_centroid(&self, vector: &Vector) -> ClusterID {
+    /// Create cluster assignments for the vectors.
+    fn assign_clusters(&self, vectors: Vectors) -> Vec<ClusterIndex> {
+        vectors
+            .par_iter()
+            .map(|vector| self.find_nearest_centroid(vector))
+            .collect()
+    }
+
+    /// Find the index of the nearest centroid from a vector.
+    pub fn find_nearest_centroid(&self, vector: &Vector) -> ClusterIndex {
         self.centroids
             .par_iter()
             .enumerate()
             .map(|(i, centroid)| (i, self.metric.distance(vector, centroid)))
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(i, _)| ClusterID(i as u16))
-            .unwrap_or_default()
+            .map(|(id, _)| id)
+            .unwrap()
     }
 
-    /// Returns the cluster assignment for each vector.
+    /// Returns index-mapped cluster assignment for each data point.
     ///
-    /// The assignment is a vector of cluster ID where each element
-    /// corresponds to the cluster ID of the vector at the same index.
-    /// For example, if we fit the vector below:
+    /// The index corresponds to the data point index and the value corresponds
+    /// to the cluster index. For example, given the following assignments:
     ///
     /// ```text
-    /// [v1, v2, v3, ..., vn]
-    /// Assignments: [0, 0, 1, ..., m]
+    /// [0, 1, 0, 1, 2]
     /// ```
     ///
-    /// This can be interpreted as:
-    /// - v1 and v2 are assigned to cluster 0.
-    /// - v3 is assigned to cluster 1.
-    /// - vn is assigned to cluster m.
-    #[allow(dead_code)]
-    pub fn assignments(&self) -> &[ClusterID] {
-        &self.assignment
+    /// This means:
+    /// - Point 0 and 2 are assigned to cluster 0.
+    /// - Point 1 and 3 are assigned to cluster 1.
+    /// - Point 4 is assigned to cluster 2.
+    ///
+    pub fn assignments(&self) -> &[ClusterIndex] {
+        &self.assignments
     }
 
     /// Returns the centroids of each cluster.
@@ -185,20 +212,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_kmeans_fit() {
-        let mut vectors = vec![];
-        for i in 0..100 {
-            let vector = Vector::from(vec![i as f32; 2]);
-            vectors.push(vector);
-        }
+    fn test_kmeans_fit_1_to_1() {
+        evaluate_kmeans(1, generate_vectors(1));
+    }
 
+    #[test]
+    fn test_kmeans_fit_10_to_5() {
+        evaluate_kmeans(5, generate_vectors(10));
+    }
+
+    #[test]
+    fn test_kmeans_fit_100_to_10() {
+        evaluate_kmeans(10, generate_vectors(100));
+    }
+
+    fn evaluate_kmeans(n_cluster: usize, vectors: Vec<Vector>) {
         let vectors: Vectors = {
             let vectors_ref: Vec<&Vector> = vectors.iter().collect();
             Rc::from(vectors_ref.as_slice())
         };
 
-        let mut kmeans = KMeans::new(5, 20, DistanceMetric::Euclidean);
-        kmeans.fit(vectors.clone());
+        let mut kmeans = KMeans::new(n_cluster);
+        kmeans.fit(vectors.clone()).unwrap();
+        assert_eq!(kmeans.centroids().len(), n_cluster);
 
         let mut correct_count = 0;
         for (i, clusted_id) in kmeans.assignments().iter().enumerate() {
@@ -210,6 +246,10 @@ mod tests {
         }
 
         let accuracy = correct_count as f32 / vectors.len() as f32;
-        assert!(accuracy > 0.95);
+        assert!(accuracy > 0.99);
+    }
+
+    fn generate_vectors(n: usize) -> Vec<Vector> {
+        (0..n).map(|i| Vector::from(vec![i as f32; 3])).collect()
     }
 }

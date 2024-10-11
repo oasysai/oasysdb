@@ -59,8 +59,6 @@ extra_css:
 nav:
   - Documentation:
       - Introduction: index.md
-      - Database: refs/database.md
-      - Vector Index: refs/vector-index.md
 
   - Other:
       - Changelog: changelog.md

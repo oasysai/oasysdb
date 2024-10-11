@@ -1,39 +1,36 @@
-#![allow(missing_docs)]
-
-use crate::types::record::*;
-use rayon::prelude::*;
-use std::collections::HashMap;
+use super::*;
 
 /// Joined multiple filters operation with either AND or OR.
 ///
-/// The chosen join will be applied to the filters monotonically.
-/// So, it's not possible to mix AND and OR filters in the same operation.
-#[derive(Debug, PartialEq)]
+/// At the moment, OasysDB only supports single-type join operations. This
+/// means that we can't use both AND and OR operations in the same filter.
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Filters {
-    NONE,
-    AND(Vec<Filter>),
-    OR(Vec<Filter>),
+    None,
+    And(Vec<Filter>),
+    Or(Vec<Filter>),
 }
 
 impl Filters {
     /// Returns true if the record passes the filters.
-    /// - `data`: Record metadata to check against the filters.
+    /// - metadata: Record metadata to check against the filters.
     ///
     /// Filters of NONE type will always return true. This is useful when
     /// no filters are provided and we want to include all records.
-    pub fn apply(&self, data: &HashMap<ColumnName, Option<DataValue>>) -> bool {
+    pub fn apply(&self, metadata: &HashMap<String, Value>) -> bool {
         match self {
-            Filters::NONE => true,
-            Filters::AND(filters) => filters.par_iter().all(|f| f.apply(data)),
-            Filters::OR(filters) => filters.par_iter().any(|f| f.apply(data)),
+            Filters::None => true,
+            Filters::And(filters) => filters.iter().all(|f| f.apply(metadata)),
+            Filters::Or(filters) => filters.iter().any(|f| f.apply(metadata)),
         }
     }
 }
 
-impl From<&str> for Filters {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for Filters {
+    type Error = Status;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value.is_empty() {
-            return Filters::NONE;
+            return Ok(Filters::None);
         }
 
         const OR: &str = " OR ";
@@ -44,15 +41,22 @@ impl From<&str> for Filters {
         let and_count = value.matches(AND).count();
 
         if or_count > 0 && and_count > 0 {
-            panic!("Mixing AND and OR join operators is not supported.");
+            let message = "Mixing AND and OR join operators is not supported";
+            return Err(Status::invalid_argument(message));
         }
 
         let join = if or_count > 0 { OR } else { AND };
-        let filters = value.split(join).map(Into::into).collect();
-        match join {
-            OR => Filters::OR(filters),
-            _ => Filters::AND(filters),
-        }
+        let filters = value
+            .split(join)
+            .map(TryInto::try_into)
+            .collect::<Result<_, _>>()?;
+
+        let filters = match join {
+            OR => Filters::Or(filters),
+            _ => Filters::And(filters),
+        };
+
+        Ok(filters)
     }
 }
 
@@ -60,67 +64,65 @@ impl From<&str> for Filters {
 ///
 /// Using the filter operator, the record metadata can be compared against
 /// a specific value to determine if it should be included in the results.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Filter {
-    pub column: ColumnName,
-    pub value: DataValue,
-    pub operator: FilterOperator,
+    key: String,
+    value: Value,
+    operator: Operator,
 }
 
 impl Filter {
-    /// Returns true if the data passes the filter.
-    /// - `data`: Data to apply the filter on.
-    pub fn apply(&self, data: &HashMap<ColumnName, Option<DataValue>>) -> bool {
-        let value = match data.get(&self.column).unwrap_or(&None) {
+    fn apply(&self, metadata: &HashMap<String, Value>) -> bool {
+        let value = match metadata.get(&self.key) {
             Some(value) => value,
             None => return false,
         };
 
-        // This alias helps us simplify the match statement.
-        type T = DataValue;
         match (value, &self.value) {
-            (T::Boolean(a), T::Boolean(b)) => self.match_boolean(a, b),
-            (T::Float(a), T::Float(b)) => self.match_number(a, b),
-            (T::Integer(a), T::Integer(b)) => self.match_number(a, b),
-            (T::String(a), T::String(b)) => self.match_string(a, b),
+            (Value::Text(a), Value::Text(b)) => self.filter_text(a, b),
+            (Value::Number(a), Value::Number(b)) => self.filter_number(a, b),
+            (Value::Boolean(a), Value::Boolean(b)) => self.filter_boolean(a, b),
             _ => false,
         }
     }
 
-    fn match_boolean(&self, a: &bool, b: &bool) -> bool {
+    fn filter_text(&self, a: impl AsRef<str>, b: impl AsRef<str>) -> bool {
+        let (a, b) = (a.as_ref(), b.as_ref());
         match self.operator {
-            FilterOperator::Equal => a == b,
-            FilterOperator::NotEqual => a != b,
+            Operator::Equal => a == b,
+            Operator::NotEqual => a != b,
+            Operator::Contains => a.contains(b),
             _ => false,
         }
     }
 
-    fn match_number<T: PartialEq + PartialOrd>(&self, a: T, b: T) -> bool {
+    fn filter_number(&self, a: &f64, b: &f64) -> bool {
         match self.operator {
-            FilterOperator::Equal => a == b,
-            FilterOperator::NotEqual => a != b,
-            FilterOperator::GreaterThan => a > b,
-            FilterOperator::GreaterThanOrEqual => a >= b,
-            FilterOperator::LessThan => a < b,
-            FilterOperator::LessThanOrEqual => a <= b,
+            Operator::Equal => a == b,
+            Operator::NotEqual => a != b,
+            Operator::GreaterThan => a > b,
+            Operator::GreaterThanOrEqual => a >= b,
+            Operator::LessThan => a < b,
+            Operator::LessThanOrEqual => a <= b,
             _ => false,
         }
     }
 
-    fn match_string(&self, a: &str, b: &str) -> bool {
+    fn filter_boolean(&self, a: &bool, b: &bool) -> bool {
         match self.operator {
-            FilterOperator::Contain => a.contains(b),
-            FilterOperator::Equal => a == b,
-            FilterOperator::NotEqual => a != b,
+            Operator::Equal => a == b,
+            Operator::NotEqual => a != b,
             _ => false,
         }
     }
 }
 
-impl From<&str> for Filter {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for Filter {
+    type Error = Status;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value.is_empty() {
-            panic!("Filter string cannot be empty.");
+            let message = "Filter string cannot be empty";
+            return Err(Status::invalid_argument(message));
         }
 
         // Split the filter string into EXACTLY 3 parts.
@@ -129,115 +131,119 @@ impl From<&str> for Filter {
             .map(|token| token.trim())
             .collect::<Vec<&str>>();
 
-        let column = parts[0].to_string();
-        let operator = FilterOperator::from(parts[1]);
-        let value = DataValue::from(parts[2]);
+        let key = parts[0].to_string();
+        let operator = Operator::try_from(parts[1])?;
+        let value = Value::from(parts[2]);
 
-        Filter { column, value, operator }
+        let filter = Filter { key, value, operator };
+        Ok(filter)
     }
 }
 
-/// Filter operator.
-///
-/// Some of the operators are only applicable to specific data types.
-/// - Contain is only applicable to string data type.
-/// - Equal and NotEqual is applicable to all data types.
-/// - The rest are applicable to integer and float data types.
-#[derive(Debug, PartialEq, Eq)]
-pub enum FilterOperator {
-    Contain,
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
+pub enum Operator {
     Equal,
     NotEqual,
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
+    Contains,
 }
 
-impl From<&str> for FilterOperator {
-    fn from(value: &str) -> Self {
-        match value {
-            "CONTAINS" => FilterOperator::Contain,
-            "=" => FilterOperator::Equal,
-            "!=" => FilterOperator::NotEqual,
-            ">" => FilterOperator::GreaterThan,
-            ">=" => FilterOperator::GreaterThanOrEqual,
-            "<" => FilterOperator::LessThan,
-            "<=" => FilterOperator::LessThanOrEqual,
-            _ => panic!("Invalid filter operator: {}", value),
-        }
+impl TryFrom<&str> for Operator {
+    type Error = Status;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let operator = match value {
+            "CONTAINS" => Operator::Contains,
+            "=" => Operator::Equal,
+            "!=" => Operator::NotEqual,
+            ">" => Operator::GreaterThan,
+            ">=" => Operator::GreaterThanOrEqual,
+            "<" => Operator::LessThan,
+            "<=" => Operator::LessThanOrEqual,
+            _ => {
+                let message = format!("Invalid filter operator: {value}");
+                return Err(Status::invalid_argument(message));
+            }
+        };
+
+        Ok(operator)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn create_test_data() -> HashMap<ColumnName, Option<DataValue>> {
-        let columns = vec!["name", "age", "gpa", "active"];
-        let values: Vec<DataValue> = vec![
-            "Alice".into(),
-            DataValue::Integer(20),
-            DataValue::Float(3.5),
-            DataValue::Boolean(true),
-        ];
-
-        let mut data = HashMap::new();
-        for (column, value) in columns.into_iter().zip(values.into_iter()) {
-            data.insert(column.into(), Some(value));
-        }
-
-        data
-    }
+    use std::error::Error;
 
     #[test]
     fn test_filters_from_string() {
-        let filters = Filters::from("name CONTAINS Ada");
-        let expected = Filters::AND(vec![Filter {
-            column: "name".into(),
+        let filters = Filters::try_from("name CONTAINS Ada").unwrap();
+        let expected = Filters::And(vec![Filter {
+            key: "name".into(),
             value: "Ada".into(),
-            operator: FilterOperator::Contain,
+            operator: Operator::Contains,
         }]);
 
         assert_eq!(filters, expected);
 
-        let filters = Filters::from("gpa >= 3.0 OR age < 21");
+        let filters = Filters::try_from("gpa >= 3.0 OR age < 21").unwrap();
         let expected = {
             let filter_gpa = Filter {
-                column: "gpa".into(),
-                value: DataValue::Float(3.0),
-                operator: FilterOperator::GreaterThanOrEqual,
+                key: "gpa".into(),
+                value: Value::Number(3.0),
+                operator: Operator::GreaterThanOrEqual,
             };
 
             let filter_age = Filter {
-                column: "age".into(),
-                value: DataValue::Integer(21),
-                operator: FilterOperator::LessThan,
+                key: "age".into(),
+                value: Value::Number(21.0),
+                operator: Operator::LessThan,
             };
 
-            Filters::OR(vec![filter_gpa, filter_age])
+            Filters::Or(vec![filter_gpa, filter_age])
         };
 
         assert_eq!(filters, expected);
     }
 
     #[test]
-    fn test_filters_apply() {
-        let data = create_test_data();
+    fn test_filters_apply() -> Result<(), Box<dyn Error>> {
+        let data = setup_metadata();
 
-        let filters = Filters::from("name CONTAINS Alice");
+        let filters = Filters::try_from("name CONTAINS Alice")?;
         assert!(filters.apply(&data));
 
-        let filters = Filters::from("name = Bob");
+        let filters = Filters::try_from("name = Bob")?;
         assert!(!filters.apply(&data));
 
-        let filters = Filters::from("age >= 20 AND gpa < 4.0");
+        let filters = Filters::try_from("age >= 20 AND gpa < 4.0")?;
         assert!(filters.apply(&data));
 
-        let filters = Filters::from("age >= 20 AND gpa < 3.0");
+        let filters = Filters::try_from("age >= 20 AND gpa < 3.0")?;
         assert!(!filters.apply(&data));
 
-        let filters = Filters::from("active = true");
+        let filters = Filters::try_from("active = true")?;
         assert!(filters.apply(&data));
+
+        Ok(())
+    }
+
+    fn setup_metadata() -> HashMap<String, Value> {
+        let keys = vec!["name", "age", "gpa", "active"];
+        let values: Vec<Value> = vec![
+            "Alice".into(),
+            Value::Number(20.0),
+            Value::Number(3.5),
+            Value::Boolean(true),
+        ];
+
+        let mut data = HashMap::new();
+        for (key, value) in keys.into_iter().zip(values.into_iter()) {
+            data.insert(key.into(), value);
+        }
+
+        data
     }
 }

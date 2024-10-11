@@ -1,0 +1,88 @@
+syntax = "proto3";
+package database;
+
+import "google/protobuf/empty.proto";
+
+service Database {
+    rpc Heartbeat(google.protobuf.Empty) returns (HeartbeatResponse);
+    rpc Snapshot(google.protobuf.Empty) returns (SnapshotResponse);
+    rpc Insert(InsertRequest) returns (InsertResponse);
+    rpc Get(GetRequest) returns (GetResponse);
+    rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
+    rpc Update(UpdateRequest) returns (google.protobuf.Empty);
+    rpc Query(QueryRequest) returns (QueryResponse);
+}
+
+message HeartbeatResponse {
+    string version = 1;
+}
+
+message SnapshotResponse {
+    int32 count = 1;
+}
+
+message InsertRequest {
+    Record record = 1;
+}
+
+message InsertResponse {
+    string id = 1;
+}
+
+message GetRequest {
+    string id = 1;
+}
+
+message GetResponse {
+    Record record = 1;
+}
+
+message DeleteRequest {
+    string id = 1;
+}
+
+message UpdateRequest {
+    string id = 1;
+    map<string, Value> metadata = 2;
+}
+
+message QueryRequest {
+    Vector vector = 1;
+    int32 k = 2;
+    string filter = 3;
+    QueryParameters params = 4;
+}
+
+message QueryParameters {
+    int32 probes = 1;
+    float radius = 2;
+}
+
+message QueryResponse {
+    repeated QueryResult results = 1;
+}
+
+message QueryResult {
+    string id = 1;
+    map<string, Value> metadata = 2;
+    float distance = 3;
+}
+
+// List shared types below.
+
+message Record {
+    Vector vector = 1;
+    map<string, Value> metadata = 2;
+}
+
+message Vector {
+    repeated float data = 1;
+}
+
+message Value {
+    oneof value {
+        string text = 1;
+        double number = 2;
+        bool boolean = 4;
+    }
+}
