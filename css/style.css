@@ -1,0 +1,25 @@
+h1,
+h2,
+h3 {
+  font-weight: bold !important;
+}
+
+.odb-button {
+  text-align: center;
+  width: 100%;
+}
+
+.odb-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Tables will be displayed at full width. */
+
+.md-typeset__table {
+  width: 100%;
+}
+
+.md-typeset__table table:not([class]) {
+  display: table;
+}
