@@ -3,13 +3,27 @@ package database;
 
 import "google/protobuf/empty.proto";
 
+// OasysDB gRPC service definition.
 service Database {
+    // Check if the connection to the database is alive.
     rpc Heartbeat(google.protobuf.Empty) returns (HeartbeatResponse);
+
+    // Manually create a snapshot of the database.
     rpc Snapshot(google.protobuf.Empty) returns (SnapshotResponse);
+
+    // Insert a new record into the database.
     rpc Insert(InsertRequest) returns (InsertResponse);
+
+    // Retrieve an existing record from the database.
     rpc Get(GetRequest) returns (GetResponse);
+
+    // Delete a record from the database.
     rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
+
+    // Update a record metadata in the database.
     rpc Update(UpdateRequest) returns (google.protobuf.Empty);
+
+    // Query the database for nearest neighbors.
     rpc Query(QueryRequest) returns (QueryResponse);
 }
 

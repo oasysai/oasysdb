@@ -51,7 +51,21 @@ OasysDB is written in Rust. So, you need to have Rust installed on your local
 machine. If you haven't installed Rust yet, you can install it by following the
 instructions on the [Rust Installation Guide][rustup].
 
-TODO: Complete the getting started guide.
+After you have installed Rust, you can clone the repository into your local
+machine. Before you start making changes in the codebase, you should run the
+tests to make sure that everything is working as expected:
+
+```sh
+cargo test
+```
+
+OasysDB uses a couple of third-party dependencies that might be useful for you
+to get familiar with. These are the most important ones along with their
+documentation:
+
+- [gRPC](https://grpc.io/)
+- [Tonic](https://github.com/hyperium/tonic)
+- [Tokio](https://tokio.rs/)
 
 ## Style guide
 
